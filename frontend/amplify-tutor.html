@@ -365,13 +365,14 @@
       } catch (e) {}
       return trimmed.split(/[\r\n,]+/).map(item => item.trim()).filter(Boolean);
     }
+    const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
     window.AMPLIFY_ENV = window.AMPLIFY_ENV || {
-      OPENROUTER_KEYS: parseEnvList(import.meta.env.VITE_OPENROUTER_KEYS || import.meta.env.VITE_OPENROUTER_KEY),
-      OPENROUTER_BASE: import.meta.env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1',
-      GROQ_KEYS: parseEnvList(import.meta.env.VITE_GROQ_KEYS || import.meta.env.VITE_GROQ_KEY),
-      GROQ_BASE: import.meta.env.VITE_GROQ_BASE || 'https://api.groq.com/openai/v1',
-      GROQ_KEY: import.meta.env.VITE_GROQ_API_KEY || '',
-      CEREBRAS_KEY: import.meta.env.VITE_CEREBRAS_API_KEY || ''
+      OPENROUTER_KEYS: parseEnvList(_env.VITE_OPENROUTER_KEYS || _env.VITE_OPENROUTER_KEY),
+      OPENROUTER_BASE: _env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1',
+      GROQ_KEYS: parseEnvList(_env.VITE_GROQ_KEYS || _env.VITE_GROQ_KEY),
+      GROQ_BASE: _env.VITE_GROQ_BASE || 'https://api.groq.com/openai/v1',
+      GROQ_KEY: _env.VITE_GROQ_API_KEY || window.GROQ_API_KEY || '',
+      CEREBRAS_KEY: _env.VITE_CEREBRAS_API_KEY || ''
     };
   </script>
   <!-- App script -->
