@@ -31,10 +31,6 @@ RUN mkdir -p storage/framework/cache storage/framework/sessions \
 # Copy nginx config
 COPY nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
 
-# Run nginx in foreground mode
-RUN echo "daemon off;" >> /etc/nginx/nginx.conf
-
 EXPOSE 8888
 
-# Run migrations, cache configs, and start both services in foreground
-CMD ["sh", "-c", "php artisan migrate --force && php artisan config:cache && php artisan route:cache && nginx && php-fpm"]
+CMD ["sh", "-c", "php artisan migrate --force && php artisan config:cache && php artisan route:cache && php-fpm & nginx -g 'daemon off;'"]
