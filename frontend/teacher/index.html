@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Amplify for Instructors</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="container">
+      <div class="nav-inner">
+        <a href="#" class="logo">Amplify <span>Educators</span></a>
+        <div class="nav-links">
+          <button class="nav-btn" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">Features</button>
+          <button class="nav-btn" onclick="document.getElementById('notify').scrollIntoView({behavior:'smooth'})">Notify Students</button>
+          <a href="classroom.html" class="nav-btn">Classroom</a>
+          <button class="nav-btn primary">Get Early Access</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+
+        <div class="hero-copy">
+          <div class="hero-tag">Built for Educators · Amplify</div>
+          <h1>Teach Smarter.<br><em>Impact More.</em></h1>
+          <p>Your intelligent teaching companion — manage classes, communicate with students, and unlock insights that make every lesson count.</p>
+          <div class="hero-stats">
+            <div class="stat-item">
+              <span class="stat-num">3x</span>
+              <span class="stat-label">faster feedback</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-num">500+</span>
+              <span class="stat-label">instructors</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-num">BD First</span>
+              <span class="stat-label">Bangla-native</span>
+            </div>
+          </div>
+          <div class="hero-btns">
+            <button class="btn-primary" onclick="document.getElementById('notify').scrollIntoView({behavior:'smooth'})">Try Voice Notify</button>
+            <button class="btn-outline">See all features</button>
+          </div>
+        </div>
+
+        <!-- Hero Preview Card -->
+        <div class="hero-card">
+          <div class="hcard-header">
+            <span class="hcard-title">Class Overview</span>
+            <span class="hcard-badge">Live</span>
+          </div>
+
+          <div class="hcard-item">
+            <div class="hcard-text">
+              <div class="hcard-name">AI Copilot</div>
+              <div class="hcard-sub">Lesson plan ready for Physics Ch.4</div>
+            </div>
+            <span class="hcard-val">Ready</span>
+          </div>
+
+          <div class="hcard-item">
+            <div class="hcard-text">
+              <div class="hcard-name">Notification sent</div>
+              <div class="hcard-sub">34 students notified · 2 min ago</div>
+            </div>
+            <span class="hcard-val">Done</span>
+          </div>
+
+          <div class="hcard-item">
+            <div class="hcard-text">
+              <div class="hcard-name">Performance Report</div>
+              <div class="hcard-sub">Mock test results available</div>
+            </div>
+            <span class="hcard-val">View</span>
+          </div>
+
+          <div class="hcard-progress">
+            <span class="hcard-progress-label">Today's engagement</span>
+            <div class="hcard-progress-bar">
+              <div class="hcard-progress-fill"></div>
+            </div>
+            <div class="hcard-progress-meta">
+              <span>78% engagement</span>
+              <span>34/44 students</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features" class="features-section">
+    <div class="container">
+      <div class="section-label">Core Features</div>
+      <h2 class="section-h">Everything an instructor needs,<br>in one place</h2>
+      <p class="section-sub">From AI-generated lesson plans to real-time student notifications — Amplify Educators handles the admin so you can focus on teaching.</p>
+      <div class="features-grid">
+
+        <div class="feat-card">
+          <h3>Teacher's Copilot</h3>
+          <p>AI-powered assistant that drafts lesson plans, generates quiz questions, and suggests teaching strategies based on your syllabus and student performance data.</p>
+          <span class="feat-tag">AI Powered</span>
+        </div>
+
+        <div class="feat-card">
+          <h3>Notify Students</h3>
+          <p>Send announcements, schedule changes, or homework reminders instantly. Speak in Bangla — the app transcribes your voice and lets you send as-is or edit before sending.</p>
+          <span class="feat-tag">Voice + AI</span>
+        </div>
+
+        <div class="feat-card">
+          <h3>Class Analytics</h3>
+          <p>Track student engagement, identify who's falling behind, and visualize performance trends across your classes with clear, actionable insights.</p>
+          <span class="feat-tag">Data Insights</span>
+        </div>
+
+        <div class="feat-card">
+          <h3>Session Scheduler</h3>
+          <p>Plan class sessions, set office hours, and coordinate exam schedules. Students see your calendar in real-time and can book one-on-one sessions.</p>
+          <span class="feat-tag">Scheduling</span>
+        </div>
+
+        <div class="feat-card">
+          <h3>Assignment Hub</h3>
+          <p>Create, distribute, and review assignments from one dashboard. Get AI-assisted grading suggestions and share structured feedback at scale.</p>
+          <span class="feat-tag">Workflow</span>
+        </div>
+
+        <div class="feat-card">
+          <h3>Private &amp; Secure</h3>
+          <p>Student data stays protected. Role-based access ensures only verified instructors can communicate with students. Built on privacy-first architecture.</p>
+          <span class="feat-tag">Security</span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- NOTIFY STUDENTS -->
+  <section class="notify-section" id="notify">
+    <div class="container">
+      <div class="notify-grid">
+
+        <div class="notify-info">
+          <div class="section-label">Live Feature</div>
+          <h2 class="section-h">Notify students<br>with your voice</h2>
+          <p class="section-sub">Speak naturally in Bangla. Amplify transcribes your speech — you can edit the message and send it instantly to all students.</p>
+          <div class="notify-steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-text">
+                <h4>Press &amp; speak in Bangla</h4>
+                <p>Press the mic button and say your message in Bangla.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-text">
+                <h4>Review raw transcript</h4>
+                <p>Your spoken words appear as text — you can edit before sending.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-text">
+                <h4>Send to students</h4>
+                <p>Review, polish, and deliver the message to all students with one tap.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Voice Widget -->
+        <div class="voice-widget">
+          <div class="vw-header">
+            <span class="vw-title">Voice Notification</span>
+            <div class="vw-status">
+              <div class="vw-dot" id="vwDot"></div>
+              <span id="vwStatusText">Ready</span>
+            </div>
+          </div>
+
+          <div class="vw-no-support" id="vwNoSupport">
+            Your browser does not support speech recognition. Please use Chrome or Edge.
+          </div>
+
+          <div class="vw-mic-area">
+            <button class="vw-mic-btn" id="vwMicBtn" onclick="toggleRecording()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+            <span class="vw-hint" id="vwHint">Press to start speaking in Bangla</span>
+          </div>
+
+          <div class="vw-label">Bangla transcript</div>
+          <div class="vw-transcript-box" id="vwTranscript">Your spoken words will appear here...</div>
+
+          <div class="vw-direct-send" id="vwDirectSendWrap">
+            <div class="vw-label">Your message (edit if needed)</div>
+            <div class="vw-send-row">
+              <input class="vw-send-input" id="vwEditInput" placeholder="Edit message before sending..." />
+              <button class="vw-send-btn" onclick="sendNotification()">Send to students</button>
+            </div>
+          </div>
+
+          <div class="vw-error" id="vwError"></div>
+          <div class="vw-messages" id="vwMsgList"></div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="container">
+      <div class="cta-card">
+        <h2>Ready to transform<br>your classroom?</h2>
+        <p>Join hundreds of instructors in Bangladesh already using Amplify to teach smarter, communicate faster, and inspire more.</p>
+        <div class="cta-btns">
+          <button class="btn-primary light">Get Early Access</button>
+          <button class="btn-outline light">Request a Demo</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container footer-inner">
+      <span>&copy; 2026 Amplify. Built with care for educators in Bangladesh.</span>
+      <span class="footer-right">Amplify Educators &middot; Beta</span>
+    </div>
+  </footer>
+
+  <script>
+    let recognition = null;
+    let isRecording = false;
+    let finalTranscript = '';
+
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        document.getElementById('vwNoSupport').style.display = 'block';
+        document.getElementById('vwMicBtn').style.display = 'none';
+        document.getElementById('vwHint').style.display = 'none';
+        return false;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'bn-BD';
+
+      recognition.onresult = (e) => {
+        let interim = '';
+        let final = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) final += e.results[i][0].transcript;
+          else interim += e.results[i][0].transcript;
+        }
+        if (final) finalTranscript += final;
+        const display = finalTranscript + interim;
+        const box = document.getElementById('vwTranscript');
+        box.textContent = display || 'Listening...';
+        box.classList.toggle('has-text', !!display);
+      };
+
+      recognition.onerror = (e) => {
+        if (e.error === 'no-speech') return;
+        showError('Microphone error: ' + e.error);
+        stopRecording();
+      };
+
+      recognition.onend = () => {
+        if (isRecording) {
+          try { recognition.start(); } catch (err) {}
+        }
+      };
+
+      return true;
+    }
+
+    function setStatus(text, active) {
+      document.getElementById('vwStatusText').textContent = text;
+      document.getElementById('vwDot').className = 'vw-dot' + (active ? ' active' : '');
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('vwError');
+      el.textContent = msg;
+      el.className = 'vw-error visible';
+      setTimeout(() => el.className = 'vw-error', 4000);
+    }
+
+    function toggleRecording() {
+      if (isRecording) stopRecording();
+      else startRecording();
+    }
+
+    function startRecording() {
+      if (!recognition && !initSpeechRecognition()) return;
+
+      finalTranscript = '';
+      const transcriptBox = document.getElementById('vwTranscript');
+      transcriptBox.textContent = 'Listening...';
+      transcriptBox.classList.remove('has-text');
+      document.getElementById('vwDirectSendWrap').classList.remove('visible');
+      document.getElementById('vwError').className = 'vw-error';
+
+      const btn = document.getElementById('vwMicBtn');
+      btn.classList.add('recording');
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`;
+      document.getElementById('vwHint').textContent = 'Listening... press again to stop';
+      setStatus('Recording', true);
+      isRecording = true;
+      try { recognition.start(); } catch (e) {}
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      try { recognition.stop(); } catch (e) {}
+
+      const btn = document.getElementById('vwMicBtn');
+      btn.classList.remove('recording');
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>`;
+      document.getElementById('vwHint').textContent = 'Press to start speaking in Bangla';
+
+      if (finalTranscript.trim()) {
+        document.getElementById('vwEditInput').value = finalTranscript.trim();
+        document.getElementById('vwDirectSendWrap').classList.add('visible');
+        setStatus('Ready to send', true);
+      } else {
+        setStatus('Ready', false);
+        showError('No speech detected. Please try again.');
+      }
+    }
+
+    function sendNotification() {
+      const msg = document.getElementById('vwEditInput').value.trim();
+      if (!msg) return;
+
+      const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const list = document.getElementById('vwMsgList');
+      const el = document.createElement('div');
+      el.className = 'vw-msg';
+      el.innerHTML = `
+        <div class="vw-msg-meta">
+          <span class="vw-msg-tag">Sent to all students</span>
+          <span class="vw-msg-time">${time}</span>
+        </div>
+        <div class="vw-msg-text">${escapeHtml(msg)}</div>
+      `;
+      list.appendChild(el);
+      list.scrollTop = list.scrollHeight;
+
+      document.getElementById('vwDirectSendWrap').classList.remove('visible');
+      document.getElementById('vwTranscript').textContent = 'Your spoken words will appear here...';
+      document.getElementById('vwTranscript').classList.remove('has-text');
+      finalTranscript = '';
+      setStatus('Sent!', false);
+      setTimeout(() => setStatus('Ready', false), 2000);
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    initSpeechRecognition();
+  </script>
+
+</body>
+</html>
