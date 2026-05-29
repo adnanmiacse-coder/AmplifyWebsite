@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  const API_BASE = 'https://amplifywebsite-production.up.railway.app';
+  const API_BASE = window.AMPLIFY_API_BASE || '/api';
 
   // ── Storage helpers ────────────────────────────────────────────────────
   const Auth = {
