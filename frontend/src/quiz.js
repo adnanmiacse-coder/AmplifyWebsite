@@ -1,4 +1,5 @@
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
+const GROQ_API_KEY = _env.VITE_GROQ_API_KEY || window.GROQ_API_KEY || '';
 
 const params = new URLSearchParams(window.location.search);
 const subject = params.get('subject') || '';

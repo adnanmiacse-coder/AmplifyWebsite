@@ -16,8 +16,9 @@ function parseEnvList(value) {
   } catch (e) {}
   return trimmed.split(/[\r\n,]+/).map(item => item.trim()).filter(Boolean);
 }
-const OPENROUTER_KEYS = parseEnvList(import.meta.env.VITE_OPENROUTER_KEYS || import.meta.env.VITE_OPENROUTER_KEY);
-const OPENROUTER_BASE  = import.meta.env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
+const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
+const OPENROUTER_KEYS = parseEnvList(_env.VITE_OPENROUTER_KEYS || _env.VITE_OPENROUTER_KEY);
+const OPENROUTER_BASE  = _env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
 const OPENROUTER_MODELS = [
   'meta-llama/llama-3.3-70b-instruct:free',
   'deepseek/deepseek-r1-0528:free',
@@ -25,8 +26,8 @@ const OPENROUTER_MODELS = [
   'tngtech/deepseek-r1t-chimera:free',
 ];
 // ── Groq (fallback chat + Whisper STT + Vision OCR) ──
-const GROQ_KEYS = parseEnvList(import.meta.env.VITE_GROQ_KEYS || import.meta.env.VITE_GROQ_KEY);
-const GROQ_BASE          = import.meta.env.VITE_GROQ_BASE || 'https://api.groq.com/openai/v1';
+const GROQ_KEYS = parseEnvList(_env.VITE_GROQ_KEYS || _env.VITE_GROQ_KEY);
+const GROQ_BASE          = _env.VITE_GROQ_BASE || 'https://api.groq.com/openai/v1';
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
 const VISION_MODEL       = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const GROQ_MODELS = [

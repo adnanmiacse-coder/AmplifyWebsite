@@ -16,8 +16,24 @@
   <link rel="stylesheet" href="src/classroom.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script type="module">
-    import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist/duckdb-browser-mvp.mjs';
-    window.duckdb = duckdb;
+    (async () => {
+      const candidates = [
+        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist/duckdb-browser-mvp.mjs',
+        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-browser-mvp.mjs',
+        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-mvp.mjs',
+        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist/duckdb-mvp.mjs'
+      ];
+      for (const url of candidates) {
+        try {
+          const duckdb = await import(url);
+          window.duckdb = duckdb;
+          console.log('[DuckDB] loaded from', url);
+          break;
+        } catch (e) {
+          console.warn('[DuckDB] failed to import', url, e && e.message);
+        }
+      }
+    })();
   </script>
 </head>
 

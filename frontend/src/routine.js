@@ -1,4 +1,5 @@
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
+const GROQ_API_KEY = _env.VITE_GROQ_API_KEY || window.GROQ_API_KEY || '';
 
 if (!GROQ_API_KEY) {
   console.error('Missing VITE_GROQ_API_KEY in frontend environment. Set it in frontend/.env or ensure Vite loads the env file.');
