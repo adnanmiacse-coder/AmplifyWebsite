@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  const API_BASE = 'http://127.0.0.1:8888/api';
+  const API_BASE = 'https://amplifywebsite-production.up.railway.app';
 
   // ── Storage helpers ────────────────────────────────────────────────────
   const Auth = {
