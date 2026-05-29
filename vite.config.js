@@ -14,7 +14,7 @@ export default defineConfig({
         proxy: {
             // ✅ Forward all /api requests to Laravel
             '/api': {
-                target: 'http://127.0.0.1:8888',
+                target: 'https://amplifywebsite-production.up.railway.app',
                 changeOrigin: true,
                 secure: false,
             },
