@@ -27,15 +27,49 @@ def parse_env_list(name: str, default=None) -> list[str]:
 
 
 OPENROUTER_BASE_URL = os.getenv('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1')
-API_KEYS = parse_env_list('OPENROUTER_API_KEYS')
-GROQ_KEYS = parse_env_list('GROQ_KEYS')
+API_KEYS = None
+GROQ_KEYS = None
+_clients = None
 
-if not API_KEYS:
-    raise RuntimeError('OPENROUTER_API_KEYS must be configured in backend/.env or Vercel environment variables.')
-if not GROQ_KEYS:
-    raise RuntimeError('GROQ_KEYS must be configured in backend/.env or Vercel environment variables.')
+
+def get_api_keys() -> list[str]:
+    global API_KEYS
+    if API_KEYS is None:
+        API_KEYS = parse_env_list('OPENROUTER_API_KEYS')
+        if not API_KEYS:
+            raise RuntimeError('OPENROUTER_API_KEYS must be configured in backend/.env or Vercel environment variables.')
+    return API_KEYS
+
+
+def get_groq_keys() -> list[str]:
+    global GROQ_KEYS
+    if GROQ_KEYS is None:
+        GROQ_KEYS = parse_env_list('GROQ_KEYS')
+        if not GROQ_KEYS:
+            raise RuntimeError('GROQ_KEYS must be configured in backend/.env or Vercel environment variables.')
+    return GROQ_KEYS
+
+
+def get_clients() -> list[OpenAI]:
+    global _clients
+    if _clients is None:
+        _clients = [
+            OpenAI(
+                api_key=key,
+                base_url=OPENROUTER_BASE_URL,
+                default_headers={
+                    'HTTP-Referer': 'http://localhost:5173',
+                    'X-Title': 'Amplify'
+                }
+            )
+            for key in get_api_keys()
+        ]
+    return _clients
+
 
 app = FastAPI()
+application = app
+handler = app
 
 app.add_middleware(CORSMiddleware,
     allow_origins=["*"],
@@ -43,24 +77,9 @@ app.add_middleware(CORSMiddleware,
     allow_headers=["*"],
     allow_credentials=True)
 
-clients = [
-    OpenAI(
-        api_key=key,
-        base_url=OPENROUTER_BASE_URL,
-        default_headers={
-            "HTTP-Referer": "http://localhost:5173",
-            "X-Title": "Amplify"
-        }
-    )
-    for key in API_KEYS
-]
-
-
 # ══════════════════════════════════════════
 #  LANGGRAPH — Expert Discussion (deeplearn)
 # ══════════════════════════════════════════
-
-GROQ_KEYS = parse_env_list('GROQ_KEYS')
 
 EXPERT_SYSTEMS = {
   'expert1': """তুমি ড. আরিফ, বিষয় বিশেষজ্ঞ।
@@ -143,16 +162,16 @@ def make_expert_node(expert_id: str):
         ]
         last_err = None
         for model in models_to_try:
-            for key in GROQ_KEYS:
+            for key in get_groq_keys():
                 try:
                     llm = ChatGroq(api_key=key, model=model, max_tokens=400, temperature=0.8)
                     
                     reply = strip_intro(llm.invoke(messages).content.strip(), expert_id)
                     if reply:
-                    return {
-                         'reply':    reply,
-                         'dialogue': [{'name': EXPERT_NAMES[expert_id], 'text': reply}],
-                    }
+                        return {
+                            'reply': reply,
+                            'dialogue': [{'name': EXPERT_NAMES[expert_id], 'text': reply}],
+                        }
                 except Exception as e:
                     last_err = e
                     is_rate_limit = '429' in str(e) or 'rate_limit' in str(e).lower()
@@ -195,7 +214,7 @@ class Prompt(BaseModel):
 def call_llm(messages: list, max_tokens: int = 2500) -> str:
     """Try each API key in order, fall back on failure."""
     last_error = None
-    for i, c in enumerate(clients):
+    for i, c in enumerate(get_clients()):
         try:
             response = c.chat.completions.create(
                 model="openrouter/auto",
@@ -415,7 +434,7 @@ async def run_turn(req: TurnRequest):
 @app.post("/generate")
 async def generate(data: Prompt):
     import traceback
-    print(f"Using API keys: {[k[:20] + '...' for k in API_KEYS]}")
+    print(f"Using API keys: {[k[:20] + '...' for k in get_api_keys()]}")
     job_id = str(uuid.uuid4())[:8]
     scene_file = f"scenes/scene_{job_id}.py"
     output_video = f"videos/{job_id}.mp4"

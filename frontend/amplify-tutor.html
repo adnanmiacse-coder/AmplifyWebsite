@@ -355,10 +355,20 @@
   <!-- Neo4j driver -->
   <script src="https://cdn.jsdelivr.net/npm/neo4j-driver@5.19.0/lib/browser/neo4j-web.min.js"></script>
   <script type="module">
+    function parseEnvList(value) {
+      if (!value) return [];
+      const trimmed = String(value).trim();
+      if (!trimmed) return [];
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map(item => String(item).trim()).filter(Boolean);
+      } catch (e) {}
+      return trimmed.split(/[\r\n,]+/).map(item => item.trim()).filter(Boolean);
+    }
     window.AMPLIFY_ENV = window.AMPLIFY_ENV || {
-      OPENROUTER_KEYS: import.meta.env.VITE_OPENROUTER_KEYS ? JSON.parse(import.meta.env.VITE_OPENROUTER_KEYS) : [],
+      OPENROUTER_KEYS: parseEnvList(import.meta.env.VITE_OPENROUTER_KEYS || import.meta.env.VITE_OPENROUTER_KEY),
       OPENROUTER_BASE: import.meta.env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1',
-      GROQ_KEYS: import.meta.env.VITE_GROQ_KEYS ? JSON.parse(import.meta.env.VITE_GROQ_KEYS) : [],
+      GROQ_KEYS: parseEnvList(import.meta.env.VITE_GROQ_KEYS || import.meta.env.VITE_GROQ_KEY),
       GROQ_BASE: import.meta.env.VITE_GROQ_BASE || 'https://api.groq.com/openai/v1',
       GROQ_KEY: import.meta.env.VITE_GROQ_API_KEY || '',
       CEREBRAS_KEY: import.meta.env.VITE_CEREBRAS_API_KEY || ''

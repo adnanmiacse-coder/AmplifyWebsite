@@ -3,7 +3,17 @@
 //  3 Expert Agents · Groq multi-model · Bangla Deep Discussion
 // ══════════════════════════════════════════════
 
-const OPENROUTER_KEYS = import.meta.env.VITE_OPENROUTER_KEYS ? JSON.parse(import.meta.env.VITE_OPENROUTER_KEYS) : [];
+function parseEnvList(value) {
+  if (!value) return [];
+  const trimmed = String(value).trim();
+  if (!trimmed) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) return parsed.map(item => String(item).trim()).filter(Boolean);
+  } catch (e) {}
+  return trimmed.split(/[\r\n,]+/).map(item => item.trim()).filter(Boolean);
+}
+const OPENROUTER_KEYS = parseEnvList(import.meta.env.VITE_OPENROUTER_KEYS || import.meta.env.VITE_OPENROUTER_KEY);
 const OPENROUTER_BASE   = import.meta.env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
 const OPENROUTER_MODELS = [
   'meta-llama/llama-3.3-70b-instruct:free',
@@ -11,7 +21,7 @@ const OPENROUTER_MODELS = [
   'google/gemma-3n-e4b-it:free',
   'tngtech/deepseek-r1t-chimera:free',
 ];
-const GROQ_KEYS = import.meta.env.VITE_GROQ_KEYS ? JSON.parse(import.meta.env.VITE_GROQ_KEYS) : [];
+const GROQ_KEYS = parseEnvList(import.meta.env.VITE_GROQ_KEYS || import.meta.env.VITE_GROQ_KEY);
 const GROQ_BASE          = import.meta.env.VITE_GROQ_BASE || 'https://api.groq.com/openai/v1';
 const GROQ_MODELS        = ['llama-3.3-70b-versatile','llama-3.3-70b-specdec','gemma2-9b-it','llama-3.1-8b-instant'];
 const VISION_MODEL       = 'meta-llama/llama-4-scout-17b-16e-instruct';
