@@ -5,20 +5,16 @@
 //  Generative UI slides · laser pointer · Bangla
 // ══════════════════════════════════════════════
 
-// ── OpenRouter (primary — all agent/chat calls) ──────
-function parseEnvList(value) {
-  if (!value) return [];
-  const trimmed = String(value).trim();
-  if (!trimmed) return [];
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (Array.isArray(parsed)) return parsed.map(item => String(item).trim()).filter(Boolean);
-  } catch (e) {}
-  return trimmed.split(/[\r\n,]+/).map(item => item.trim()).filter(Boolean);
-}
+import { loadEnvConfig, parseEnvList } from './env-config.js';
+
+// ── Load config from server (keys never hardcoded in bundle) ──────
+let _config = {};
+loadEnvConfig().then(cfg => { _config = cfg; });
+
+// Fallback values during initial load
 const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
-const OPENROUTER_KEYS = parseEnvList(_env.VITE_OPENROUTER_KEYS || _env.VITE_OPENROUTER_KEY);
-const OPENROUTER_BASE  = _env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
+const OPENROUTER_KEYS = () => _config.OPENROUTER_KEYS || parseEnvList(_env.VITE_OPENROUTER_KEYS || _env.VITE_OPENROUTER_KEY);
+const OPENROUTER_BASE  = _config.OPENROUTER_BASE || _env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
 const OPENROUTER_MODELS = [
   'meta-llama/llama-3.3-70b-instruct:free',
   'deepseek/deepseek-r1-0528:free',
@@ -26,8 +22,8 @@ const OPENROUTER_MODELS = [
   'tngtech/deepseek-r1t-chimera:free',
 ];
 // ── Groq (fallback chat + Whisper STT + Vision OCR) ──
-const GROQ_KEYS = parseEnvList(_env.VITE_GROQ_KEYS || _env.VITE_GROQ_KEY);
-const GROQ_BASE          = _env.VITE_GROQ_BASE || 'https://api.groq.com/openai/v1';
+const GROQ_KEYS = () => _config.GROQ_API_KEY ? [_config.GROQ_API_KEY] : parseEnvList(_env.VITE_GROQ_KEYS || _env.VITE_GROQ_KEY);
+const GROQ_BASE          = _config.GROQ_API_BASE_URL || _env.VITE_GROQ_BASE || 'https://api.groq.com/openai/v1';
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
 const VISION_MODEL       = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const GROQ_MODELS = [

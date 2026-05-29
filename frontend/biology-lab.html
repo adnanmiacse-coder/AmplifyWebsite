@@ -885,9 +885,10 @@ window.MODELS = MODELS;
 </script>
 
 <!-- AI Chat (Groq) -->
+<script src="/amplify-env-bootstrap.js"></script>
 <script type="module">
-const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
-const GROQ_API_KEY = _env.VITE_GROQ_API_KEY || window.GROQ_API_KEY || '';
+// Config loaded from server via amplify-env-bootstrap.js
+const GROQ_API_KEY = window.AMPLIFY_ENV?.GROQ_KEY || '';
 const aiChatPanel   = document.getElementById('aiChatPanel');
 const aiChatOverlay = document.getElementById('aiChatOverlay');
 const aiMessages    = document.getElementById('aiMessages');
@@ -998,8 +999,8 @@ window.openAiChat=openAiChat; window.closeAiChat=closeAiChat; window.sendAiQuest
           which is always kept in sync by selectModel()
 ══════════════════════════════════════════ -->
 <script type="module">
-const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
-const CEREBRAS_API_KEY_MODULE = _env.VITE_CEREBRAS_API_KEY || window.CEREBRAS_API_KEY || '';
+// Config loaded from server via amplify-env-bootstrap.js
+const CEREBRAS_API_KEY_MODULE = window.AMPLIFY_ENV?.CEREBRAS_KEY || '';
 
 const btn       = document.getElementById('voBtn');
 const hud       = document.getElementById('voHud');

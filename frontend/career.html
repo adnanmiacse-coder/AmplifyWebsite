@@ -278,11 +278,10 @@ footer{text-align:center;padding:32px;border-top:1px solid var(--border);color:v
 </div>
 <footer>&copy; 2026 Amplify · Career Engine · Powered by GROQ AI &amp; Llama 4 Scout</footer>
 
+<script src="/amplify-env-bootstrap.js"></script>
 <script type="module">
-const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
-window.AMPLIFY_ENV = window.AMPLIFY_ENV || {
-  GROQ_KEY: _env.VITE_GROQ_API_KEY || window.GROQ_API_KEY || ''
-};
+// Config loaded from server via amplify-env-bootstrap.js
+window.AMPLIFY_ENV = window.AMPLIFY_ENV || {};
 </script>
 <script>
 // ── API KEY ──

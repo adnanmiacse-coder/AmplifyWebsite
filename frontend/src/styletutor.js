@@ -154,10 +154,15 @@ function triggerDistractionWarning() {
 }
 
 // Gemini config — used for slide generation
+import { loadEnvConfig } from './env-config.js';
+
+let _config = {};
+loadEnvConfig().then(cfg => { _config = cfg; });
+
 const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
-const GEMINI_KEY   = _env.VITE_GEMINI_KEY || '';
-const GEMINI_MODEL = _env.VITE_GEMINI_MODEL || 'gemini-2.0-flash-lite';
-const GEMINI_BASE  = _env.VITE_GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_KEY   = _config.GEMINI_KEY || _env.VITE_GEMINI_KEY || '';
+const GEMINI_MODEL = _config.GEMINI_MODEL || _env.VITE_GEMINI_MODEL || 'gemini-2.0-flash-lite';
+const GEMINI_BASE  = _config.GEMINI_BASE || _env.VITE_GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // Pipeline settings
 const CHUNK_WORDS  = 300;

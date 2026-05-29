@@ -1,8 +1,13 @@
+import { loadEnvConfig } from './env-config.js';
+
+let _config = {};
+loadEnvConfig().then(cfg => { _config = cfg; });
+
 const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
-const GROQ_API_KEY = _env.VITE_GROQ_API_KEY || window.GROQ_API_KEY || '';
+const GROQ_API_KEY = _config.GROQ_API_KEY || _env.VITE_GROQ_API_KEY || window.GROQ_API_KEY || '';
 
 if (!GROQ_API_KEY) {
-  console.error('Missing VITE_GROQ_API_KEY in frontend environment. Set it in frontend/.env or ensure Vite loads the env file.');
+  console.warn('Note: API keys are now loaded from server (/api/config). Set them in backend .env for proper functionality.');
 }
 
 // ── DOM refs ──

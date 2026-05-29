@@ -566,11 +566,11 @@ h1 span{color:var(--acc)}
   <span>34 Experiments · 7 Sections</span>
 </footer>
 
+<script src="/amplify-env-bootstrap.js"></script>
 <script type="module">
-const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
-window.AMPLIFY_ENV = window.AMPLIFY_ENV || {
-  GROQ_KEY: _env.VITE_GROQ_API_KEY || window.GROQ_API_KEY || ''
-};
+// Config will be loaded by amplify-env-bootstrap.js and available on window.AMPLIFY_ENV
+// This waits for the config to be loaded before using it
+window.AMPLIFY_ENV = window.AMPLIFY_ENV || {};
 </script>
 <script>
 // ===================== EXPERIMENT DATA =====================
