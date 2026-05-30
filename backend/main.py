@@ -523,4 +523,16 @@ async def generate(data: Prompt):
     os.makedirs("videos", exist_ok=True)
     os.rename(expected, output_video)
 
-    return {"video_url": f"http://localhost:8000/videos/{job_id}.mp4"}
+    return {"video_url": f"/videos/{job_id}.mp4"}
+
+
+@app.get("/api/config")
+async def get_config():
+    """Provide API configuration to frontend"""
+    return {
+        "GROQ_API_KEY": os.getenv('GROQ_KEY', ''),
+        "GROQ_API_BASE_URL": os.getenv('GROQ_BASE', 'https://api.groq.com/openai/v1'),
+        "CEREBRAS_API_KEY": os.getenv('CEREBRAS_KEY', ''),
+        "CEREBRAS_API_BASE": os.getenv('CEREBRAS_BASE', 'https://api.cerebras.ai/v1'),
+        "OPENROUTER_API_KEYS": get_api_keys() if API_KEYS else [],
+    }

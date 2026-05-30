@@ -12,7 +12,7 @@ let _config = {};
 loadEnvConfig().then(cfg => { _config = cfg; });
 
 // Fallback values during initial load
-const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
+const _env = import.meta?.env || {};
 const OPENROUTER_KEYS = () => _config.OPENROUTER_KEYS || parseEnvList(_env.VITE_OPENROUTER_KEYS || _env.VITE_OPENROUTER_KEY);
 const OPENROUTER_BASE  = _config.OPENROUTER_BASE || _env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
 const OPENROUTER_MODELS = [

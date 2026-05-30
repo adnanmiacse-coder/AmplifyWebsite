@@ -1,27 +1,4 @@
-const RSS_SOURCES = [
-  {
-    url: 'https://opportunitydesk.org/feed/',
-    label: 'Opportunity Desk',
-    type: 'Scholarship'
-  },
-  {
-    url: 'https://www.scholars4dev.com/feed/',
-    label: 'Scholars4Dev',
-    type: 'Scholarship'
-  },
-  {
-    url: 'https://afterschoolafrica.com/feed/',
-    label: 'After School Africa',
-    type: 'Fellowship'
-  },
-  {
-    url: 'https://www.findaphd.com/rss/scholarships.aspx',
-    label: 'FindAPhD',
-    type: 'Research'
-  }
-];
-
-const RSS2JSON = 'https://api.rss2json.com/v1/api.json?api_key=k8cpzmwvb19t7zr8pxebcmmtfwppsnmvuwdppzjm&rss_url=';
+const OPPORTUNITIES_API = '/api/opportunities';
 
 let allOpportunities = [];
 let activeFilter = 'ALL';
@@ -46,26 +23,6 @@ function guessRegion(title, desc) {
   return '🌍 International';
 }
 
-async function fetchSource(source) {
-  try {
-    const res  = await fetch(`${RSS2JSON}${encodeURIComponent(source.url)}&count=6`);
-    const data = await res.json();
-    if (data.status !== 'ok') return [];
-
-    return data.items.map(item => ({
-      title:  item.title,
-      desc:   item.description.replace(/<[^>]+>/g, '').slice(0, 160) + '...',
-      link:   item.link,
-      date:   item.pubDate?.slice(0, 10) || '',
-      source: source.label,
-      type:   guessType(item.title, source.type),
-      region: guessRegion(item.title, item.description || '')
-    }));
-  } catch {
-    return [];
-  }
-}
-
 async function loadOpportunities() {
   document.getElementById('oppStatus').textContent = 'Fetching live opportunities...';
   document.getElementById('oppCount').textContent  = '';
@@ -75,16 +32,21 @@ async function loadOpportunities() {
     <div class="card opp-skeleton"></div>
   `;
 
-  const results = await Promise.all(RSS_SOURCES.map(fetchSource));
-  allOpportunities = results.flat();
+  try {
+    const res = await fetch(OPPORTUNITIES_API, { cache: 'no-store' });
+    const data = await res.json();
+    allOpportunities = Array.isArray(data.items) ? data.items : [];
+  } catch (err) {
+    allOpportunities = [];
+  }
 
   const count = allOpportunities.length;
   document.getElementById('oppStatus').textContent = count > 0
-    ? `Showing live opportunities from ${RSS_SOURCES.length} sources`
-    : 'Could not load feeds — showing cached data';
+    ? `Showing opportunities from live feed`
+    : 'Could not load live feeds — showing cached data';
   document.getElementById('oppCount').textContent = `${count} found`;
 
-  // Fallback static data if all feeds fail
+  // Fallback static data if live fetch fails
   if (count === 0) {
     allOpportunities = getFallbackData();
   }

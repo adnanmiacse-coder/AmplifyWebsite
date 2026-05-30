@@ -18,20 +18,23 @@
   <script type="module">
     (async () => {
       const candidates = [
-        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist/duckdb-browser-mvp.mjs',
-        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-browser-mvp.mjs',
-        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-mvp.mjs',
-        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist/duckdb-mvp.mjs'
+        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.18.0/dist/duckdb-mvp.mjs',
+        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.18.0/dist/duckdb-eh.mjs',
       ];
+      let loaded = false;
       for (const url of candidates) {
         try {
           const duckdb = await import(url);
           window.duckdb = duckdb;
           console.log('[DuckDB] loaded from', url);
+          loaded = true;
           break;
         } catch (e) {
-          console.warn('[DuckDB] failed to import', url, e && e.message);
+          console.warn('[DuckDB] failed to import', url, e?.message || e);
         }
+      }
+      if (!loaded) {
+        console.warn('[DuckDB] Could not load DuckDB from any CDN. Some features may be unavailable.');
       }
     })();
   </script>

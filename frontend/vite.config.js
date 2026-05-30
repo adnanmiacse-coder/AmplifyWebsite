@@ -1,13 +1,26 @@
 import { defineConfig } from 'vite';
 
-// Local dev: proxy API requests to Laravel to avoid CORS.
+// Determine backend URL based on environment
+const backendUrl = process.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
 export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://amplifywebsite-production.up.railway.app',
+        target: backendUrl,
         changeOrigin: true,
-        secure: false,
+      },
+      '/turn': {
+        target: backendUrl,
+        changeOrigin: true,
+      },
+      '/generate': {
+        target: backendUrl,
+        changeOrigin: true,
+      },
+      '/videos': {
+        target: backendUrl,
+        changeOrigin: true,
       },
     },
   },
