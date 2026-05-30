@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import subprocess, json, os, uuid, re, ast
@@ -540,3 +541,11 @@ async def get_config():
         "CEREBRAS_API_BASE": os.getenv('CEREBRAS_BASE', 'https://api.cerebras.ai/v1'),
         "OPENROUTER_API_KEYS": get_api_keys() if API_KEYS else [],
     }
+
+
+# Serve frontend static assets built by Vite
+app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
+
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    return FileResponse("dist/index.html")
