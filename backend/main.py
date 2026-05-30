@@ -8,9 +8,23 @@ from openai import OpenAI
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
 VIDEOS_DIR = os.path.join(BASE_DIR, "videos")
 SCENES_DIR = os.path.join(BASE_DIR, "scenes")
+
+
+def resolve_frontend_dir() -> str | None:
+    candidates = [
+        os.getenv("FRONTEND_DIR"),
+        os.path.join(BASE_DIR, "frontend"),
+        os.path.join(PROJECT_ROOT, "frontend"),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.isdir(candidate):
+            return os.path.abspath(candidate)
+    return None
+
+
+FRONTEND_DIR = resolve_frontend_dir()
 
 # ── LangGraph (Deep Learn feature) ──
 from langgraph.graph import StateGraph, END, START
@@ -551,7 +565,10 @@ async def get_config():
     }
 
 
-if os.path.isdir(FRONTEND_DIR):
+if FRONTEND_DIR:
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
 else:
-    print(f"Warning: frontend directory not found at {FRONTEND_DIR}; static files disabled")
+    print(
+        "Warning: frontend directory not found; static files disabled. "
+        f"Checked: {os.path.join(BASE_DIR, 'frontend')}, {os.path.join(PROJECT_ROOT, 'frontend')}"
+    )

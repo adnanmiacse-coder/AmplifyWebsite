@@ -11,7 +11,10 @@ cmds = [
 
 [[phases]]
 name = "build"
-cmds = []
+cmds = [
+  "if [ -d frontend ]; then rm -rf backend/frontend && cp -r frontend backend/frontend; fi",
+  "if [ -d ../frontend ] && [ ! -d frontend ]; then rm -rf frontend && cp -r ../frontend frontend; fi"
+]
 
 [start]
 cmd = "python -m uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"
