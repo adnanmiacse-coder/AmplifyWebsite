@@ -1974,7 +1974,9 @@ async function speak(text, expertId) {
 async function callGroq(expertId) {
   const phase = getCurrentPhase();
   try {
-    const res = await fetch('/turn', {
+    const base = window.AMPLIFY_ENV?.BACKEND_URL || '';
+    const url = base ? `${base.replace(/\/$/, '')}/turn` : '/turn';
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -6,7 +6,8 @@
 
 (async function initAmplifyEnv() {
   try {
-    const response = await fetch('/api/config', {
+    const base = window.AMPLIFY_ENV?.BACKEND_URL || '';
+    const response = await fetch(base ? `${base.replace(/\/$/, '')}/api/config` : '/api/config', {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
     });

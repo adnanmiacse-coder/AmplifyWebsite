@@ -5,16 +5,34 @@
 - GitHub repository (recommended for automatic deploys)
 - Environment variables set up
 
+## Critical: Avoid PHP Detection Issue
+
+**Problem**: Railway detects the Laravel `composer.json` and tries to run PHP-FPM instead of Python.
+
+**Solution**: Make sure to create a **separate Railway service** for the Python backend.
+
 ## Steps to Deploy to Railway
 
-### 1. Connect Railway to GitHub
-1. Go to [railway.app](https://railway.app)
-2. Click "Start a New Project"
-3. Select "Deploy from GitHub repo"
-4. Authorize Railway and select your repository
+### 1. Create a New Project for Backend Only
 
-### 2. Configure Environment Variables
-In Railway dashboard, go to **Variables** and add:
+Instead of adding to existing Laravel project:
+- Go to [railway.app](https://railway.app)
+- Click "Start a New Project"
+- Select "Deploy from GitHub"
+- **Select your repository**
+- Railway will detect multiple services - **delete the Laravel service, keep only Python**
+
+### 2. Force Python Detection
+
+The deployment files will auto-detect Python:
+- `runtime.txt` → Python 3.11.9
+- `Procfile` → uvicorn command
+- `nixpacks.toml` → explicit Python setup
+- `backend/requirements.txt` → dependencies
+
+### 3. Configure Environment Variables
+
+In Railway dashboard → **Variables** tab, add:
 
 ```
 OPENROUTER_API_KEYS=sk-xxx,sk-yyy
@@ -23,46 +41,94 @@ OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 GROQ_API_BASE_URL=https://api.groq.com/openai/v1
 ```
 
-### 3. Set Build Command
-Railway will auto-detect Python and install `backend/requirements.txt`
+*(If you don't have keys yet, you can set these later)*
 
 ### 4. Get Your Backend URL
-Once deployed, Railway will assign a URL like:
+
+Once deployed successfully (should show green ✓):
+- Go to **Deployments** tab
+- Copy the URL: `https://amplifywebsite-backend-production.up.railway.app`
+
+### 5. Update Frontend
+
+Update your frontend to use the new backend URL:
+
+**Option A: Environment Variable**
+Create `frontend/.env.production`:
 ```
-https://your-project-backend.up.railway.app
+VITE_BACKEND_URL=https://your-railway-backend.up.railway.app
 ```
 
-### 5. Update Frontend Configuration
-Update `frontend/.env.local`:
-```
-VITE_BACKEND_URL=https://your-project-backend.up.railway.app
-```
-
-Or update `frontend/vite.config.js` directly:
+**Option B: Update Config Directly**
+Edit `frontend/vite.config.js`:
 ```javascript
-const backendUrl = 'https://your-project-backend.up.railway.app';
+const backendUrl = 'https://your-railway-backend.up.railway.app';
 ```
+
+### 6. Update Static HTML Files
+
+If using static HTML files (deeplearn.html, classroomai.html), update hardcoded URLs:
+
+Current setup uses relative paths (`/api`, `/turn`), so it should work automatically if frontend is served from the same domain.
+
+## Troubleshooting
+
+### "Immediately stopping" or "Stopping Container"
+- Check Railway logs for actual error
+- Make sure `nixpacks.toml` is present and correct
+- Verify `Procfile` syntax
+- Ensure `backend/requirements.txt` exists
+
+### Python not detected
+- Confirm `runtime.txt` contains `python-3.11.9`
+- Make sure `Procfile` starts with `web:`
+- Check that `backend/main.py` exists
+
+### Port binding error
+- Railway assigns `$PORT` dynamically
+- Our config uses `${PORT:-8000}` (defaults to 8000)
+- Should work automatically
+
+### "composer.json detected - building PHP"
+- **Delete the Laravel/PHP service** from Railway dashboard
+- Keep only the Python service
+- Or create a new project with just the Python backend
 
 ## Local Development
-For local development, the backend defaults to `localhost:8000`:
 
 ```bash
 # Terminal 1: Start backend
 cd d:\AmplifyWebsite
 uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
-# Terminal 2: Start frontend
+# Terminal 2: Start frontend  
 cd frontend
 npm run dev
 ```
 
-## Files for Railway Deployment
-- `Procfile` - Tells Railway how to start the app
-- `runtime.txt` - Specifies Python version
-- `railway.json` - Railway configuration
-- `backend/requirements.txt` - Python dependencies (auto-installed)
+Frontend will proxy to `localhost:8000` by default.
 
-## Notes
-- The backend requires valid API keys for GROQ and/or OpenRouter
-- Railway's free tier includes monthly compute hours
-- Logs available in Railway dashboard
+## Files Included
+
+| File | Purpose |
+|------|---------|
+| `Procfile` | Tells Railway how to start the app |
+| `runtime.txt` | Python version specification |
+| `nixpacks.toml` | Detailed build & start config |
+| `backend/requirements.txt` | Python dependencies |
+| `backend/.env` | Local environment variables |
+| `.railwayignore` | Tells Railway to ignore PHP files |
+
+## URL Structure
+
+After deployment:
+
+```
+Production Frontend: https://your-frontend.vercel.app
+Production Backend:  https://your-backend.up.railway.app
+Local Frontend:      http://localhost:5173
+Local Backend:       http://localhost:8000
+```
+
+All API calls use relative paths (`/api`, `/turn`, `/generate`) so they work with any domain.
+

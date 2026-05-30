@@ -24,8 +24,14 @@ export async function loadEnvConfig() {
 
   // Fetch from server
   _configPromise = (async () => {
+    const BACKEND_URL = (typeof window !== 'undefined' && window.AMPLIFY_ENV?.BACKEND_URL)
+      || ((typeof import !== 'undefined' && import.meta && import.meta.env)
+        ? import.meta.env.VITE_BACKEND_URL || ''
+        : '');
+    const apiUrl = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, '')}/api/config` : '/api/config';
+
     try {
-      const response = await fetch('/api/config', {
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
       });

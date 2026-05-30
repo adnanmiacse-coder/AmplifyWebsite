@@ -1,0 +1,23 @@
+# Ignore Laravel/PHP files - we're deploying the Python backend
+composer.json
+composer.lock
+artisan
+bootstrap/
+app/
+config/
+database/
+public/index.php
+resources/
+routes/
+storage/
+tests/
+vendor/
+.env.example
+phpunit.xml
+
+# Keep only the backend
+!backend/
+!Procfile
+!runtime.txt
+!nixpacks.toml
+!requirements.txt
