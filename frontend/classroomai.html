@@ -15,24 +15,6 @@
 
   <link rel="stylesheet" href="src/classroom.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script type="module">
-    (async () => {
-      const candidates = [
-        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.1/+esm',
-        'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.18.0/+esm',
-      ];
-      for (const url of candidates) {
-        try {
-          window.duckdb = await import(url);
-          console.log('[DuckDB] loaded from', url);
-          return;
-        } catch (e) {
-          console.warn('[DuckDB] failed to import', url, e?.message || e);
-        }
-      }
-      console.warn('[DuckDB] Could not load DuckDB from any CDN. Some features may be unavailable.');
-    })();
-  </script>
 </head>
 
 <body>

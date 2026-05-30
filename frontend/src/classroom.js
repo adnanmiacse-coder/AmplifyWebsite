@@ -140,13 +140,32 @@ let _turnInProgress = false;
 // ══════════════════════════════════════════════
 let db = null, dbConn = null;
 const SESSION_ID = `sess_${Date.now()}`;
+const DUCKDB_CDN = 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist/';
+
+async function loadDuckDbModule() {
+  if (globalThis.duckdb) return globalThis.duckdb;
+  const moduleUrls = [
+    `${DUCKDB_CDN}duckdb-browser.mjs`,
+  ];
+  for (const url of moduleUrls) {
+    try {
+      const mod = await import(url);
+      globalThis.duckdb = mod;
+      console.log('[DuckDB] module loaded from', url);
+      return mod;
+    } catch (e) {
+      console.warn('[DuckDB] failed to import', url, e?.message || e);
+    }
+  }
+  throw new Error('Could not load DuckDB module from CDN');
+}
 
 async function initDuckDB() {
   try {
-    const JSDELIVR = 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/';
+    const duckdb = await loadDuckDbModule();
     const bundle = await duckdb.selectBundle({
-      mvp: { mainModule: JSDELIVR + 'duckdb-mvp.wasm', mainWorker: JSDELIVR + 'duckdb-browser-mvp.worker.js' },
-      eh:  { mainModule: JSDELIVR + 'duckdb-eh.wasm',  mainWorker: JSDELIVR + 'duckdb-browser-eh.worker.js'  },
+      mvp: { mainModule: DUCKDB_CDN + 'duckdb-mvp.wasm', mainWorker: DUCKDB_CDN + 'duckdb-browser-mvp.worker.js' },
+      eh:  { mainModule: DUCKDB_CDN + 'duckdb-eh.wasm',  mainWorker: DUCKDB_CDN + 'duckdb-browser-eh.worker.js'  },
     });
     const worker = new Worker(bundle.mainWorker);
     const logger = new duckdb.ConsoleLogger();

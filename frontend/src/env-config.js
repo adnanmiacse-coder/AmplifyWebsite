@@ -7,10 +7,10 @@
 let _configCache = null;
 let _configPromise = null;
 
-/** Safe access to Vite env in ES modules (import is a reserved keyword). */
+/** Safe access to Vite env in ES modules (returns {} when not running under Vite). */
 export function getViteEnv() {
   try {
-    return import.meta.env;
+    return import.meta?.env ?? {};
   } catch {
     return {};
   }
@@ -33,8 +33,9 @@ export async function loadEnvConfig() {
 
   // Fetch from server
   _configPromise = (async () => {
+    const viteEnv = getViteEnv();
     const BACKEND_URL = (typeof window !== 'undefined' && window.AMPLIFY_ENV?.BACKEND_URL)
-      || getViteEnv().VITE_BACKEND_URL
+      || viteEnv.VITE_BACKEND_URL
       || '';
     const apiUrl = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, '')}/api/config` : '/api/config';
 
@@ -83,7 +84,8 @@ function getDefaultConfig() {
 }
 
 /** Resolve Groq API keys from server config, window bootstrap, or Vite env. */
-export function getGroqKeys(config = {}, env = {}) {
+export function getGroqKeys(config = {}, env = null) {
+  const viteEnv = env ?? getViteEnv();
   for (const list of [
     config.GROQ_KEYS,
     typeof window !== 'undefined' ? window.AMPLIFY_ENV?.GROQ_KEYS : null,
@@ -98,11 +100,12 @@ export function getGroqKeys(config = {}, env = {}) {
   ]) {
     if (key) return [String(key)];
   }
-  return parseEnvList(env.VITE_GROQ_KEYS || env.VITE_GROQ_KEY);
+  return parseEnvList(viteEnv.VITE_GROQ_KEYS || viteEnv.VITE_GROQ_KEY);
 }
 
 /** Resolve OpenRouter API keys from server config, window bootstrap, or Vite env. */
-export function getOpenRouterKeys(config = {}, env = {}) {
+export function getOpenRouterKeys(config = {}, env = null) {
+  const viteEnv = env ?? getViteEnv();
   for (const list of [
     config.OPENROUTER_KEYS,
     config.OPENROUTER_API_KEYS,
@@ -112,21 +115,23 @@ export function getOpenRouterKeys(config = {}, env = {}) {
       return list.map(String).filter(Boolean);
     }
   }
-  return parseEnvList(env.VITE_OPENROUTER_KEYS || env.VITE_OPENROUTER_KEY);
+  return parseEnvList(viteEnv.VITE_OPENROUTER_KEYS || viteEnv.VITE_OPENROUTER_KEY);
 }
 
-export function getGroqBase(config = {}, env = {}) {
+export function getGroqBase(config = {}, env = null) {
+  const viteEnv = env ?? getViteEnv();
   return config.GROQ_API_BASE_URL
     || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.GROQ_BASE)
-    || env.VITE_GROQ_BASE
+    || viteEnv.VITE_GROQ_BASE
     || 'https://api.groq.com/openai/v1';
 }
 
-export function getOpenRouterBase(config = {}, env = {}) {
+export function getOpenRouterBase(config = {}, env = null) {
+  const viteEnv = env ?? getViteEnv();
   return config.OPENROUTER_BASE
     || config.OPENROUTER_BASE_URL
     || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.OPENROUTER_BASE)
-    || env.VITE_OPENROUTER_BASE
+    || viteEnv.VITE_OPENROUTER_BASE
     || 'https://openrouter.ai/api/v1';
 }
 
