@@ -3,12 +3,12 @@
 //  3 Expert Agents · Groq multi-model · Bangla Deep Discussion
 // ══════════════════════════════════════════════
 
-import { loadEnvConfig, parseEnvList } from './env-config.js';
+import { loadEnvConfig, getViteEnv } from './env-config.js';
 
 let _config = {};
 loadEnvConfig().then(cfg => { _config = cfg; });
 
-const _env = (typeof import !== 'undefined' && import.meta && import.meta.env) ? import.meta.env : {};
+const _env = getViteEnv();
 const OPENROUTER_KEYS = () => _config.OPENROUTER_KEYS || parseEnvList(_env.VITE_OPENROUTER_KEYS || _env.VITE_OPENROUTER_KEY);
 const OPENROUTER_BASE   = _config.OPENROUTER_BASE || _env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
 const OPENROUTER_MODELS = [

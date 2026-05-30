@@ -887,7 +887,7 @@ body::after {
       color: var(--text-muted);
     }
   </style>
-  <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
   <link rel="icon" href="data:,">
 </head>
@@ -1170,7 +1170,7 @@ const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const CHUNK_WORDS = 150, CHUNK_OVERLAP = 30, MAX_PAGES = 60, TOP_K = 6, PAGE_SCALE = 2.0, IMG_QUALITY = 0.85;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 class VectorStore {
   constructor() { this.reset(); }
@@ -1776,8 +1776,16 @@ async function speak(text, expertId) {
         const q = encodeURIComponent(cleaned);
         // Use corsproxy.io to bypass CORS — no key needed
         const arxivUrl = `https://export.arxiv.org/api/query?search_query=all:${q}&max_results=5&sortBy=relevance`;
-        const url = `https://corsproxy.io/?${encodeURIComponent(arxivUrl)}`;
-        const res = await fetch(url);
+        let res = null;
+        try {
+          res = await fetch(arxivUrl);
+        } catch (e) {
+          res = null;
+        }
+        if (!res || !res.ok) {
+          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(arxivUrl)}`;
+          res = await fetch(proxyUrl);
+        }
         if (!res.ok) return [];
         const text = await res.text();
         const parser = new DOMParser();
