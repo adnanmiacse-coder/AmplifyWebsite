@@ -1698,6 +1698,9 @@ function showHomeScreen(show) {
   document.querySelector('nav').style.display = show ? 'none' : 'flex';
   document.getElementById('graph-map-section').style.display = show ? 'none' : 'block';
 }
+if (typeof window !== 'undefined') {
+  window.showHomeScreen = showHomeScreen;
+}
 function yieldToBrowser(){return new Promise(r=>setTimeout(r,0));}
 
 // ─────────────────────────────────────────────────────
@@ -2051,13 +2054,6 @@ function showDiagram(videoUrl, topic) {
     }
     container.classList.add('visible');
   }, 300);
-}
-
-function hideVisualStage() {
-  const stage     = document.getElementById('lecture-visual-stage');
-  const container = document.getElementById('lecture-anim-container');
-  if (stage)     stage.style.display = 'none';
-  if (container) { container.classList.remove('visible'); container.innerHTML = ''; }
 }
 
 // ─────────────────────────────────────────────────────
@@ -2669,11 +2665,13 @@ document.addEventListener('DOMContentLoaded', async function(){
   await initNeo4j();
   await loadSavedDocuments();
   document.getElementById('home-new-btn').onclick = () => {
-  showHomeScreen(false);
-  document.getElementById('upload-zone').style.display = 'block';
-  document.getElementById('pdf-viewer').style.display = 'none';
-  document.getElementById('pdf-controls').style.display = 'none';
-};
+    showHomeScreen(false);
+    document.getElementById('upload-zone').style.display = 'block';
+    document.getElementById('pdf-viewer').style.display = 'none';
+    document.getElementById('pdf-controls').style.display = 'none';
+    document.getElementById('file-input').click();
+  };
+  on('home-back-btn', 'click', () => showHomeScreen(true));
   function on(id,evt,fn){
     const el=document.getElementById(id);
     if(el) el.addEventListener(evt,fn);
