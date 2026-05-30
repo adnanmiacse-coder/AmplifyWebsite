@@ -8,14 +8,83 @@ function openRouterKeys() { return getOpenRouterKeys(_config, _env); }
 function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
-// ── NEO4J CONFIG ──
+function apiBase() {
+  const fromConfig = _config.BACKEND_URL || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.BACKEND_URL);
+  if (fromConfig) return String(fromConfig).replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  return '';
+}
 
-const NEO4J_HOST = 'http://localhost:7474';
+// ── NEO4J CONFIG (optional — falls back to localStorage) ──
+const LS_DOCS_KEY = 'amplify_tutor_documents';
+let NEO4J_HOST = '';
+let NEO4J_USER = 'neo4j';
+let NEO4J_PASS = '';
+let _neo4jEnabled = false;
+let _neo4jReady = false;
+
+function refreshNeo4jConfig() {
+  NEO4J_HOST = (_config.NEO4J_HOST || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.NEO4J_HOST) || '').replace(/\/$/, '');
+  NEO4J_USER = _config.NEO4J_USER || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.NEO4J_USER) || 'neo4j';
+  NEO4J_PASS = _config.NEO4J_PASS || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.NEO4J_PASS) || '';
+  _neo4jEnabled = Boolean(NEO4J_HOST && NEO4J_PASS);
+  if (!_neo4jEnabled) _neo4jReady = false;
+}
+
+function loadLocalDocuments() {
+  try {
+    const raw = localStorage.getItem(LS_DOCS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalDocuments(docs) {
+  localStorage.setItem(LS_DOCS_KEY, JSON.stringify(docs.slice(0, 20)));
+}
+
+function snapshotCurrentDocument(docName) {
+  return {
+    docId: `${docName}_${Date.now()}`,
+    filename: docName,
+    pages: totalPages,
+    chunkCount: store.chunks.length,
+    mode: document.getElementById('stat-mode')?.textContent || '',
+    date: new Date().toISOString(),
+    chunks: store.chunks.map(c => ({
+      text: c.text,
+      pageNum: c.pageNum,
+      wordCount: c.wordCount || 0,
+    })),
+    graphNodes: Object.entries(graph.nodes).map(([id, data]) => ({
+      id,
+      freq: data.freq,
+      chunks: [...data.chunks],
+    })),
+    graphEdges: Object.entries(graph.edges).map(([key, weight]) => ({ key, weight })),
+    chatHistory: chatHistory.map(m => ({ role: m.role, content: m.content })),
+  };
+}
+
+function upsertLocalDocument(doc) {
+  const docs = loadLocalDocuments().filter(d => d.filename !== doc.filename);
+  docs.unshift(doc);
+  saveLocalDocuments(docs);
+}
+
+function updateLocalDocumentChat(docId, role, content) {
+  const docs = loadLocalDocuments();
+  const doc = docs.find(d => d.docId === docId);
+  if (!doc) return;
+  doc.chatHistory = doc.chatHistory || [];
+  doc.chatHistory.push({ role, content });
+  saveLocalDocuments(docs);
+}
+
 // ── CURRENT DOCUMENT STATE ──
-let currentDocId = null; // tracks which saved doc is loaded
-const NEO4J_USER = 'neo4j';
-const NEO4J_PASS = '01729998600'; // whatever you set in Step 1
-let _neo4jReady  = false;
+let currentDocId = null;
 
 async function neo4jRun(cypher, params = {}) {
   const res = await fetch(`${NEO4J_HOST}/db/neo4j/tx/commit`, {
@@ -34,13 +103,16 @@ async function neo4jRun(cypher, params = {}) {
 }
 
 async function initNeo4j() {
+  if (!_neo4jEnabled) return false;
   try {
     await neo4jRun('RETURN 1 AS ping');
     _neo4jReady = true;
     console.log('[Neo4j] Connected ✓');
-  } catch(e) {
+    return true;
+  } catch (e) {
     console.warn('[Neo4j] Connection failed:', e.message);
     _neo4jReady = false;
+    return false;
   }
 }
 
@@ -471,7 +543,7 @@ function renderTopicGraph() {
           'label': 'data(label)',
           'font-size': (ele) => { const t = (ele.data('freq') - minFreq) / (maxFreq - minFreq + 1); return 10 + t * 8; },
           'font-weight': 600,
-          'font-family': "'Hind Siliguri', sans-serif",
+          'font-family': 'Hind Siliguri',
           'color': '#1a1714',
           'text-valign': 'center',
           'text-halign': 'center',
@@ -1467,7 +1539,7 @@ async function loadAndIndex(file) {
     graph.buildGraph(store.chunks);
     renderTopicGraph();
     // Persist to Neo4j in background (non-blocking)
-    persistGraphToNeo4j(file.name).catch(e => console.warn('[Neo4j] persist failed:', e.message));
+    persistDocument(file.name).catch(e => console.warn('[Persist] save failed:', e.message));
     setProgress(100);
 
     document.getElementById('stat-chunks').textContent=`${allChunks.length} অংশ`;
@@ -1484,9 +1556,22 @@ async function loadAndIndex(file) {
 }
 
 
-// ─────────────────────────────────────────────────────
-// NEO4J PERSISTENCE
-// ─────────────────────────────────────────────────────
+// ── DOCUMENT PERSISTENCE (Neo4j or localStorage) ──
+async function persistDocument(docName) {
+  if (_neo4jEnabled) {
+    if (!_neo4jReady) await initNeo4j();
+    if (_neo4jReady) {
+      await persistGraphToNeo4j(docName);
+      return;
+    }
+  }
+
+  const doc = snapshotCurrentDocument(docName);
+  currentDocId = doc.docId;
+  upsertLocalDocument(doc);
+  console.log('[Storage] Saved document locally:', doc.filename);
+}
+
 async function persistGraphToNeo4j(docName) {
   if (!_neo4jReady) await initNeo4j();
   if (!_neo4jReady) return;
@@ -1563,42 +1648,109 @@ async function persistGraphToNeo4j(docName) {
 
 
 async function saveChatMessage(role, content) {
-  if (!_neo4jReady || !currentDocId) return;
-  await neo4jRun(
-    `CREATE (m:Message {id:$id, role:$role, content:$content,
-             timestamp:$ts, docId:$docId})`,
-    {
-      id: currentDocId + '_m' + Date.now(),
-      role, content,
-      ts: new Date().toISOString(),
-      docId: currentDocId
-    }
-  ).catch(e => console.warn('[Neo4j] chat save failed:', e.message));
+  if (_neo4jEnabled && _neo4jReady && currentDocId) {
+    await neo4jRun(
+      `CREATE (m:Message {id:$id, role:$role, content:$content,
+               timestamp:$ts, docId:$docId})`,
+      {
+        id: currentDocId + '_m' + Date.now(),
+        role, content,
+        ts: new Date().toISOString(),
+        docId: currentDocId
+      }
+    ).catch(e => console.warn('[Neo4j] chat save failed:', e.message));
+    return;
+  }
+  if (currentDocId) updateLocalDocumentChat(currentDocId, role, content);
 }
 
-
-
 async function loadSavedDocuments() {
-  if (!_neo4jReady) await initNeo4j();
-  if (!_neo4jReady) return;
+  const grid = document.getElementById('home-grid');
+  if (!grid) return;
+
+  if (_neo4jEnabled) {
+    if (!_neo4jReady) await initNeo4j();
+    if (_neo4jReady) {
+      try {
+        const res = await neo4jRun(
+          'MATCH (d:Document) RETURN d ORDER BY d.date DESC'
+        );
+        const docs = res.results?.[0]?.data?.map(r => r.row[0]) || [];
+        docs.forEach(doc => {
+          const card = document.createElement('div');
+          card.className = 'home-card';
+          card.innerHTML = `
+            <div class="home-card-title">📄 ${doc.filename}</div>
+            <div class="home-card-meta">${doc.chunkCount} অংশ · ${doc.pages} পৃষ্ঠা</div>
+            <div class="home-card-date">${new Date(doc.date).toLocaleDateString('bn-BD')}</div>`;
+          card.onclick = () => loadDocumentFromNeo4j(doc.docId, doc.filename);
+          grid.insertBefore(card, grid.firstChild);
+        });
+        return;
+      } catch (e) {
+        console.warn('[Neo4j] loadSavedDocuments failed:', e.message);
+      }
+    }
+  }
+
+  loadLocalDocuments().forEach(doc => {
+    const card = document.createElement('div');
+    card.className = 'home-card';
+    card.innerHTML = `
+      <div class="home-card-title">📄 ${doc.filename}</div>
+      <div class="home-card-meta">${doc.chunkCount} অংশ · ${doc.pages} পৃষ্ঠা</div>
+      <div class="home-card-date">${new Date(doc.date).toLocaleDateString('bn-BD')}</div>`;
+    card.onclick = () => loadDocumentFromStorage(doc.docId);
+    grid.insertBefore(card, grid.firstChild);
+  });
+}
+
+async function loadDocumentFromStorage(docId) {
+  const doc = loadLocalDocuments().find(d => d.docId === docId);
+  if (!doc) return;
+
+  showHomeScreen(false);
+  store.reset();
+  graph.reset();
+  currentDocId = doc.docId;
+  totalPages = doc.pages || 0;
+
+  showBar(true, 'সংরক্ষিত উপকরণ লোড হচ্ছে…');
+  setProgress(20);
+
   try {
-    const res = await neo4jRun(
-      'MATCH (d:Document) RETURN d ORDER BY d.date DESC'
-    );
-    const docs = res.results?.[0]?.data?.map(r => r.row[0]) || [];
-    const grid = document.getElementById('home-grid');
-    docs.forEach(doc => {
-      const card = document.createElement('div');
-      card.className = 'home-card';
-      card.innerHTML = `
-        <div class="home-card-title">📄 ${doc.filename}</div>
-        <div class="home-card-meta">${doc.chunkCount} অংশ · ${doc.pages} পৃষ্ঠা</div>
-        <div class="home-card-date">${new Date(doc.date).toLocaleDateString('bn-BD')}</div>`;
-      card.onclick = () => loadDocumentFromNeo4j(doc.docId, doc.filename);
-      grid.insertBefore(card, grid.firstChild);
+    doc.chunks.forEach(c => store.addChunk({ text: c.text, pageNum: c.pageNum, wordCount: c.wordCount }));
+    store.build();
+    setProgress(50);
+
+    doc.graphNodes.forEach(n => {
+      graph.nodes[n.id] = { chunks: new Set(n.chunks || []), freq: n.freq };
     });
-  } catch(e) {
-    console.warn('[Neo4j] loadSavedDocuments failed:', e.message);
+    doc.graphEdges.forEach(({ key, weight }) => {
+      graph.edges[key] = weight;
+    });
+    setProgress(70);
+    renderTopicGraph();
+
+    chatHistory = (doc.chatHistory || []).map(m => ({ role: m.role, content: m.content }));
+    const msgs = document.getElementById('chat-messages');
+    [...msgs.querySelectorAll('.msg:not(#welcome-msg)')].forEach(m => m.remove());
+    chatHistory.forEach(m => appendMsg(m.role === 'user' ? 'user' : 'ai', m.content));
+
+    document.getElementById('fname-text').textContent = doc.filename;
+    document.getElementById('pdf-filename').classList.add('visible');
+    document.getElementById('upload-zone').style.display = 'none';
+    document.getElementById('stat-chunks').textContent = `${doc.chunkCount} অংশ`;
+    document.getElementById('stat-pages').textContent = `${doc.pages} পৃষ্ঠা`;
+    document.getElementById('stat-mode').textContent = doc.mode || '—';
+    document.getElementById('index-status').classList.add('visible');
+    enableChat();
+    setProgress(100);
+    setTimeout(() => showBar(false), 500);
+  } catch (e) {
+    console.error('[Storage] load failed:', e);
+    showBar(false);
+    showMsg('❌ সংরক্ষিত ফাইল লোড করতে ব্যর্থ');
   }
 }
 
@@ -1978,9 +2130,8 @@ async function fetchSlideSpec(teacherText,topic){
 }
 
 // ─────────────────────────────────────────────────────
-// MANIM VISUAL — calls local Python backend
+// MANIM VISUAL — calls backend /generate on same origin
 // ─────────────────────────────────────────────────────
-const MANIM_BACKEND = 'http://127.0.0.1:8000';
 
 function extractKeywords(text) {
   const stop = new Set(['the','and','for','that','this','with','from','are','was','were','has','have','its','they','their','also','been','will','more','each','both','only','some','then','than']);
@@ -2004,7 +2155,7 @@ function extractKeywords(text) {
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
   try {
-    const res = await fetch(`${MANIM_BACKEND}/generate`, {
+    const res = await fetch(`${apiBase()}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
@@ -2032,7 +2183,7 @@ function showDiagram(videoUrl, topic) {
     container.innerHTML = '';
     if (videoUrl) {
       const video = document.createElement('video');
-      video.src = videoUrl;
+      video.src = videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`;
       video.autoplay = true;
       video.loop = true;
       video.muted = true;
@@ -2658,11 +2809,12 @@ function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrol
 // ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async function(){
   _config = await loadEnvConfig();
+  refreshNeo4jConfig();
   if (!groqKeys().length) {
     console.warn('[Amplify Tutor] No Groq API keys. Set GROQ_KEYS in Railway variables.');
   }
   showHomeScreen(true);
-  await initNeo4j();
+  if (_neo4jEnabled) await initNeo4j();
   await loadSavedDocuments();
   document.getElementById('home-new-btn').onclick = () => {
     showHomeScreen(false);
