@@ -553,6 +553,17 @@ async def generate(data: Prompt):
     return {"video_url": f"/videos/{job_id}.mp4"}
 
 
+@app.get("/api/health")
+async def health():
+    return {
+        "status": "ok",
+        "frontend_dir": FRONTEND_DIR,
+        "frontend_exists": bool(FRONTEND_DIR and os.path.isdir(FRONTEND_DIR)),
+        "base_dir": BASE_DIR,
+        "project_root": PROJECT_ROOT,
+    }
+
+
 @app.get("/api/config")
 async def get_config():
     """Provide API configuration to frontend"""
