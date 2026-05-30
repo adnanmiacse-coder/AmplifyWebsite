@@ -16,11 +16,31 @@ def resolve_frontend_dir() -> str | None:
     candidates = [
         os.getenv("FRONTEND_DIR"),
         os.path.join(BASE_DIR, "frontend"),
+        os.path.join(os.getcwd(), "frontend"),
         os.path.join(PROJECT_ROOT, "frontend"),
+        os.path.join(BASE_DIR, "..", "frontend"),
     ]
+    seen = set()
     for candidate in candidates:
-        if candidate and os.path.isdir(candidate):
-            return os.path.abspath(candidate)
+        if not candidate:
+            continue
+        path = os.path.abspath(candidate)
+        if path in seen:
+            continue
+        seen.add(path)
+        if os.path.isdir(path):
+            print(f"Using frontend directory: {path}")
+            return path
+
+    checked = ", ".join(sorted(seen))
+    try:
+        base_contents = os.listdir(BASE_DIR)
+    except OSError:
+        base_contents = []
+    print(
+        "Warning: frontend directory not found; static files disabled. "
+        f"Checked: {checked}. BASE_DIR={BASE_DIR} contents={base_contents}"
+    )
     return None
 
 
@@ -578,9 +598,33 @@ async def get_config():
 
 
 if FRONTEND_DIR:
+    public_dir = os.path.join(FRONTEND_DIR, "public")
+    models_dir = os.path.join(public_dir, "models")
+
+    if os.path.isdir(models_dir):
+        app.mount("/models", StaticFiles(directory=models_dir), name="models")
+
+    @app.get("/amplify-env-bootstrap.js")
+    async def amplify_env_bootstrap():
+        path = os.path.join(public_dir, "amplify-env-bootstrap.js")
+        if not os.path.isfile(path):
+            raise HTTPException(404, "amplify-env-bootstrap.js not found")
+        return FileResponse(path, media_type="application/javascript")
+
+    @app.get("/icons.svg")
+    async def icons_svg():
+        path = os.path.join(public_dir, "icons.svg")
+        if not os.path.isfile(path):
+            raise HTTPException(404, "icons.svg not found")
+        return FileResponse(path, media_type="image/svg+xml")
+
+    @app.get("/favicon.svg")
+    async def favicon_svg():
+        path = os.path.join(public_dir, "favicon.svg")
+        if not os.path.isfile(path):
+            raise HTTPException(404, "favicon.svg not found")
+        return FileResponse(path, media_type="image/svg+xml")
+
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
 else:
-    print(
-        "Warning: frontend directory not found; static files disabled. "
-        f"Checked: {os.path.join(BASE_DIR, 'frontend')}, {os.path.join(PROJECT_ROOT, 'frontend')}"
-    )
+    print("Static HTML frontend will not be served.")

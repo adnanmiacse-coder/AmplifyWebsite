@@ -13,7 +13,8 @@ cmds = [
 name = "build"
 cmds = [
   "if [ -d frontend ]; then rm -rf backend/frontend && cp -r frontend backend/frontend; fi",
-  "if [ -d ../frontend ] && [ ! -d frontend ]; then rm -rf frontend && cp -r ../frontend frontend; fi"
+  "if [ -d ../frontend ] && [ ! -d frontend ]; then rm -rf frontend && cp -r ../frontend frontend; fi",
+  "test -d backend/frontend || test -d frontend || (echo 'ERROR: no frontend directory found' && exit 1)"
 ]
 
 [start]

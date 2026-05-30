@@ -10,7 +10,9 @@ cmds = [
 
 [[phases.build]]
 cmds = [
-  "if [ -d ../frontend ]; then rm -rf frontend && cp -r ../frontend frontend; fi"
+  "if [ -d ../frontend ]; then rm -rf frontend && cp -r ../frontend frontend; fi",
+  "test -d frontend || (echo 'ERROR: frontend directory missing after build' && exit 1)",
+  "ls -la frontend | head -20"
 ]
 
 [start]
