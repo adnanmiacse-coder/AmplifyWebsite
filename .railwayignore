@@ -15,9 +15,12 @@ vendor/
 .env.example
 phpunit.xml
 
-# Keep only the backend
+# Keep Python backend + frontend static site
 !backend/
+!frontend/
 !Procfile
 !runtime.txt
 !nixpacks.toml
 !requirements.txt
+!build.sh
+!railway.json

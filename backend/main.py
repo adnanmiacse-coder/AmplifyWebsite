@@ -6,6 +6,12 @@ from pydantic import BaseModel
 import subprocess, json, os, uuid, re, ast
 from openai import OpenAI
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
+VIDEOS_DIR = os.path.join(BASE_DIR, "videos")
+SCENES_DIR = os.path.join(BASE_DIR, "scenes")
+
 # ── LangGraph (Deep Learn feature) ──
 from langgraph.graph import StateGraph, END, START
 from langchain_groq import ChatGroq
@@ -207,9 +213,9 @@ _builder.add_edge('expert3', END)
 discussion_graph = _builder.compile()
 
 
-os.makedirs("videos", exist_ok=True)
-os.makedirs("scenes", exist_ok=True)
-app.mount("/videos", StaticFiles(directory="videos"), name="videos")
+os.makedirs(VIDEOS_DIR, exist_ok=True)
+os.makedirs(SCENES_DIR, exist_ok=True)
+app.mount("/videos", StaticFiles(directory=VIDEOS_DIR), name="videos")
 
 class Prompt(BaseModel):
     prompt: str
@@ -441,8 +447,8 @@ async def generate(data: Prompt):
     import traceback
     print(f"Using API keys: {[k[:20] + '...' for k in get_api_keys()]}")
     job_id = str(uuid.uuid4())[:8]
-    scene_file = f"scenes/scene_{job_id}.py"
-    output_video = f"videos/{job_id}.mp4"
+    scene_file = os.path.join(SCENES_DIR, f"scene_{job_id}.py")
+    output_video = os.path.join(VIDEOS_DIR, f"{job_id}.mp4")
 
     # Step 1: Generate code, with fallback to simpler version if syntax broken
     try:
@@ -470,9 +476,11 @@ async def generate(data: Prompt):
     code = sanitize_code(code, job_id, data.prompt)
 
     # Step 2: Save scene file
-    os.makedirs("scenes", exist_ok=True)
+    os.makedirs(SCENES_DIR, exist_ok=True)
     with open(scene_file, "w", encoding="utf-8") as f:
         f.write(code)
+
+    media_dir = os.path.join(BASE_DIR, f"media_{job_id}")
 
     # Step 3: Render with retry loop
     MAX_RETRIES = 3
@@ -482,7 +490,7 @@ async def generate(data: Prompt):
         print(f"[{job_id}] Render attempt {attempt}/{MAX_RETRIES}")
         try:
             result = subprocess.run(
-                ["manim", "-ql", scene_file, "Scene", "--media_dir", f"media_{job_id}"],
+                ["manim", "-ql", scene_file, "Scene", "--media_dir", media_dir],
                 capture_output=True, text=True, timeout=120
             )
             print(f"[{job_id}] Manim stdout: {result.stdout[-300:]}")
@@ -517,15 +525,15 @@ async def generate(data: Prompt):
         raise HTTPException(500, f"Render failed after {MAX_RETRIES} attempts: {last_error[-300:]}")
 
     # Step 4: Find output
-    expected = f"media_{job_id}/videos/scene_{job_id}/480p15/Scene.mp4"
+    expected = os.path.join(media_dir, "videos", f"scene_{job_id}", "480p15", "Scene.mp4")
     print(f"[{job_id}] Looking for video at: {expected}")
     if not os.path.exists(expected):
-        for root, dirs, files in os.walk(f"media_{job_id}"):
+        for root, dirs, files in os.walk(media_dir):
             for file in files:
                 print(f"[{job_id}] Found file: {os.path.join(root, file)}")
         raise HTTPException(500, "Video file not found after render")
 
-    os.makedirs("videos", exist_ok=True)
+    os.makedirs(VIDEOS_DIR, exist_ok=True)
     os.rename(expected, output_video)
 
     return {"video_url": f"/videos/{job_id}.mp4"}
@@ -543,4 +551,7 @@ async def get_config():
     }
 
 
-app.mount("/", StaticFiles(directory="../frontend", html=True), name="static")
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
+else:
+    print(f"Warning: frontend directory not found at {FRONTEND_DIR}; static files disabled")
