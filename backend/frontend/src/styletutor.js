@@ -2181,28 +2181,31 @@ function showDiagram(videoUrl, topic) {
 
   setTimeout(() => {
     container.innerHTML = '';
-    const fallbackVideoUrl = `${apiBase()}/videos/3e64f732.mp4`;
+    const fallbackVideoUrl = 'https://amplifywebsite-production.up.railway.app/videos/3e64f732.mp4';
     const resolvedVideoUrl = videoUrl
       ? videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`
       : fallbackVideoUrl;
 
     const video = document.createElement('video');
+    let triedFallback = false;
     video.src = resolvedVideoUrl;
     video.autoplay = true;
     video.loop = true;
     video.muted = true;
     video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
     video.onerror = () => {
-      if (video.src !== fallbackVideoUrl) {
-        video.onerror = null;
+      if (!triedFallback) {
+        triedFallback = true;
         video.src = fallbackVideoUrl;
         video.load();
+        video.play().catch(() => {});
       }
     };
 
     container.appendChild(video);
     cap.textContent = '🎬 ' + topic;
     container.classList.add('visible');
+    video.play().catch(() => {});
   }, 300);
 }
 
