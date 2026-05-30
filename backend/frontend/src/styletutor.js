@@ -1,10 +1,13 @@
-// ─────────────────────────────────────────────────────
-// HARDCODED CONFIG — replace with your keys
-// ─────────────────────────────────────────────────────
-const GROQ_KEYS = window.AMPLIFY_ENV?.GROQ_KEYS || [];
+import { loadEnvConfig, getGroqKeys, getOpenRouterKeys, getGroqBase, getOpenRouterBase, getViteEnv } from './env-config.js';
 
-const OPENROUTER_KEYS = window.AMPLIFY_ENV?.OPENROUTER_KEYS || [];
-const OPENROUTER_BASE = window.AMPLIFY_ENV?.OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
+let _config = {};
+const _env = getViteEnv();
+
+function groqKeys() { return getGroqKeys(_config, _env); }
+function openRouterKeys() { return getOpenRouterKeys(_config, _env); }
+function groqBase() { return getGroqBase(_config, _env); }
+function openRouterBase() { return getOpenRouterBase(_config, _env); }
+
 // ── NEO4J CONFIG ──
 
 const NEO4J_HOST = 'http://localhost:7474';
@@ -43,7 +46,6 @@ async function initNeo4j() {
 
 
 const OPENROUTER_MODEL = 'openrouter/auto';
-const GROQ_BASE    = 'https://api.groq.com/openai/v1';
 const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
 // Primary model for all lecture + chat generation
@@ -154,15 +156,15 @@ function triggerDistractionWarning() {
 }
 
 // Gemini config — used for slide generation
-import { loadEnvConfig, getViteEnv } from './env-config.js';
+let _geminiConfig = {};
+loadEnvConfig().then(cfg => {
+  _config = cfg;
+  _geminiConfig = cfg;
+});
 
-let _config = {};
-loadEnvConfig().then(cfg => { _config = cfg; });
-
-const _env = getViteEnv();
-const GEMINI_KEY   = _config.GEMINI_KEY || _env.VITE_GEMINI_KEY || '';
-const GEMINI_MODEL = _config.GEMINI_MODEL || _env.VITE_GEMINI_MODEL || 'gemini-2.0-flash-lite';
-const GEMINI_BASE  = _config.GEMINI_BASE || _env.VITE_GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta/models';
+function geminiKey() { return _geminiConfig.GEMINI_KEY || _env.VITE_GEMINI_KEY || ''; }
+function geminiModel() { return _geminiConfig.GEMINI_MODEL || _env.VITE_GEMINI_MODEL || 'gemini-2.0-flash-lite'; }
+function geminiBase() { return _geminiConfig.GEMINI_BASE || _env.VITE_GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta/models'; }
 
 // Pipeline settings
 const CHUNK_WORDS  = 300;
@@ -637,10 +639,11 @@ async function detectPDFMode(doc) {
 // ─────────────────────────────────────────────────────
 // GROQ API  — key rotation with per-model fallback
 // ─────────────────────────────────────────────────────
-async function groqCallModel(model, messages, system, maxTokens=400, temperature=0.72, apiKey=GROQ_KEYS[0]) {
-  const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+async function groqCallModel(model, messages, system, maxTokens=400, temperature=0.72, apiKey) {
+  const key = apiKey || groqKeys()[0];
+  const res = await fetch(`${groqBase()}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
     body: JSON.stringify({
       model, max_tokens: maxTokens, temperature,
       messages: [{ role: 'system', content: system }, ...messages]
@@ -656,13 +659,13 @@ async function groqCallModel(model, messages, system, maxTokens=400, temperature
 }
 
 async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
-  for (let i = 0; i < OPENROUTER_KEYS.length; i++) {
+  for (let i = 0; i < openRouterKeys().length; i++) {
     try {
-      const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+      const res = await fetch(`${openRouterBase()}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_KEYS[i]}`,
+          'Authorization': `Bearer ${openRouterKeys()[i]}`,
           'HTTP-Referer': 'http://localhost:5173',
           'X-Title': 'Amplify'
         },
@@ -702,10 +705,10 @@ async function groqChat(messages, system, maxTokens=400, temperature=0.72) {
   // Fallback — try each Groq model + key combination
   for (let mi = 0; mi < GROQ_MODELS.length; mi++) {
     const model = GROQ_MODELS[mi];
-    for (let ki = 0; ki < GROQ_KEYS.length; ki++) {
+    for (let ki = 0; ki < groqKeys().length; ki++) {
       try {
-        console.log(`[Groq] model: ${model} | key: ${ki+1}/${GROQ_KEYS.length} | key starts: ${GROQ_KEYS[ki]?.slice(0,12)}`);
-        return await groqCallModel(model, messages, system, maxTokens, temperature, GROQ_KEYS[ki]);
+        console.log(`[Groq] model: ${model} | key: ${ki+1}/${groqKeys().length} | key starts: ${groqKeys()[ki]?.slice(0,12)}`);
+        return await groqCallModel(model, messages, system, maxTokens, temperature, groqKeys()[ki]);
       } catch(e) {
         console.warn(`[Groq] key ${ki+1} model ${model} error: ${e.message}`);
         continue; // try next key regardless of error type
@@ -716,16 +719,16 @@ async function groqChat(messages, system, maxTokens=400, temperature=0.72) {
   throw new Error('সব মডেল ও API কী রেট লিমিটে আছে। ১ মিনিট পরে আবার চেষ্টা করুন।');
 }
 async function groqVisionOCR(base64Img, pageNum) {
-  for (let ki = 0; ki < GROQ_KEYS.length; ki++) {
+  for (let ki = 0; ki < groqKeys().length; ki++) {
     let attempts = 0;
     while (attempts < 2) { // max 2 attempts per key (1 retry after 429)
       attempts++;
       try {
-        const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+        const res = await fetch(`${groqBase()}/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_KEYS[ki]}`
+            'Authorization': `Bearer ${groqKeys()[ki]}`
           },
           body: JSON.stringify({
             model: VISION_MODEL, max_tokens: 2048,
@@ -769,16 +772,16 @@ async function groqVisionOCR(base64Img, pageNum) {
 
   // All Groq keys exhausted — fall back to OpenRouter
   console.warn(`[Vision] All Groq keys failed for page ${pageNum}, trying OpenRouter`);
-  for (let i = 0; i < OPENROUTER_KEYS.length; i++) {
+  for (let i = 0; i < openRouterKeys().length; i++) {
     let attempts = 0;
     while (attempts < 2) {
       attempts++;
       try {
-        const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+        const res = await fetch(`${openRouterBase()}/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${OPENROUTER_KEYS[i]}`,
+            'Authorization': `Bearer ${openRouterKeys()[i]}`,
             'HTTP-Referer': 'http://localhost:5173',
             'X-Title': 'Amplify'
           },
@@ -1365,7 +1368,7 @@ async function replayWeakSegment() {
 async function geminiChat(userContent, systemInstruction, retries=4) {
   for (let attempt=0; attempt<=retries; attempt++) {
     const res = await fetch(
-      `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`,
+      `${geminiBase()}/${geminiModel()}:generateContent?key=${geminiKey()}`,
       {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -1392,7 +1395,7 @@ async function geminiChat(userContent, systemInstruction, retries=4) {
 async function geminiJSON(userContent, retries=4) {
   for(let attempt=0;attempt<=retries;attempt++){
     const res=await fetch(
-      `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`,
+      `${geminiBase()}/${geminiModel()}:generateContent?key=${geminiKey()}`,
       {method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({contents:[{role:'user',parts:[{text:userContent}]}],
       generationConfig:{maxOutputTokens:400,temperature:0.25,responseMimeType:'application/json'}})}
@@ -2658,6 +2661,10 @@ function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrol
 // EVENT WIRING
 // ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async function(){
+  _config = await loadEnvConfig();
+  if (!groqKeys().length) {
+    console.warn('[Amplify Tutor] No Groq API keys. Set GROQ_KEYS in Railway variables.');
+  }
   showHomeScreen(true);
   await initNeo4j();
   await loadSavedDocuments();

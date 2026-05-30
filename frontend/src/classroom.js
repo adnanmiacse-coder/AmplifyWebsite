@@ -5,16 +5,18 @@
 //  Generative UI slides · laser pointer · Bangla
 // ══════════════════════════════════════════════
 
-import { loadEnvConfig, parseEnvList } from './env-config.js';
+import { loadEnvConfig, getGroqKeys, getOpenRouterKeys, getGroqBase, getOpenRouterBase, getViteEnv } from './env-config.js';
 
 // ── Load config from server (keys never hardcoded in bundle) ──────
 let _config = {};
+const _env = getViteEnv();
 loadEnvConfig().then(cfg => { _config = cfg; });
 
-// Fallback values during initial load
-const _env = import.meta?.env || {};
-const OPENROUTER_KEYS = () => _config.OPENROUTER_KEYS || parseEnvList(_env.VITE_OPENROUTER_KEYS || _env.VITE_OPENROUTER_KEY);
-const OPENROUTER_BASE  = _config.OPENROUTER_BASE || _env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
+function groqKeys() { return getGroqKeys(_config, _env); }
+function openRouterKeys() { return getOpenRouterKeys(_config, _env); }
+function groqBase() { return getGroqBase(_config, _env); }
+function openRouterBase() { return getOpenRouterBase(_config, _env); }
+
 const OPENROUTER_MODELS = [
   'meta-llama/llama-3.3-70b-instruct:free',
   'deepseek/deepseek-r1-0528:free',
@@ -22,8 +24,6 @@ const OPENROUTER_MODELS = [
   'tngtech/deepseek-r1t-chimera:free',
 ];
 // ── Groq (fallback chat + Whisper STT + Vision OCR) ──
-const GROQ_KEYS = () => _config.GROQ_API_KEY ? [_config.GROQ_API_KEY] : parseEnvList(_env.VITE_GROQ_KEYS || _env.VITE_GROQ_KEY);
-const GROQ_BASE          = _config.GROQ_API_BASE_URL || _env.VITE_GROQ_BASE || 'https://api.groq.com/openai/v1';
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
 const VISION_MODEL       = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const GROQ_MODELS = [
@@ -346,13 +346,13 @@ function getRelevantContext(query, maxChars = 5000) {
 
 async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
   for (const model of OPENROUTER_MODELS) {
-    for (let i = 0; i < OPENROUTER_KEYS.length; i++) {
+    for (let i = 0; i < openRouterKeys().length; i++) {
       try {
-        const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+        const res = await fetch(`${openRouterBase()}/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${OPENROUTER_KEYS[i]}`,
+            'Authorization': `Bearer ${openRouterKeys()[i]}`,
             'HTTP-Referer': 'http://localhost',
             'X-Title': 'AI Classroom',
           },
@@ -393,11 +393,11 @@ async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId 
   // Groq fallback — rotate models × keys
   for (let modelIdx = 0; modelIdx < GROQ_MODELS.length; modelIdx++) {
     const model = GROQ_MODELS[modelIdx];
-    for (let ki = 0; ki < GROQ_KEYS.length; ki++) {
+    for (let ki = 0; ki < groqKeys().length; ki++) {
       try {
-        const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+        const res = await fetch(`${groqBase()}/chat/completions`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[ki]}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKeys()[ki]}` },
           body: JSON.stringify({
             model,
             max_tokens: maxTokens,
@@ -455,12 +455,12 @@ async function drainOCRQueue() {
 
 async function groqVisionOCR(base64Img, pageNum) {
   // Use a dedicated key for OCR to avoid competing with agent calls
-  const ocrKeys = [...GROQ_KEYS]; // all keys as fallback
+  const ocrKeys = [...groqKeys()]; // all keys as fallback
 
   for (let ki = 0; ki < ocrKeys.length; ki++) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+        const res = await fetch(`${groqBase()}/chat/completions`, {
           method:  'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ocrKeys[ki]}` },
           body: JSON.stringify({
@@ -1208,6 +1208,10 @@ function trimDialogueLog() {
 async function startLesson() {
   if (lessonStarting) return;
   lessonStarting = true;
+  _config = await loadEnvConfig();
+  if (!groqKeys().length) {
+    console.warn('[Amplify] No Groq API keys found. Set GROQ_KEYS or GROQ_KEY in Railway variables.');
+  }
   isRunning = false; turnLoopRunning = false;
   _turnInProgress = false;   // ← ADD THIS
   await sleep(200);
@@ -1637,11 +1641,11 @@ async function transcribeWithWhisper(blob) {
   fd.append('response_format', 'json');
   fd.append('temperature', '0');
 
-  for (let ki = 0; ki < GROQ_KEYS.length; ki++) {
+  for (let ki = 0; ki < groqKeys().length; ki++) {
     try {
-      const res = await fetch(`${GROQ_BASE}/audio/transcriptions`, {
+      const res = await fetch(`${groqBase()}/audio/transcriptions`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${GROQ_KEYS[ki]}` },
+        headers: { Authorization: `Bearer ${groqKeys()[ki]}` },
         body: fd,
       });
       if (res.status === 429) { console.warn(`[Whisper] key ${ki + 1} 429, trying next`); continue; }
@@ -1649,7 +1653,7 @@ async function transcribeWithWhisper(blob) {
       const data = await res.json();
       console.log(`[Whisper] ✓ key ${ki + 1}`);
       return data?.text || data?.transcript || '';
-    } catch (e) { console.warn(`[Whisper] key ${ki + 1}:`, e.message); if (ki === GROQ_KEYS.length - 1) throw e; }
+    } catch (e) { console.warn(`[Whisper] key ${ki + 1}:`, e.message); if (ki === groqKeys().length - 1) throw e; }
   }
   return '';
 }

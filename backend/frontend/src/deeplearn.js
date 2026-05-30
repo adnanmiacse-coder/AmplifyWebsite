@@ -3,22 +3,23 @@
 //  3 Expert Agents · Groq multi-model · Bangla Deep Discussion
 // ══════════════════════════════════════════════
 
-import { loadEnvConfig, getViteEnv } from './env-config.js';
+import { loadEnvConfig, getGroqKeys, getOpenRouterKeys, getGroqBase, getOpenRouterBase, getViteEnv } from './env-config.js';
 
 let _config = {};
+const _env = getViteEnv();
 loadEnvConfig().then(cfg => { _config = cfg; });
 
-const _env = getViteEnv();
-const OPENROUTER_KEYS = () => _config.OPENROUTER_KEYS || parseEnvList(_env.VITE_OPENROUTER_KEYS || _env.VITE_OPENROUTER_KEY);
-const OPENROUTER_BASE   = _config.OPENROUTER_BASE || _env.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
+function groqKeys() { return getGroqKeys(_config, _env); }
+function openRouterKeys() { return getOpenRouterKeys(_config, _env); }
+function groqBase() { return getGroqBase(_config, _env); }
+function openRouterBase() { return getOpenRouterBase(_config, _env); }
+
 const OPENROUTER_MODELS = [
   'meta-llama/llama-3.3-70b-instruct:free',
   'deepseek/deepseek-r1-0528:free',
   'google/gemma-3n-e4b-it:free',
   'tngtech/deepseek-r1t-chimera:free',
 ];
-const GROQ_KEYS = () => _config.GROQ_API_KEY ? [_config.GROQ_API_KEY] : parseEnvList(_env.VITE_GROQ_KEYS || _env.VITE_GROQ_KEY);
-const GROQ_BASE          = _config.GROQ_API_BASE_URL || _env.VITE_GROQ_BASE || 'https://api.groq.com/openai/v1';
 const GROQ_MODELS        = ['llama-3.3-70b-versatile','llama-3.3-70b-specdec','gemma2-9b-it','llama-3.1-8b-instant'];
 const VISION_MODEL       = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
@@ -155,11 +156,11 @@ async function detectPDFMode(doc) {
 }
 
 async function groqVisionOCR(base64Img, pageNum) {
-  for (let ki = 0; ki < GROQ_KEYS.length; ki++) {
+  for (let ki = 0; ki < groqKeys().length; ki++) {
     try {
-      const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+      const res = await fetch(`${groqBase()}/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[ki]}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKeys()[ki]}` },
         body: JSON.stringify({
           model: VISION_MODEL, max_tokens: 2048,
           messages: [{ role: 'user', content: [
@@ -619,6 +620,7 @@ function showOnStage(expertId, text, stanceKey) {
 
 // ── Build prompt ──────────────────────────────
 async function buildInitialContent() {
+  _config = await loadEnvConfig();
   // Index any uploaded PDFs first
   for (const file of uploadedFiles) {
     if (file.type === 'application/pdf') {
@@ -679,13 +681,13 @@ function buildMessagesForExpert(expertId) {
 
 async function openRouterChat(messages, system, maxTokens = 600, temp = 0.8) {
   for (const model of OPENROUTER_MODELS) {
-    for (let i = 0; i < OPENROUTER_KEYS.length; i++) {
+    for (let i = 0; i < openRouterKeys().length; i++) {
       try {
-        const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+        const res = await fetch(`${openRouterBase()}/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${OPENROUTER_KEYS[i]}`,
+            'Authorization': `Bearer ${openRouterKeys()[i]}`,
             'HTTP-Referer': 'http://localhost',
             'X-Title': 'DeepLearn',
           },
@@ -715,11 +717,11 @@ async function callGroq(expertId, modelOverride) {
   // Groq fallback — rotate models × keys
   const models = modelOverride ? [modelOverride] : [expert.model, ...GROQ_MODELS];
   for (const model of models) {
-    for (let ki = 0; ki < GROQ_KEYS.length; ki++) {
+    for (let ki = 0; ki < groqKeys().length; ki++) {
       try {
-        const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+        const res = await fetch(`${groqBase()}/chat/completions`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[ki]}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKeys()[ki]}` },
           body: JSON.stringify({ model, max_tokens: 600, temperature: 0.8,
             messages: [{ role: 'system', content: expert.system }, ...messages] }),
         });
@@ -751,7 +753,7 @@ async function fetchKnowledgeInsert(topic, phaseId) {
       method: 'POST',
       headers: {
         'Content-Type':  'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Authorization': `Bearer ${groqKeys()[0] || ''}`,
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',

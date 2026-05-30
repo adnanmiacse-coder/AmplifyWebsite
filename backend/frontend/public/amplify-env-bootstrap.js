@@ -14,11 +14,22 @@
 
     if (response.ok) {
       const config = await response.json();
+      const groqKeys = Array.isArray(config.GROQ_KEYS) && config.GROQ_KEYS.length
+        ? config.GROQ_KEYS
+        : (config.GROQ_API_KEY ? [config.GROQ_API_KEY] : []);
+      const openRouterKeys = config.OPENROUTER_KEYS || config.OPENROUTER_API_KEYS || [];
+
       window.AMPLIFY_ENV = window.AMPLIFY_ENV || {};
-      window.AMPLIFY_ENV.GROQ_KEY = config.GROQ_API_KEY || '';
+      window.AMPLIFY_ENV.GROQ_KEYS = groqKeys;
+      window.AMPLIFY_ENV.GROQ_KEY = config.GROQ_API_KEY || groqKeys[0] || '';
       window.AMPLIFY_ENV.GROQ_BASE = config.GROQ_API_BASE_URL || 'https://api.groq.com/openai/v1';
+      window.AMPLIFY_ENV.OPENROUTER_KEYS = openRouterKeys;
+      window.AMPLIFY_ENV.OPENROUTER_BASE = config.OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
       window.AMPLIFY_ENV.CEREBRAS_KEY = config.CEREBRAS_API_KEY || '';
       window.AMPLIFY_ENV.CEREBRAS_BASE = config.CEREBRAS_API_BASE || 'https://api.cerebras.ai/v1';
+      window.AMPLIFY_ENV.GEMINI_KEY = config.GEMINI_KEY || '';
+      window.AMPLIFY_ENV.GEMINI_MODEL = config.GEMINI_MODEL || 'gemini-2.0-flash-lite';
+      window.AMPLIFY_ENV.GEMINI_BASE = config.GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta/models';
       console.log('[AmplifyEnv] Config loaded from server');
     } else {
       console.warn('[AmplifyEnv] Failed to load config:', response.status);

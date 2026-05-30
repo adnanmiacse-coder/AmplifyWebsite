@@ -1122,37 +1122,30 @@ body::after {
 
   <script src="/amplify-env-bootstrap.js"></script>
   <script type="module">
+    import { loadEnvConfig, getGroqKeys, getOpenRouterKeys, getGroqBase, getOpenRouterBase, parseEnvList } from '/src/env-config.js';
+
+    const _config = await loadEnvConfig();
+    const GROQ_KEYS = getGroqKeys(_config);
+    const OPENROUTER_KEYS = getOpenRouterKeys(_config);
+    const OPENROUTER_BASE = getOpenRouterBase(_config);
+    const GROQ_BASE = getGroqBase(_config);
+
     // ══════════════════════════════════════════════
     //  Deep Learn — deeplearn.html (inline)
     //  3 Expert Agents · Groq · Bangla Deep Discussion
     // ══════════════════════════════════════════════
-
-    // ── Vite environment variable ──────────────────
-    function parseEnvList(value) {
-      if (!value) return [];
-      const trimmed = String(value).trim();
-      if (!trimmed) return [];
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) return parsed.map(item => String(item).trim()).filter(Boolean);
-      } catch (e) {}
-      return trimmed.split(/[\r\n,]+/).map(item => item.trim()).filter(Boolean);
-    }
-    // Config loaded from server via amplify-env-bootstrap.js
-    const OPENROUTER_KEYS = parseEnvList(window.AMPLIFY_ENV?.OPENROUTER_KEYS || '');
-  const OPENROUTER_BASE   = window.AMPLIFY_ENV?.OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
 const OPENROUTER_MODELS = [
   'meta-llama/llama-3.3-70b-instruct:free',
   'deepseek/deepseek-r1-0528:free',
   'google/gemma-3n-e4b-it:free',
   'tngtech/deepseek-r1t-chimera:free',
 ];
-const GROQ_KEYS = parseEnvList(window.AMPLIFY_ENV?.GROQ_KEYS || window.AMPLIFY_ENV?.GROQ_KEY || '');
-const GROQ_BASE    = window.AMPLIFY_ENV?.GROQ_BASE || 'https://api.groq.com/openai/v1';
 const GROQ_MODELS  = ['llama-3.3-70b-versatile','llama-3.3-70b-specdec','gemma2-9b-it','llama-3.1-8b-instant'];
 const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
-    // ── Try to inherit key from parent page if opened via link ──
+    if (!GROQ_KEYS.length) {
+      console.warn('[DeepLearn] No Groq API keys. Set GROQ_KEYS in Railway variables.');
+    }
     function getGroqKey() {
       try {
         const meta = document.querySelector('meta[name="groq-key"]');

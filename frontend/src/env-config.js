@@ -69,15 +69,65 @@ export async function loadEnvConfig() {
 function getDefaultConfig() {
   return {
     GROQ_API_KEY: '',
+    GROQ_KEYS: [],
     GROQ_API_BASE_URL: 'https://api.groq.com/openai/v1',
     CEREBRAS_API_KEY: '',
     CEREBRAS_API_BASE: 'https://api.cerebras.ai/v1',
     OPENROUTER_KEYS: [],
+    OPENROUTER_API_KEYS: [],
     OPENROUTER_BASE: 'https://openrouter.ai/api/v1',
     GEMINI_KEY: '',
     GEMINI_MODEL: 'gemini-2.0-flash-lite',
     GEMINI_BASE: 'https://generativelanguage.googleapis.com/v1beta/models',
   };
+}
+
+/** Resolve Groq API keys from server config, window bootstrap, or Vite env. */
+export function getGroqKeys(config = {}, env = {}) {
+  for (const list of [
+    config.GROQ_KEYS,
+    typeof window !== 'undefined' ? window.AMPLIFY_ENV?.GROQ_KEYS : null,
+  ]) {
+    if (Array.isArray(list) && list.length) {
+      return list.map(String).filter(Boolean);
+    }
+  }
+  for (const key of [
+    config.GROQ_API_KEY,
+    typeof window !== 'undefined' ? window.AMPLIFY_ENV?.GROQ_KEY : '',
+  ]) {
+    if (key) return [String(key)];
+  }
+  return parseEnvList(env.VITE_GROQ_KEYS || env.VITE_GROQ_KEY);
+}
+
+/** Resolve OpenRouter API keys from server config, window bootstrap, or Vite env. */
+export function getOpenRouterKeys(config = {}, env = {}) {
+  for (const list of [
+    config.OPENROUTER_KEYS,
+    config.OPENROUTER_API_KEYS,
+    typeof window !== 'undefined' ? window.AMPLIFY_ENV?.OPENROUTER_KEYS : null,
+  ]) {
+    if (Array.isArray(list) && list.length) {
+      return list.map(String).filter(Boolean);
+    }
+  }
+  return parseEnvList(env.VITE_OPENROUTER_KEYS || env.VITE_OPENROUTER_KEY);
+}
+
+export function getGroqBase(config = {}, env = {}) {
+  return config.GROQ_API_BASE_URL
+    || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.GROQ_BASE)
+    || env.VITE_GROQ_BASE
+    || 'https://api.groq.com/openai/v1';
+}
+
+export function getOpenRouterBase(config = {}, env = {}) {
+  return config.OPENROUTER_BASE
+    || config.OPENROUTER_BASE_URL
+    || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.OPENROUTER_BASE)
+    || env.VITE_OPENROUTER_BASE
+    || 'https://openrouter.ai/api/v1';
 }
 
 /**

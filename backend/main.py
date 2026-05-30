@@ -588,12 +588,26 @@ async def health():
 @app.get("/api/config")
 async def get_config():
     """Provide API configuration to frontend"""
+    groq_keys = parse_env_list('GROQ_KEYS')
+    if not groq_keys:
+        single = os.getenv('GROQ_KEY', '').strip()
+        if single:
+            groq_keys = [single]
+
+    openrouter_keys = parse_env_list('OPENROUTER_API_KEYS')
+
     return {
-        "GROQ_API_KEY": os.getenv('GROQ_KEY', ''),
+        "GROQ_API_KEY": groq_keys[0] if groq_keys else '',
+        "GROQ_KEYS": groq_keys,
         "GROQ_API_BASE_URL": os.getenv('GROQ_BASE', 'https://api.groq.com/openai/v1'),
         "CEREBRAS_API_KEY": os.getenv('CEREBRAS_KEY', ''),
         "CEREBRAS_API_BASE": os.getenv('CEREBRAS_BASE', 'https://api.cerebras.ai/v1'),
-        "OPENROUTER_API_KEYS": get_api_keys() if API_KEYS else [],
+        "OPENROUTER_API_KEYS": openrouter_keys,
+        "OPENROUTER_KEYS": openrouter_keys,
+        "OPENROUTER_BASE": OPENROUTER_BASE_URL,
+        "GEMINI_KEY": os.getenv('GEMINI_KEY', ''),
+        "GEMINI_MODEL": os.getenv('GEMINI_MODEL', 'gemini-2.0-flash-lite'),
+        "GEMINI_BASE": os.getenv('GEMINI_BASE', 'https://generativelanguage.googleapis.com/v1beta/models'),
     }
 
 
