@@ -1,4 +1,4 @@
-# 🎓 Amplify — AI-Driven Adaptive Learning Assistant
+# 🎓 StyleTutor — AI-Driven Adaptive Learning Assistant
 
 An intelligent, multimodal learning platform built for Bengali learners. StyleTutor combines multi-provider LLM orchestration, local Ollama inference, document-based RAG, adaptive assessments, and voice interaction — all powered by a Laravel backend for classroom and teacher management.
 
@@ -20,24 +20,35 @@ An intelligent, multimodal learning platform built for Bengali learners. StyleTu
 
 ## 🧠 Models
 
-StyleTutor supports two inference modes — **cloud** (for scalability) and **local** (for privacy and offline use):
+StyleTutor uses a **multi-model architecture** with dynamic routing — models are selected based on task complexity, latency requirements, token budget, and multimodal needs. Simple requests are routed to smaller/free models first; complex reasoning tasks escalate to larger models only when necessary.
+
+> **Throughput scaling:** Multi-key rotation across 6+ Groq free-tier API keys (~30 RPM each) achieves an effective aggregate of ~180 RPM — enabling scalable concurrent classroom interactions without enterprise inference costs.
 
 ### ☁️ Cloud Models
 
-| Role | Model | Provider |
-|------|-------|----------|
-| Primary chat / lecture generation | `llama-3.3-70b-versatile` | GROQ AI |
-| Fallback LLMs | `llama-3.3-70b-specdec`, `gemma2-9b-it`, `llama-3.1-8b-instant` | GROQ AI |
-| Alternative provider fallback | `openrouter/auto` | OpenRouter |
-| Vision / OCR | `meta-llama/llama-4-scout-17b-16e-instruct` | Meta (via API) |
-| Slide / content generation | Gemini endpoint | Google |
+| Model | Provider | Role | Why Selected |
+|-------|----------|------|--------------|
+| `llama-3.3-70b-versatile` | Groq | **Primary teacher-agent** — lecture generation, deep explanations, long-form tutoring, classroom discussions | Strong instruction-following, high-quality Bangla output, large context for long PDFs & multi-turn interactions |
+| `llama-3.3-70b-versatile` *(Amplify pipeline)* | Groq | **Amplify Tutor** — real-time interactive teaching | Groq's inference speed enables near-zero latency tutoring responses at 70B scale |
+| `llama-4-scout-17b-16e-instruct` | Meta via API | **Vision / OCR** — chemistry & biology diagrams, scanned notes, image-based PDFs | Multimodal support; used in `detectPDFMode` and OCR fallback pipelines |
+| `llama-3.1-8b-instant` | Groq | **Fast fallback** — lightweight chats, student-agent simulations, low-complexity queries | Reduces latency and API cost for simple requests without sacrificing acceptable quality |
+| `qwen-2.5` | OpenRouter | **Structured output** — quiz generation, slide specs, assessment formatting, JSON schemas | Reliable structured/constrained output; feeds directly into frontend rendering pipelines |
+| `deepseek-r1` | OpenRouter | **Reasoning-intensive tasks** — career assessments, reflective analysis, multi-step logic | Chain-of-thought reasoning and deep analytical decomposition |
+| `mistral` | OpenRouter | **Robustness fallback** — provider congestion, rate limits, primary model failures | Ensures uninterrupted responses during outages |
+| `gemini-2.0-flash-lite` | Google | **High-volume content** — slide creation, Mermaid diagrams, tables, lightweight formatting | Low cost per token; suitable for tasks not requiring premium reasoning quality |
+| `gemini-2.0-flash` | OpenRouter | **Balanced general-purpose** — medium-complexity educational tasks | Alternative inference path balancing speed and output quality |
+| `openrouter/auto` | OpenRouter | **Auto-routing fallback** | Dynamic provider selection for reliability and rate-limit resilience |
+| `cerebras-llama-3.1-8b` | Cerebras | **Biology lab voiceovers** — narration and intro generation | Extremely low Cerebras inference latency for rapid voice-content workflows |
+| `whisper-large-v3` | Groq | **Speech-to-text** — Bengali student voice input, classroom transcription, lab voice commands | Strong multilingual ASR with reliable Bengali speech recognition |
 
 ### 🖥️ Local Models (via Ollama)
 
-| Role | Examples |
-|------|---------|
-| Primary local inference | Llama 3, Gemma, Phi (quantized) |
-| Embeddings | `all-MiniLM-L6-v2` or similar Sentence Transformers |
+| Model | Role |
+|-------|------|
+| Llama 3, Gemma 3 4B, Gemma 3 1B, Phi (quantized) | Primary local inference — offline / edge deployment |
+| `all-MiniLM-L6-v2` or similar Sentence Transformers | Local embeddings for FAISS RAG pipeline |
+
+> **Gemma 3 4B / 1B** are integrated into the routing architecture as planned local failover models — designed for edge-device compatibility, minimal inference cost, and resilience during full API outages.
 
 - Low temperature settings (**0.1–0.2**) for deterministic, factual outputs
 - Quantized models for efficient inference on consumer hardware
