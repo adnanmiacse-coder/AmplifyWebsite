@@ -2,13 +2,13 @@
 [variables]
 PIP_NO_CACHE_DIR = "true"
 
-[[phases.setup]]
+[phases.setup]
 cmds = [
   "python -m pip install --upgrade pip",
   "python -m pip install -r requirements.txt"
 ]
 
-[[phases.build]]
+[phases.build]
 cmds = [
   "if [ -d ../frontend ]; then rm -rf frontend && cp -r ../frontend frontend; fi",
   "test -d frontend || (echo 'ERROR: frontend directory missing after build' && exit 1)",

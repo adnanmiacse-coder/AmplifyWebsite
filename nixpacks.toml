@@ -1,16 +1,14 @@
-# Deploy Python FastAPI backend
+# Deploy Python FastAPI backend (repo root)
 [variables]
 PIP_NO_CACHE_DIR = "true"
 
-[[phases]]
-name = "setup"
+[phases.setup]
 cmds = [
   "python -m pip install --upgrade pip",
   "python -m pip install -r backend/requirements.txt"
 ]
 
-[[phases]]
-name = "build"
+[phases.build]
 cmds = [
   "if [ -d frontend ]; then rm -rf backend/frontend && cp -r frontend backend/frontend; fi",
   "if [ -d ../frontend ] && [ ! -d frontend ]; then rm -rf frontend && cp -r ../frontend frontend; fi",
