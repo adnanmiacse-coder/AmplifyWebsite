@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amplify - Your Student Companion</title>
+    <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+
+<header class="header" id="header">
+    <div class="container">
+        <nav class="nav">
+            <a href="/index.html" class="logo">Amplify</a>
+            <div style="display: flex; gap: 12px;">
+                <a href="/career.html" class="btn btn-primary" style="padding:10px 16px;font-size:14px;">Career Engine</a>
+                <a href="/experiments.html" class="btn btn-primary" style="padding:10px 16px;font-size:14px;">Experiments</a>
+                <a href="https://huggingface.co/spaces/addyjeddy/book-chatbot-better" class="btn btn-primary" style="padding:10px 16px;font-size:14px;" target="_blank">AI Assist</a>
+                <a href="/classroomai.html" class="btn btn-primary" style="padding:10px 16px;font-size:14px;">🤖 Classroom AI</a>
+                <a href="/deeplearn.html" class="btn btn-primary" style="padding:10px 16px;font-size:14px;">DeepLearn</a>
+                <a href="/amplify-tutor.html" class="btn btn-primary" style="padding:10px 16px;font-size:14px;">Amplify Tutor</a>
+            </div>
+        </nav>
+    </div>
+</header>
+
+<main>
+    <section class="hero">
+        <div class="container">
+            <div class="hero-inner">
+                <div class="hero-copy">
+                    <small>✨ Built for students · Amplify</small>
+                    <h1>Your All-in-One<br>Student Companion</h1>
+                    <p>Productivity, Wellbeing, and Knowledge combined into one simple app.</p>
+
+                    <div class="hero-meta">
+                        <span>📱 Any network users</span>
+                        <span>⚡ OTP-based access</span>
+                        <span>🔐 Private by design</span>
+                    </div>
+
+                    <div class="hero-buttons">
+                        <button class="btn btn-primary" onclick="showDownloadAlert()">
+                            📱 Download Amplify App
+                        </button>
+                        <button class="btn btn-primary" onclick="openJoinClassroomModal()" style="background:transparent;border:1px solid rgba(255,255,255,0.2);">
+                            🔑 Join a Classroom
+                        </button>
+                        <button class="btn btn-primary" onclick="openMyClassroomsFromIndex()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);">
+                            📚 My Classrooms
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preview Card -->
+                <div class="hero-visual">
+                    <div class="hero-visual-tag">
+                        <span>Today's overview</span>
+                        <span style="font-size:11px;color:var(--text-secondary);">Amplify preview</span>
+                    </div>
+                    <div class="hero-visual-card">
+                        <div>
+                            <h3>Mind Check-in</h3>
+                            <span class="hero-visual-pill">😊 Balanced · 7/10</span>
+                            <ul class="hero-visual-list">
+                                <li>• 2 study sessions done</li>
+                                <li>• 1 mock test scheduled</li>
+                                <li>• 3 quick revision cards</li>
+                            </ul>
+                        </div>
+                        <div style="display:flex;flex-direction:column;justify-content:space-between;height:100%;">
+                            <a href="/routine.html" class="btn btn-primary" style="font-size:13px;padding:8px 14px;">
+                                Routine mode
+                            </a>
+                            <div style="font-size:11px;color:var(--text-secondary);text-align:right;">
+                                Planner · Check-ins · Cards
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="whySection">
+        <div class="container">
+            <div class="section-header">
+                <h2>Why Amplify?</h2>
+                <p>Designed for students, by students.</p>
+            </div>
+            <div class="grid-3">
+                <div class="card">
+                    <h3>🧠 Mind Check-ins</h3>
+                    <p>Quick daily mood and wellbeing tracking.</p>
+                </div>
+                <div class="card">
+                    <h3>📅 Routine Planner</h3>
+                    <p>Smart daily planner for classes and study blocks.</p>
+                </div>
+                <div class="card">
+                    <h3>📚 Quick Revision</h3>
+                    <p>AI-powered short revision cards from your notes.</p>
+                </div>
+                <div class="card">
+                    <h3>🎯 Focus Mode</h3>
+                    <p>Distraction-free exam week focus sessions.</p>
+                </div>
+                <div class="card">
+                    <h3>🤝 Student First</h3>
+                    <p>Built with real student feedback from Bangladesh.</p>
+                </div>
+                <div class="card">
+                    <h3>🔒 Private by Default</h3>
+                    <p>Your data stays safe and private on your device.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Opportunities Dashboard -->
+    <section id="opportunitiesSection">
+        <div class="container">
+            <div class="section-header">
+                <h2>🌍 International Opportunities</h2>
+                <p>Live scholarships, research grants &amp; fellowships — updated automatically.</p>
+            </div>
+
+            <div class="opp-filters">
+                <button class="opp-filter-btn active" onclick="setOppFilter('ALL', this)">All</button>
+                <button class="opp-filter-btn" onclick="setOppFilter('Scholarship', this)">Scholarships</button>
+                <button class="opp-filter-btn" onclick="setOppFilter('Research', this)">Research</button>
+                <button class="opp-filter-btn" onclick="setOppFilter('Fellowship', this)">Fellowships</button>
+                <input class="opp-search" id="oppSearch" placeholder="Search opportunities..." oninput="renderOpportunities()" />
+            </div>
+
+            <div class="opp-live-bar">
+                <span class="opp-live-dot"></span>
+                <span id="oppStatus">Fetching live opportunities...</span>
+                <span id="oppCount" style="margin-left:auto;font-size:12px;color:var(--text-secondary);"></span>
+            </div>
+
+            <div class="grid-3" id="oppGrid">
+                <div class="card opp-skeleton"></div>
+                <div class="card opp-skeleton"></div>
+                <div class="card opp-skeleton"></div>
+            </div>
+
+            <div style="text-align:center;margin-top:24px;">
+                <button class="btn btn-primary" onclick="loadOpportunities()" style="font-size:14px;padding:10px 24px;">
+                    🔄 Refresh
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section id="download">
+        <div class="container">
+            <div class="grid-3">
+                <div class="card" style="box-shadow:none;border:none;padding-left:0;">
+                    <h2>How to Get Started</h2>
+                    <ul>
+                        <li>1. Click Download and install the app</li>
+                        <li>2. Sign up with your phone number</li>
+                        <li>3. Start planning your perfect student day</li>
+                    </ul>
+                </div>
+                <div class="card" style="box-shadow:none;border:none;">
+                    <h2>What you get</h2>
+                    <ul>
+                        <li>✓ Smart Routine Planner</li>
+                        <li>✓ Daily wellbeing check-ins</li>
+                        <li>✓ Quick revision tools</li>
+                        <li>✓ Focus &amp; productivity modes</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="text-align:center;margin-top:60px;">
+                <button class="btn btn-primary" onclick="showDownloadAlert()" style="min-width:280px;">
+                    📱 Download Amplify Now
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Daily Routine Dashboard — shown only when a routine exists in localStorage -->
+    <section class="daily-dashboard" id="dailyDashboard" style="display:none;">
+        <div class="container">
+            <div class="dashboard-inner">
+                <div class="dashboard-header">
+                    <div class="dashboard-title-row">
+                        <span class="dashboard-icon">📅</span>
+                        <div>
+                            <h2 class="dashboard-title">Today's Routine</h2>
+                            <span class="dashboard-subtitle" id="dashboardDayLabel"></span>
+                        </div>
+                    </div>
+                    <div class="dashboard-actions">
+                        <button class="dashboard-speak-btn" id="dashboardSpeakBtn" title="Read aloud">
+                            🔊 Listen
+                        </button>
+                        <a href="/routine.html" class="btn-outline" style="font-size:0.82rem;padding:7px 16px;">
+                            New Routine →
+                        </a>
+                    </div>
+                </div>
+
+                <div class="dashboard-sessions" id="dashboardSessions"></div>
+
+                <div class="dashboard-nav">
+                    <button class="dash-nav-btn" id="dashPrevDay">← Previous Day</button>
+                    <span class="dash-day-counter" id="dashDayCounter"></span>
+                    <button class="dash-nav-btn" id="dashNextDay">Next Day →</button>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer class="footer">
+    &copy; 2026 Amplify. Built with ❤️ for students.
+</footer>
+
+<!-- Floating Stop Voice Button -->
+<button id="stopVoiceBtn" class="floating-stop-voice-btn" title="Stop voice" onclick="stopVoice()">
+    ⏹️
+</button>
+
+<!-- Join Classroom Modal -->
+<div id="joinClassroomOverlay" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.72);backdrop-filter:blur(8px);z-index:9998;">
+    <div style="width:min(420px,92vw);background:#0f1117;border:1px solid rgba(255,255,255,0.12);border-radius:18px;padding:20px 18px;box-shadow:0 40px 120px rgba(0,0,0,0.65);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
+            <div style="font-weight:800;font-size:16px;">Join a Classroom</div>
+            <button class="btn btn-primary" onclick="closeJoinClassroomModal()" style="padding:8px 12px;font-size:13px;background:transparent;border:1px solid rgba(255,255,255,0.14);">
+                ✕
+            </button>
+        </div>
+        <div style="color:rgba(255,255,255,0.7);font-size:13px;line-height:1.4;margin-bottom:12px;">
+            Enter the classroom code your teacher shared with you.
+        </div>
+        <div style="margin-bottom:12px;">
+            <input id="studentJoinCode" placeholder="ABC123" maxlength="8"
+                   style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#fff;letter-spacing:4px;text-transform:uppercase;font-weight:800;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;" />
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn btn-primary" onclick="closeJoinClassroomModal()" style="background:transparent;border:1px solid rgba(255,255,255,0.14);">
+                Cancel
+            </button>
+            <button class="btn btn-primary" id="joinClassroomBtn" onclick="submitJoinClassroomFromIndex()">
+                Join →
+            </button>
+        </div>
+        <div id="joinClassroomErr" style="display:none;margin-top:12px;background:rgba(255,80,80,0.12);border:1px solid rgba(255,80,80,0.3);color:#ff8080;border-radius:12px;padding:10px 12px;font-size:13px;"></div>
+    </div>
+</div>
+
+<script src="/src/main.js"></script>
+<script type="module" src="/src/dashboard.js"></script>
+<script type="module" src="/src/opportunities.js"></script>
+<script src="/src/auth-modal.js"></script>
+<script>
+    const CLASSROOM_API_BASE = '/api';
+
+    function openJoinClassroomModal() {
+        const overlay = document.getElementById('joinClassroomOverlay');
+        const err = document.getElementById('joinClassroomErr');
+        if (err) { err.style.display = 'none'; err.textContent = ''; }
+        overlay.style.display = 'flex';
+        setTimeout(() => document.getElementById('studentJoinCode')?.focus(), 0);
+    }
+
+    function closeJoinClassroomModal() {
+        const overlay = document.getElementById('joinClassroomOverlay');
+        overlay.style.display = 'none';
+    }
+
+    function showJoinError(msg) {
+        const err = document.getElementById('joinClassroomErr');
+        err.textContent = msg;
+        err.style.display = 'block';
+    }
+
+    async function submitJoinClassroomFromIndex() {
+        const btn = document.getElementById('joinClassroomBtn');
+        const code = (document.getElementById('studentJoinCode')?.value || '').trim().toUpperCase();
+        const token = localStorage.getItem('amplify_token');
+
+        if (!token) return showJoinError('Please sign in first.');
+        if (!code) return showJoinError('Please enter a classroom code.');
+
+        btn.disabled = true;
+        btn.textContent = 'Joining...';
+        try {
+            const res = await fetch(CLASSROOM_API_BASE + '/classrooms/join', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Authorization: 'Bearer ' + token,
+                },
+                body: JSON.stringify({ code }),
+            });
+
+            const data = await res.json().catch(() => null);
+
+            if (!res.ok) {
+                const msg = data?.message
+                    || (data?.errors ? Object.values(data.errors).flat().join(' ') : 'Join failed.');
+                throw new Error(msg);
+            }
+
+            const classroomId = data?.classroom?.id;
+            if (!classroomId) throw new Error('Join succeeded but no classroom id returned.');
+
+            localStorage.setItem('amplify_last_classroom_id', String(classroomId));
+            closeJoinClassroomModal();
+            window.location.assign('/classroom.html?open=' + encodeURIComponent(classroomId));
+        } catch (e) {
+            showJoinError(e?.message || String(e));
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Join →';
+        }
+    }
+
+    // Enter key submits
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const overlay = document.getElementById('joinClassroomOverlay');
+        if (overlay && overlay.style.display === 'flex') submitJoinClassroomFromIndex();
+    });
+
+    function openMyClassroomsFromIndex() {
+        const token = localStorage.getItem('amplify_token');
+        const lastId = localStorage.getItem('amplify_last_classroom_id');
+        const target = lastId ? ('/classroom.html?open=' + encodeURIComponent(lastId)) : '/classroom.html';
+
+        if (!token) return openJoinClassroomModal(); // auth modal will handle sign-in
+        window.location.assign(target);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Amplify — Classrooms</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ── tokens ── */
+    :root {
+      --bg: #0d0f14;
+      --surface: #151820;
+      --surface2: #1c2030;
+      --border: rgba(255,255,255,0.07);
+      --accent: #6ee7b7;
+      --accent2: #38bdf8;
+      --warn: #fb923c;
+      --danger: #f87171;
+      --text: #e8eaf0;
+      --text-muted: #6b7280;
+      --radius: 14px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+    /* ── layout ── */
+    .shell { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 260px; flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 28px 20px;
+      position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; color: var(--accent); margin-bottom: 32px; letter-spacing: -0.5px; }
+    .logo span { color: var(--text-muted); font-weight: 400; font-size: 0.75rem; display: block; margin-top: 2px; }
+    .sidebar-section { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 10px; }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 9px; cursor: pointer;
+      font-size: 0.9rem; color: var(--text-muted); margin-bottom: 4px;
+      transition: background 0.15s, color 0.15s; border: none; background: none; width: 100%; text-align: left;
+    }
+    .sidebar-item:hover { background: var(--surface2); color: var(--text); }
+    .sidebar-item.active { background: rgba(110,231,183,0.1); color: var(--accent); }
+    .sidebar-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .class-list { flex: 1; overflow-y: auto; }
+    .class-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 8px; cursor: pointer;
+      font-size: 0.82rem; color: var(--text-muted); margin-bottom: 3px;
+      transition: background 0.15s; border: none; background: none; width: 100%; text-align: left;
+    }
+    .class-chip:hover { background: var(--surface2); color: var(--text); }
+    .class-chip.active { color: var(--text); background: var(--surface2); }
+    .class-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .sidebar-user { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); }
+    .user-chip { display: flex; align-items: center; gap: 10px; }
+    .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem; color: #0d0f14; flex-shrink: 0; }
+    .user-name { font-size: 0.85rem; font-weight: 500; }
+    .user-role { font-size: 0.72rem; color: var(--text-muted); text-transform: capitalize; }
+
+    /* ── main ── */
+    .main { flex: 1; padding: 36px 40px; max-width: 960px; }
+    .page-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.8rem; margin-bottom: 6px; letter-spacing: -0.5px; }
+    .page-sub { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 32px; }
+
+    /* ── cards ── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+    }
+    .card + .card { margin-top: 16px; }
+    .card-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; margin-bottom: 16px; }
+
+    /* ── grid ── */
+    .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    .class-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+      cursor: pointer; transition: border-color 0.2s, transform 0.15s;
+      position: relative; overflow: hidden;
+    }
+    .class-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .class-card:hover { border-color: rgba(110,231,183,0.3); transform: translateY(-2px); }
+    .class-card-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+    .class-card-subject { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 14px; }
+    .class-card-meta { display: flex; align-items: center; justify-content: space-between; }
+    .code-badge {
+      font-family: 'Syne', sans-serif; font-size: 0.78rem; font-weight: 700;
+      background: rgba(110,231,183,0.1); color: var(--accent); 
+      border: 1px solid rgba(110,231,183,0.2); border-radius: 6px;
+      padding: 3px 8px; letter-spacing: 1px; cursor: pointer;
+    }
+    .student-count { font-size: 0.78rem; color: var(--text-muted); }
+
+    /* ── forms ── */
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; }
+    input, textarea {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 9px; padding: 10px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+      outline: none; transition: border-color 0.15s;
+    }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 80px; }
+
+    /* ── buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 20px; border-radius: 9px; font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem; font-weight: 500; cursor: pointer; border: none;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn-primary { background: var(--accent); color: #0d0f14; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: rgba(248,113,113,0.15); color: var(--danger); border: 1px solid rgba(248,113,113,0.2); }
+    .btn-sm { padding: 7px 14px; font-size: 0.8rem; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+    /* ── classroom dashboard ── */
+    .dashboard-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; gap: 16px; flex-wrap: wrap; }
+    .dashboard-header-info {}
+    .dashboard-code { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .big-code {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.5rem;
+      letter-spacing: 6px; color: var(--accent); cursor: pointer;
+    }
+    .copy-hint { font-size: 0.75rem; color: var(--text-muted); }
+    .copy-hint.copied { color: var(--accent); }
+    .section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 12px; }
+
+    /* notifications */
+    .notif-list { display: flex; flex-direction: column; gap: 10px; }
+    .notif-item {
+      background: var(--surface2); border-radius: 10px; padding: 14px 16px;
+      border-left: 3px solid var(--accent2);
+    }
+    .notif-msg { font-size: 0.9rem; line-height: 1.5; }
+    .notif-time { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; }
+    .empty-state { text-align: center; color: var(--text-muted); padding: 32px; font-size: 0.9rem; }
+
+    /* student list */
+    .student-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .student-row:last-child { border-bottom: none; }
+    .s-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; flex-shrink: 0; }
+    .s-name { font-size: 0.88rem; }
+    .s-email { font-size: 0.75rem; color: var(--text-muted); }
+    .s-joined { font-size: 0.72rem; color: var(--text-muted); margin-left: auto; }
+
+    /* two-col */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } .sidebar { display: none; } .main { padding: 24px 20px; } }
+
+    /* modals */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+      padding: 28px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto;
+      transform: translateY(16px); transition: transform 0.2s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.15rem; margin-bottom: 20px; }
+    .modal-close { float: right; background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; }
+
+    /* toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 18px; font-size: 0.88rem; z-index: 200;
+      transform: translateY(60px); opacity: 0; transition: all 0.25s;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: rgba(110,231,183,0.4); color: var(--accent); }
+    .toast.error { border-color: rgba(248,113,113,0.4); color: var(--danger); }
+
+    /* tabs */
+    .tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 10px; padding: 4px; margin-bottom: 20px; }
+    .tab { flex: 1; padding: 8px; text-align: center; font-size: 0.83rem; border-radius: 7px; cursor: pointer; color: var(--text-muted); border: none; background: none; transition: background 0.15s, color 0.15s; }
+    .tab.active { background: var(--surface); color: var(--text); }
+
+    /* loading */
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* color accents for class cards */
+    .c0::before { background: #6ee7b7; } .c1::before { background: #38bdf8; }
+    .c2::before { background: #a78bfa; } .c3::before { background: #fb923c; }
+    .c4::before { background: #f472b6; } .c5::before { background: #facc15; }
+
+    /* voice widget (teacher notify) */
+    .voice-row { display: flex; gap: 10px; align-items: flex-start; }
+    .mic-btn {
+      width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer; flex-shrink: 0;
+      background: var(--surface2); color: var(--text); font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .mic-btn.recording { background: rgba(248,113,113,0.2); animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(248,113,113,0.4); } 50% { box-shadow: 0 0 0 8px rgba(248,113,113,0); } }
+  </style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="logo">Amplify <span>classroom</span></div>
+
+    <div class="sidebar-section">Navigation</div>
+    <button class="sidebar-item active" onclick="showView('classrooms')">
+      <span class="icon">🏫</span> My Classrooms
+    </button>
+
+    <hr class="sidebar-divider">
+    <div class="sidebar-section">My Classes</div>
+    <div class="class-list" id="sidebarClassList">
+      <div style="font-size:0.8rem;color:var(--text-muted);padding:6px 10px;">No classrooms yet</div>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="user-chip">
+        <div class="user-avatar" id="sidebarAvatar">?</div>
+        <div>
+          <div class="user-name" id="sidebarName">Loading...</div>
+          <div class="user-role" id="sidebarRole">—</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="main" id="mainArea">
+    <!-- content injected by JS -->
+  </main>
+</div>
+
+<!-- ── CREATE CLASSROOM MODAL ── -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('createModal')">✕</button>
+    <div class="modal-title">Create a Classroom</div>
+    <div class="form-group">
+      <label>Class Name *</label>
+      <input id="newClassName" placeholder="e.g. Physics for HSC 2026" />
+    </div>
+    <div class="form-group">
+      <label>Subject (optional)</label>
+      <input id="newClassSubject" placeholder="e.g. Physics" />
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="submitCreateClassroom()">Create &amp; Get Code</button>
+      <button class="btn btn-outline" onclick="closeModal('createModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── JOIN CLASSROOM MODAL ── -->
+<div class="modal-overlay" id="joinModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('joinModal')">✕</button>
+    <div class="modal-title">Join a Classroom</div>
+    <p style="font-size:0.88rem;color:var(--text-muted);margin-bottom:20px;">Ask your teacher for the 6-letter class code.</p>
+    <div class="form-group">
+      <label>Class Code *</label>
+      <input id="joinCode" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:4px;font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;" maxlength="8" />
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="submitJoinClassroom()">Join Classroom</button>
+      <button class="btn btn-outline" onclick="closeModal('joinModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────────
+// Prefer same-origin + Vite proxy to avoid CORS during local dev.
+const API = '/api';
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let currentUser = null;
+let classrooms  = [];
+let activeClassroom = null;
+
+// ─── Bootstrap ───────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  const token = localStorage.getItem('amplify_token');
+  // #region agent log
+  fetch('http://127.0.0.1:7855/ingest/88b42546-15d9-45dd-bbc9-809da1e8d15f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8bf0d0'},body:JSON.stringify({sessionId:'8bf0d0',runId:'pre-fix',hypothesisId:'A',location:'classroom.html:DOMContentLoaded',message:'bootstrap start',data:{hasToken:!!token,apiBase:API,origin:location.origin},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  if (!token) { redirectToLogin(); return; }
+
+  try {
+    const r = await api('GET', '/user');
+    currentUser = r.user;
+    // #region agent log
+    fetch('http://127.0.0.1:7855/ingest/88b42546-15d9-45dd-bbc9-809da1e8d15f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8bf0d0'},body:JSON.stringify({sessionId:'8bf0d0',runId:'pre-fix',hypothesisId:'A',location:'classroom.html:DOMContentLoaded',message:'loaded currentUser',data:{userType:typeof currentUser,hasUser:!!currentUser,role:currentUser?.role||null,userId:currentUser?.id||null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    renderSidebarUser();
+    await loadClassrooms();
+    showView('classrooms');
+  } catch (e) {
+    // #region agent log
+    fetch('http://127.0.0.1:7855/ingest/88b42546-15d9-45dd-bbc9-809da1e8d15f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8bf0d0'},body:JSON.stringify({sessionId:'8bf0d0',runId:'pre-fix',hypothesisId:'B',location:'classroom.html:DOMContentLoaded',message:'bootstrap failed; redirecting',data:{errorName:e?.name||null,errorMessage:e?.message||String(e)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    redirectToLogin();
+  }
+});
+
+function redirectToLogin() {
+  // In your actual app, redirect to login page
+  document.getElementById('mainArea').innerHTML = `
+    <div style="text-align:center;padding:80px 20px;">
+      <div style="font-size:2rem;margin-bottom:16px;">🔐</div>
+      <div class="page-title">Please log in</div>
+      <p class="page-sub">You need to be logged in to access classrooms.</p>
+      <a href="/index.html" class="btn btn-primary" style="display:inline-flex;margin-top:20px;">Go to Home</a>
+    </div>`;
+}
+
+// ─── API helper ───────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const token = localStorage.getItem('amplify_token');
+  const url = API + path;
+  // #region agent log
+  fetch('http://127.0.0.1:7855/ingest/88b42546-15d9-45dd-bbc9-809da1e8d15f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8bf0d0'},body:JSON.stringify({sessionId:'8bf0d0',runId:'pre-fix',hypothesisId:'C',location:'classroom.html:api',message:'api request',data:{method,path,url,hasToken:!!token,hasBody:!!body},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
+  let res;
+  try {
+    res = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch (e) {
+    // #region agent log
+    fetch('http://127.0.0.1:7855/ingest/88b42546-15d9-45dd-bbc9-809da1e8d15f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8bf0d0'},body:JSON.stringify({sessionId:'8bf0d0',runId:'pre-fix',hypothesisId:'C',location:'classroom.html:api',message:'fetch threw (likely CORS/network)',data:{method,path,url,errorName:e?.name||null,errorMessage:e?.message||String(e)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    const msg = (e && e.name === 'TypeError' && String(e.message || '').toLowerCase().includes('fetch'))
+      ? 'Cannot reach the API (likely CORS). Ensure your backend allows Origin http://localhost:5173.'
+      : (e?.message || String(e));
+    throw new Error(msg);
+  }
+
+  // #region agent log
+  fetch('http://127.0.0.1:7855/ingest/88b42546-15d9-45dd-bbc9-809da1e8d15f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8bf0d0'},body:JSON.stringify({sessionId:'8bf0d0',runId:'pre-fix',hypothesisId:'D',location:'classroom.html:api',message:'api response headers',data:{method,path,url,status:res.status,ok:res.ok,contentType:res.headers.get('content-type')},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
+  const contentType = (res.headers.get('content-type') || '').toLowerCase();
+  if (contentType.includes('text/html') && res.ok) {
+    // Most commonly: Vite dev server served index.html because /api wasn't proxied.
+    throw new Error('API misrouted: received HTML from /api. Ensure Vite proxy for /api points to Laravel (127.0.0.1:8888) and restart Vite.');
+  }
+
+  // Capture a small snippet for debugging server-side 4xx/5xx.
+  // (We avoid logging full bodies to prevent accidental sensitive data exposure.)
+  if (!res.ok) {
+    res.clone().text().then((t) => {
+      const snippet = String(t || '').slice(0, 240);
+      // #region agent log
+      fetch('http://127.0.0.1:7855/ingest/88b42546-15d9-45dd-bbc9-809da1e8d15f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8bf0d0'},body:JSON.stringify({sessionId:'8bf0d0',runId:'pre-fix',hypothesisId:'E',location:'classroom.html:api',message:'non-ok response body snippet',data:{method,path,url,status:res.status,contentType:res.headers.get('content-type'),snippet},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+    }).catch(() => {});
+  }
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch (e) {
+    // #region agent log
+    fetch('http://127.0.0.1:7855/ingest/88b42546-15d9-45dd-bbc9-809da1e8d15f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8bf0d0'},body:JSON.stringify({sessionId:'8bf0d0',runId:'pre-fix',hypothesisId:'D',location:'classroom.html:api',message:'res.json failed',data:{method,path,url,status:res.status,errorName:e?.name||null,errorMessage:e?.message||String(e)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }
+  if (!res.ok) throw new Error(data?.message || 'Request failed');
+  return data;
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+function renderSidebarUser() {
+  document.getElementById('sidebarName').textContent = currentUser.name;
+  document.getElementById('sidebarRole').textContent = currentUser.role;
+  document.getElementById('sidebarAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
+}
+
+function renderSidebarClassList() {
+  const el = document.getElementById('sidebarClassList');
+  if (!classrooms.length) {
+    el.innerHTML = `<div style="font-size:0.8rem;color:var(--text-muted);padding:6px 10px;">No classrooms yet</div>`;
+    return;
+  }
+  const colors = ['#6ee7b7','#38bdf8','#a78bfa','#fb923c','#f472b6','#facc15'];
+  el.innerHTML = classrooms.map((c, i) => `
+    <button class="class-chip ${activeClassroom?.id === c.id ? 'active' : ''}" onclick="openClassroom(${c.id})">
+      <div class="class-dot" style="background:${colors[i % colors.length]}"></div>
+      <span>${c.name}</span>
+    </button>
+  `).join('');
+}
+
+// ─── Load classrooms ──────────────────────────────────────────────────────────
+async function loadClassrooms() {
+  try {
+    const r = await api('GET', '/classrooms');
+    classrooms = r.classrooms;
+    renderSidebarClassList();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ─── Views ────────────────────────────────────────────────────────────────────
+function showView(view) {
+  // #region agent log
+  fetch('http://127.0.0.1:7855/ingest/88b42546-15d9-45dd-bbc9-809da1e8d15f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8bf0d0'},body:JSON.stringify({sessionId:'8bf0d0',runId:'pre-fix',hypothesisId:'A',location:'classroom.html:showView',message:'showView called',data:{view,hasUser:!!currentUser,role:currentUser?.role||null},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  if (!currentUser) {
+    showToast('Loading your account… please wait.', 'error');
+    return;
+  }
+  if (view === 'classrooms') renderClassroomsView();
+}
+
+function renderClassroomsView() {
+  activeClassroom = null;
+  renderSidebarClassList();
+
+  // #region agent log
+  fetch('http://127.0.0.1:7855/ingest/88b42546-15d9-45dd-bbc9-809da1e8d15f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8bf0d0'},body:JSON.stringify({sessionId:'8bf0d0',runId:'pre-fix',hypothesisId:'A',location:'classroom.html:renderClassroomsView',message:'renderClassroomsView entry',data:{hasUser:!!currentUser,classroomsCount:classrooms?.length??null},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
+  if (!currentUser) {
+    document.getElementById('mainArea').innerHTML = `
+      <div style="padding:40px;text-align:center">
+        <div class="spinner"></div>
+        <div style="margin-top:10px;color:var(--text-muted);font-size:0.9rem;">Loading your profile…</div>
+      </div>`;
+    return;
+  }
+
+  const isTeacher = currentUser.role === 'teacher';
+  const colors = ['c0','c1','c2','c3','c4','c5'];
+
+  const cardHtml = classrooms.length
+    ? `<div class="class-grid">${classrooms.map((c, i) => `
+        <div class="class-card ${colors[i % colors.length]}" onclick="openClassroom(${c.id})">
+          <div class="class-card-name">${esc(c.name)}</div>
+          <div class="class-card-subject">${esc(c.subject || 'No subject')}</div>
+          <div class="class-card-meta">
+            <span class="code-badge" title="Click to copy" onclick="event.stopPropagation();copyCode('${c.code}')">${c.code}</span>
+            <span class="student-count">👥 ${c.student_count} student${c.student_count !== 1 ? 's' : ''}</span>
+          </div>
+        </div>`).join('')}
+      </div>`
+    : `<div class="empty-state">
+        <div style="font-size:2.5rem;margin-bottom:12px">${isTeacher ? '🏫' : '📚'}</div>
+        <div style="font-weight:600;margin-bottom:6px">${isTeacher ? 'No classrooms yet' : 'You haven\'t joined any classrooms'}</div>
+        <div style="font-size:0.82rem">${isTeacher ? 'Create your first classroom to get started.' : 'Ask your teacher for a code and join below.'}</div>
+      </div>`;
+
+  document.getElementById('mainArea').innerHTML = `
+    <div class="page-title">Classrooms</div>
+    <p class="page-sub">${isTeacher ? 'Create and manage your classrooms.' : 'Your enrolled classrooms.'}</p>
+
+    <div class="btn-row" style="margin-bottom:28px;">
+      ${isTeacher
+        ? `<button class="btn btn-primary" onclick="openModal('createModal')">＋ New Classroom</button>`
+        : `<button class="btn btn-primary" onclick="openModal('joinModal')">🔑 Join with Code</button>`}
+    </div>
+
+    ${cardHtml}
+  `;
+}
+
+// ─── Classroom dashboard ──────────────────────────────────────────────────────
+async function openClassroom(id) {
+  const main = document.getElementById('mainArea');
+  main.innerHTML = `<div style="padding:40px;text-align:center"><div class="spinner"></div></div>`;
+
+  try {
+    const r = await api('GET', `/classrooms/${id}`);
+    activeClassroom = r.classroom;
+    renderSidebarClassList();
+
+    const isTeacher = currentUser.role === 'teacher';
+    main.innerHTML = buildDashboard(r, isTeacher);
+    if (isTeacher) initVoice();
+  } catch(e) {
+    showToast(e.message, 'error');
+    renderClassroomsView();
+  }
+}
+
+function buildDashboard(r, isTeacher) {
+  const c = r.classroom;
+  const notifs = r.notifications || [];
+  const students = r.students || [];
+
+  const notifHtml = notifs.length
+    ? notifs.map(n => `
+        <div class="notif-item">
+          <div class="notif-msg">${esc(n.message)}</div>
+          <div class="notif-time">${formatDate(n.created_at)}</div>
+        </div>`).join('')
+    : `<div class="empty-state" style="padding:20px">No notifications yet.</div>`;
+
+  const teacherExtra = isTeacher ? `
+    <!-- Send notification -->
+    <div class="card" style="margin-top:20px;">
+      <div class="card-title">📣 Send Notification</div>
+      <div class="voice-row">
+        <button class="mic-btn" id="micBtn" onclick="toggleVoice()" title="Speak in Bangla">🎤</button>
+        <div style="flex:1">
+          <textarea id="notifInput" placeholder="Type a message or press 🎤 to speak in Bangla..."></textarea>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-primary btn-sm" onclick="sendNotification()">Send to All Students</button>
+      </div>
+    </div>
+
+    <!-- Student list -->
+    <div class="card" style="margin-top:20px;">
+      <div class="card-title">👥 Students (${students.length})</div>
+      ${students.length
+        ? students.map(s => `
+          <div class="student-row">
+            <div class="s-avatar">${s.name.charAt(0).toUpperCase()}</div>
+            <div>
+              <div class="s-name">${esc(s.name)}</div>
+              <div class="s-email">${esc(s.email)}</div>
+            </div>
+            <div class="s-joined">Joined ${formatDate(s.joined_at)}</div>
+          </div>`).join('')
+        : `<div class="empty-state" style="padding:16px">No students have joined yet.<br>Share the code <strong>${c.code}</strong>.</div>`}
+    </div>
+  ` : `
+    <!-- Student leave button -->
+    <div style="margin-top:20px;">
+      <button class="btn btn-danger btn-sm" onclick="leaveClassroom(${c.id})">Leave Classroom</button>
+    </div>
+  `;
+
+  return `
+    <button class="btn btn-outline btn-sm" onclick="showView('classrooms')" style="margin-bottom:24px;">← Back</button>
+
+    <div class="dashboard-header">
+      <div class="dashboard-header-info">
+        <div class="page-title">${esc(c.name)}</div>
+        <div style="color:var(--text-muted);font-size:0.9rem;margin-top:4px;">${esc(c.subject || 'No subject')} · ${c.student_count} student${c.student_count !== 1 ? 's' : ''}</div>
+        ${isTeacher ? `
+          <div class="dashboard-code">
+            <div class="big-code" onclick="copyCode('${c.code}')" title="Click to copy">${c.code}</div>
+            <span class="copy-hint" id="copyHint">click to copy</span>
+          </div>` : `
+          <div style="margin-top:8px;font-size:0.82rem;color:var(--text-muted);">
+            Teacher: ${esc(c.teacher?.name || '—')}
+          </div>`}
+      </div>
+      ${isTeacher ? `
+        <button class="btn btn-danger btn-sm" onclick="deleteClassroom(${c.id})" style="align-self:flex-start;">Delete</button>` : ''}
+    </div>
+
+    <!-- Notifications -->
+    <div class="card">
+      <div class="card-title">🔔 Notifications</div>
+      <div class="notif-list" id="notifList">${notifHtml}</div>
+    </div>
+
+    ${teacherExtra}
+  `;
+}
+
+// ─── Create classroom ─────────────────────────────────────────────────────────
+async function submitCreateClassroom() {
+  const name    = document.getElementById('newClassName').value.trim();
+  const subject = document.getElementById('newClassSubject').value.trim();
+  if (!name) { showToast('Class name is required.', 'error'); return; }
+
+  try {
+    const r = await api('POST', '/classrooms', { name, subject });
+    classrooms.push(r.classroom);
+    renderSidebarClassList();
+    closeModal('createModal');
+    showToast(`Classroom created! Code: ${r.classroom.code}`, 'success');
+    // Clear inputs
+    document.getElementById('newClassName').value = '';
+    document.getElementById('newClassSubject').value = '';
+    openClassroom(r.classroom.id);
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ─── Join classroom ───────────────────────────────────────────────────────────
+async function submitJoinClassroom() {
+  const code = document.getElementById('joinCode').value.trim().toUpperCase();
+  if (!code) { showToast('Please enter a code.', 'error'); return; }
+
+  try {
+    const r = await api('POST', '/classrooms/join', { code });
+    classrooms.push(r.classroom);
+    renderSidebarClassList();
+    closeModal('joinModal');
+    document.getElementById('joinCode').value = '';
+    showToast('Joined classroom!', 'success');
+    openClassroom(r.classroom.id);
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ─── Send notification ────────────────────────────────────────────────────────
+async function sendNotification() {
+  const msg = document.getElementById('notifInput')?.value.trim();
+  if (!msg || !activeClassroom) return;
+
+  try {
+    const r = await api('POST', `/classrooms/${activeClassroom.id}/notify`, { message: msg });
+    document.getElementById('notifInput').value = '';
+    const list = document.getElementById('notifList');
+    const empty = list.querySelector('.empty-state');
+    if (empty) empty.remove();
+    const item = document.createElement('div');
+    item.className = 'notif-item';
+    item.innerHTML = `<div class="notif-msg">${esc(r.notification.message)}</div><div class="notif-time">Just now</div>`;
+    list.insertBefore(item, list.firstChild);
+    showToast('Notification sent!', 'success');
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ─── Leave classroom ──────────────────────────────────────────────────────────
+async function leaveClassroom(id) {
+  if (!confirm('Leave this classroom?')) return;
+  try {
+    await api('DELETE', `/classrooms/${id}/leave`);
+    classrooms = classrooms.filter(c => c.id !== id);
+    renderSidebarClassList();
+    showToast('You left the classroom.', 'success');
+    renderClassroomsView();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ─── Delete classroom ─────────────────────────────────────────────────────────
+async function deleteClassroom(id) {
+  if (!confirm('Permanently delete this classroom and all its data?')) return;
+  try {
+    await api('DELETE', `/classrooms/${id}`);
+    classrooms = classrooms.filter(c => c.id !== id);
+    renderSidebarClassList();
+    showToast('Classroom deleted.', 'success');
+    renderClassroomsView();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ─── Voice (Bangla speech → notification) ────────────────────────────────────
+let recognition = null;
+let isRecording = false;
+let voiceTranscript = '';
+
+function initVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'bn-BD';
+
+  recognition.onresult = (e) => {
+    let final = '', interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    if (final) voiceTranscript += final;
+    const inp = document.getElementById('notifInput');
+    if (inp) inp.value = voiceTranscript + interim;
+  };
+  recognition.onend = () => { if (isRecording) { try { recognition.start(); } catch(e){} } };
+}
+
+function toggleVoice() {
+  if (!recognition) { showToast('Speech not supported in this browser.', 'error'); return; }
+  if (isRecording) {
+    isRecording = false;
+    recognition.stop();
+    document.getElementById('micBtn').classList.remove('recording');
+    document.getElementById('micBtn').textContent = '🎤';
+  } else {
+    voiceTranscript = '';
+    isRecording = true;
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('micBtn').textContent = '⏹️';
+    try { recognition.start(); } catch(e) {}
+  }
+}
+
+// ─── Copy code ────────────────────────────────────────────────────────────────
+async function copyCode(code) {
+  await navigator.clipboard.writeText(code).catch(() => {});
+  const hint = document.getElementById('copyHint');
+  if (hint) { hint.textContent = 'copied!'; hint.classList.add('copied'); setTimeout(() => { hint.textContent = 'click to copy'; hint.classList.remove('copied'); }, 2000); }
+  showToast(`Code ${code} copied!`, 'success');
+}
+
+// ─── Modal helpers ────────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast'; }, 3200);
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+</script>
+</body>
+</html>

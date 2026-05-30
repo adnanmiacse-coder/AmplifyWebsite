@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Career Engine | Amplify</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0c12;--bg2:#11131c;--bg3:#1a1d2e;
+  --green:#00ff88;--green2:#00cc6a;--green-dim:rgba(0,255,136,0.1);--green-glow:rgba(0,255,136,0.22);
+  --blue:#3b82f6;--blue2:#2563eb;--blue-dim:rgba(59,130,246,0.1);
+  --border:#1e2230;--border2:rgba(0,255,136,0.18);
+  --txt:#f1f5f9;--txt2:#94a3b8;--txt3:#5b6b8c;
+  --mono:'Space Grotesk',sans-serif;--body:'Inter',sans-serif;
+  --r:12px;--r2:24px;--r3:40px;
+  --tr:0.22s cubic-bezier(.4,0,.2,1);
+}
+body{background:var(--bg);color:var(--txt);font-family:var(--body);line-height:1.5;overflow-x:hidden}
+.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0;filter:blur(120px)}
+.orb1{width:70vw;height:70vw;background:radial-gradient(circle,rgba(0,255,136,0.06),transparent 70%);top:-20%;right:-20%}
+.orb2{width:60vw;height:60vw;background:radial-gradient(circle,rgba(59,130,246,0.05),transparent 70%);bottom:-30%;left:-15%}
+.header{position:sticky;top:0;z-index:100;background:rgba(10,12,18,0.88);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+.container{max-width:1200px;margin:0 auto;padding:0 28px}
+.nav{display:flex;justify-content:space-between;align-items:center;padding:16px 0}
+.logo{font-family:var(--mono);font-size:1.5rem;font-weight:700;background:linear-gradient(120deg,#3b82f6,#00ff88);-webkit-background-clip:text;background-clip:text;color:transparent;text-decoration:none}
+.nav-badge{background:var(--green-dim);border:1px solid var(--border2);padding:6px 14px;border-radius:var(--r3);font-size:.72rem;font-weight:600;color:var(--green);display:flex;align-items:center;gap:7px;font-family:var(--mono)}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* HERO */
+.hero{text-align:center;padding:80px 0 56px;position:relative;z-index:1}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--green-dim);border:1px solid var(--border2);padding:7px 18px;border-radius:var(--r3);font-size:.72rem;font-weight:600;color:var(--green);letter-spacing:.07em;margin-bottom:28px;font-family:var(--mono)}
+.hero-title{font-family:var(--mono);font-size:clamp(2.4rem,5.5vw,4.2rem);font-weight:700;line-height:1.08;margin-bottom:18px;background:linear-gradient(135deg,#fff 30%,#94a3f0 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-title .g{background:linear-gradient(120deg,var(--green),#00ccff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-sub{color:var(--txt2);max-width:540px;margin:0 auto 36px;font-size:1rem;line-height:1.78}
+
+.start-btn{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--green),var(--green2));color:#0a0c12;font-family:var(--mono);font-weight:700;font-size:.95rem;padding:15px 38px;border-radius:var(--r3);border:none;cursor:pointer;transition:all var(--tr)}
+.start-btn:hover{transform:translateY(-2px);box-shadow:0 0 40px var(--green-glow)}
+
+/* stats */
+.stats-row{display:flex;justify-content:center;gap:48px;padding:40px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:0;position:relative;z-index:1}
+.stat{text-align:center}
+.stat-num{font-family:var(--mono);font-size:2rem;font-weight:700;color:var(--green);line-height:1}
+.stat-lbl{font-size:.7rem;color:var(--txt3);margin-top:5px;letter-spacing:.07em;font-family:var(--mono)}
+@media(max-width:600px){.stats-row{gap:22px}.stat-num{font-size:1.4rem}}
+
+/* questions */
+.q-engine{max-width:700px;margin:0 auto;padding:56px 0 64px;display:none;position:relative;z-index:1}
+.q-engine.show{display:block;animation:fup .35s ease}
+@keyframes fup{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.q-track{display:flex;gap:5px;margin-bottom:32px}
+.q-pip{height:3px;flex:1;border-radius:2px;background:var(--border);transition:background .4s}
+.q-pip.done{background:var(--green)}
+.q-pip.active{background:rgba(0,255,136,.4)}
+.q-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:40px 42px;position:relative;overflow:hidden}
+.q-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);opacity:.4}
+.q-step{font-family:var(--mono);font-size:.66rem;color:var(--txt3);letter-spacing:.16em;margin-bottom:12px}
+.q-q{font-family:var(--mono);font-size:1.2rem;font-weight:600;color:var(--txt);margin-bottom:8px;line-height:1.45}
+.q-hint{font-size:.8rem;color:var(--txt3);margin-bottom:26px;line-height:1.65}
+.chips{display:flex;flex-wrap:wrap;gap:9px}
+.chip{background:rgba(26,29,46,.9);border:1px solid var(--border);padding:10px 18px;border-radius:var(--r3);color:var(--txt2);font-size:.82rem;cursor:pointer;transition:all var(--tr)}
+.chip:hover{border-color:var(--green);color:var(--txt);background:var(--green-dim)}
+.chip.sel{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+.scale-row{display:flex;gap:8px;flex-wrap:wrap}
+.s-btn{width:46px;height:46px;border-radius:var(--r);border:1px solid var(--border);background:transparent;color:var(--txt2);font-family:var(--mono);font-size:.9rem;cursor:pointer;transition:all var(--tr)}
+.s-btn:hover{border-color:var(--green);color:var(--green)}
+.s-btn.sel{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+.scale-labs{display:flex;justify-content:space-between;font-size:.67rem;color:var(--txt3);margin-top:6px;font-family:var(--mono)}
+.q-ta{width:100%;background:rgba(10,12,18,.7);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;color:var(--txt);font-family:var(--body);font-size:.88rem;outline:none;resize:vertical;min-height:90px;transition:border-color var(--tr)}
+.q-ta:focus{border-color:var(--border2)}
+.q-ta::placeholder{color:var(--txt3)}
+.q-nav{display:flex;justify-content:space-between;align-items:center;margin-top:28px}
+.q-back{background:transparent;border:1px solid var(--border);border-radius:var(--r3);padding:10px 20px;color:var(--txt2);font-family:var(--mono);font-size:.78rem;cursor:pointer;transition:all var(--tr)}
+.q-back:hover{border-color:var(--border2);color:var(--txt)}
+.q-fwd{background:linear-gradient(135deg,var(--blue),var(--blue2));border:none;border-radius:var(--r3);padding:12px 28px;color:#fff;font-family:var(--mono);font-size:.85rem;font-weight:600;cursor:pointer;transition:all var(--tr);display:flex;align-items:center;gap:8px}
+.q-fwd:hover{transform:translateY(-1px);box-shadow:0 8px 20px -6px rgba(59,130,246,.5)}
+.q-fwd:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.q-fwd.last{background:linear-gradient(135deg,var(--green),var(--green2));color:#0a0c12}
+
+/* analyzing */
+.analyzing{text-align:center;padding:72px 20px;display:none;position:relative;z-index:1}
+.analyzing.show{display:block}
+.a-ring{width:58px;height:58px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--green);animation:spin 1s linear infinite;margin:0 auto 24px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.a-title{font-family:var(--mono);font-size:1.2rem;font-weight:700;margin-bottom:16px}
+.a-log{font-family:var(--mono);font-size:.76rem;color:var(--txt3);line-height:2.4}
+.ll{opacity:.2;transition:all .4s}
+.ll.on{opacity:1;color:var(--green)}
+.ll.dn{opacity:.5;color:var(--green2)}
+
+/* results */
+.results{display:none;position:relative;z-index:1;padding-bottom:80px}
+.results.show{display:block;animation:fup .4s ease}
+.res-top{padding:48px 0 36px;border-bottom:1px solid var(--border);margin-bottom:40px}
+.res-ey{font-family:var(--mono);font-size:.66rem;color:var(--txt3);letter-spacing:.2em;margin-bottom:10px}
+.res-career{font-family:var(--mono);font-size:2.2rem;font-weight:700;color:var(--green);margin-bottom:12px;line-height:1.1}
+.res-sum{font-size:.95rem;color:var(--txt2);line-height:1.78;max-width:680px}
+.sec-h{font-family:var(--mono);font-size:.95rem;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:18px;color:var(--txt)}
+.roadmap{display:flex;overflow-x:auto;padding-bottom:8px}
+.roadmap::-webkit-scrollbar{height:3px}
+.roadmap::-webkit-scrollbar-thumb{background:var(--green);border-radius:2px}
+.rm{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;min-width:185px;flex-shrink:0;position:relative}
+.rm:not(:last-child){margin-right:28px}
+.rm:not(:last-child)::after{content:'→';position:absolute;right:-18px;top:50%;transform:translateY(-50%);color:var(--txt3)}
+.rm-n{font-family:var(--mono);font-size:.62rem;color:var(--green);letter-spacing:.1em;margin-bottom:6px}
+.rm-t{font-size:.84rem;font-weight:600;color:var(--txt);margin-bottom:3px}
+.rm-d{font-family:var(--mono);font-size:.68rem;color:var(--txt3)}
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin:36px 0 48px}
+@media(max-width:740px){.res-grid{grid-template-columns:1fr}}
+.art-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:18px 20px;margin-bottom:10px;text-decoration:none;display:block;transition:all var(--tr)}
+.art-card:hover{border-color:rgba(0,255,136,.28);transform:translateX(4px)}
+.art-src{font-family:var(--mono);font-size:.62rem;color:var(--green);letter-spacing:.08em;margin-bottom:5px}
+.art-title{font-size:.84rem;color:var(--txt);font-weight:600;line-height:1.45;margin-bottom:5px}
+.art-desc{font-size:.74rem;color:var(--txt2);line-height:1.55}
+.job-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:18px 20px;margin-bottom:10px;text-decoration:none;display:block;transition:all var(--tr)}
+.job-card:hover{border-color:rgba(59,130,246,.3);transform:translateX(4px)}
+.job-co{font-family:var(--mono);font-size:.62rem;color:var(--blue);letter-spacing:.08em;margin-bottom:5px}
+.job-t{font-size:.84rem;color:var(--txt);font-weight:600;margin-bottom:7px}
+.job-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}
+.job-tag{font-family:var(--mono);font-size:.6rem;padding:2px 7px;border-radius:999px;background:var(--blue-dim);border:1px solid rgba(59,130,246,.18);color:var(--txt2)}
+.job-r{font-size:.74rem;color:var(--txt2);line-height:1.55}
+.restart-btn{background:transparent;border:1px solid var(--border);border-radius:var(--r3);padding:11px 24px;color:var(--txt2);font-family:var(--mono);font-size:.78rem;cursor:pointer;transition:all var(--tr);margin-top:8px}
+.restart-btn:hover{border-color:var(--border2);color:var(--txt)}
+
+/* job board */
+.jobs-section{padding:64px 0;border-top:1px solid var(--border);position:relative;z-index:1}
+.sec-header{margin-bottom:32px}
+.sec-header h2{font-family:var(--mono);font-size:1.7rem;font-weight:700;margin-bottom:8px}
+.sec-header p{color:var(--txt2);font-size:.9rem}
+.jboard-filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;align-items:center}
+.jf{background:rgba(26,29,46,.8);border:1px solid var(--border);border-radius:var(--r3);padding:8px 16px;color:var(--txt2);font-size:.76rem;cursor:pointer;transition:all var(--tr);font-family:var(--mono)}
+.jf:hover,.jf.active{background:var(--green-dim);border-color:var(--border2);color:var(--green)}
+.jsearch{margin-left:auto;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r3);padding:8px 18px;color:var(--txt);font-size:.8rem;outline:none;width:220px;transition:border-color var(--tr);font-family:var(--body)}
+.jsearch:focus{border-color:var(--border2)}
+.jsearch::placeholder{color:var(--txt3)}
+.jboard-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:28px}
+.jboard-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:22px;transition:all var(--tr);text-decoration:none;display:block}
+.jboard-card:hover{border-color:rgba(59,130,246,.3);transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.35)}
+.jb-sector{display:inline-block;font-family:var(--mono);font-size:.6rem;padding:3px 9px;border-radius:999px;margin-bottom:12px;font-weight:600;letter-spacing:.06em}
+.jb-sector.tech{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.22);color:var(--blue)}
+.jb-sector.finance{background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.22);color:var(--green)}
+.jb-sector.health{background:rgba(240,100,140,.1);border:1px solid rgba(240,100,140,.22);color:#f0648c}
+.jb-sector.creative{background:rgba(160,100,240,.1);border:1px solid rgba(160,100,240,.22);color:#a064f0}
+.jb-sector.engineering{background:rgba(240,196,74,.08);border:1px solid rgba(240,196,74,.2);color:#f0c44a}
+.jb-sector.ngo{background:rgba(74,196,160,.1);border:1px solid rgba(74,196,160,.22);color:#4ac4a0}
+.jb-title{font-size:.9rem;font-weight:600;color:var(--txt);margin-bottom:5px;line-height:1.4}
+.jb-co{font-family:var(--mono);font-size:.72rem;color:var(--txt3);margin-bottom:10px}
+.jb-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+.jb-tag{font-family:var(--mono);font-size:.6rem;padding:2px 8px;border-radius:999px;background:var(--bg3);border:1px solid var(--border);color:var(--txt2)}
+.jb-meta{display:flex;justify-content:space-between;align-items:center}
+.jb-salary{font-family:var(--mono);font-size:.68rem;color:var(--green)}
+.jb-type{font-family:var(--mono);font-size:.65rem;color:var(--txt3)}
+.jskel{height:180px;border-radius:var(--r2);background:linear-gradient(90deg,var(--bg3) 25%,rgba(0,255,136,.02) 50%,var(--bg3) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+footer{text-align:center;padding:32px;border-top:1px solid var(--border);color:var(--txt3);font-size:.75rem}
+@media(max-width:680px){.q-card{padding:26px 20px}.container{padding:0 16px}.jsearch{width:100%;margin-left:0}}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<header class="header">
+  <div class="container">
+    <nav class="nav">
+      <a href="/index.html" class="logo">Amplify</a>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <a href="/index.html" class="nav-link">Home</a>
+        <a href="/experiments.html" class="nav-link">Experiments</a>
+        <a href="/routine.html" class="nav-link">Routine</a>
+        
+        <div class="nav-badge"><span class="live-dot"></span>Career Engine · AI</div>
+      </div>
+    </nav>
+  </div>
+</header>
+<style>
+.nav-link{color:var(--txt2);text-decoration:none;font-size:0.9rem;padding:6px 12px;border-radius:6px;transition:all 0.2s ease;}
+.nav-link:hover{color:var(--txt);background:rgba(0,255,136,0.1);border-color:var(--border2);}
+</style>
+
+<div class="container">
+
+<!-- HERO -->
+<div class="hero" id="heroSection">
+  <div class="hero-eyebrow"><i class="fas fa-rocket"></i>&nbsp; CAREER ENGINE v2.0</div>
+  <h1 class="hero-title">Find your<br><span class="g">dream job in Bangladesh.</span></h1>
+  <p class="hero-sub">Tell us about yourself and our AI matches you to real career paths, tailored learning resources, and live job openings across Bangladesh.</p>
+  <button class="start-btn" onclick="beginEngine()"><i class="fas fa-chevron-right"></i>&nbsp; Start Career Assessment</button>
+</div>
+
+<!-- STATS -->
+<div class="stats-row" id="statsRow">
+  <div class="stat"><div class="stat-num">22+</div><div class="stat-lbl">JOB LISTINGS</div></div>
+  <div class="stat"><div class="stat-num">10</div><div class="stat-lbl">QUESTIONS</div></div>
+  <div class="stat"><div class="stat-num">AI</div><div class="stat-lbl">MATCHED CAREER</div></div>
+  <div class="stat"><div class="stat-num">BD</div><div class="stat-lbl">JOB MARKET</div></div>
+</div>
+
+<!-- QUESTIONS -->
+<div class="q-engine" id="qEngine">
+  <div class="q-track" id="qTrack"></div>
+  <div class="q-card">
+    <div class="q-step" id="qStep">QUESTION 1 OF 10</div>
+    <div class="q-q" id="qQ"></div>
+    <div class="q-hint" id="qHint"></div>
+    <div id="qBody"></div>
+    <div class="q-nav">
+      <button class="q-back" id="qBack" onclick="prevQ()">← Back</button>
+      <button class="q-fwd" id="qFwd" onclick="nextQ()" disabled>Continue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ANALYZING -->
+<div class="analyzing" id="analysing">
+  <div class="a-ring"></div>
+  <div class="a-title">Analysing your career profile...</div>
+  <div class="a-log">
+    <div class="ll" id="l0">⬡ Reading your personality and values</div>
+    <div class="ll" id="l1">⬡ Mapping career pathways to your profile</div>
+    <div class="ll" id="l2">⬡ Finding the best learning resources</div>
+    <div class="ll" id="l3">⬡ Scanning Bangladesh job boards</div>
+    <div class="ll" id="l4">⬡ Building your personalised roadmap</div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="results" id="results">
+  <div class="res-top">
+    <div class="res-ey">YOUR AI CAREER MATCH</div>
+    <div class="res-career" id="rCareer"></div>
+    <div class="res-sum" id="rSum"></div>
+  </div>
+  <div style="margin-bottom:44px">
+    <div class="sec-h"><i class="fas fa-map-signs"></i>&nbsp; Your Career Roadmap</div>
+    <div class="roadmap" id="rRoad"></div>
+  </div>
+  <div class="res-grid">
+    <div>
+      <div class="sec-h"><i class="fas fa-graduation-cap"></i>&nbsp; Learning Resources</div>
+      <div id="rArts"></div>
+    </div>
+    <div>
+      <div class="sec-h"><i class="fas fa-briefcase"></i>&nbsp; Matched Jobs in Bangladesh</div>
+      <div id="rJobs"></div>
+    </div>
+  </div>
+  <button class="restart-btn" onclick="restart()">↺ Start Over</button>
+</div>
+
+<!-- JOB BOARD -->
+<section class="jobs-section" id="jobsBoard">
+  <div class="sec-header">
+    <h2><i class="fas fa-briefcase" style="color:var(--green);font-size:1.2rem;margin-right:10px"></i>Bangladesh Job Board</h2>
+    <p>Curated openings across top sectors — updated regularly.</p>
+  </div>
+  <div class="jboard-filters">
+    <button class="jf active" onclick="setJF('ALL',this)">All Sectors</button>
+    <button class="jf" onclick="setJF('tech',this)">Technology</button>
+    <button class="jf" onclick="setJF('finance',this)">Finance</button>
+    <button class="jf" onclick="setJF('health',this)">Healthcare</button>
+    <button class="jf" onclick="setJF('engineering',this)">Engineering</button>
+    <button class="jf" onclick="setJF('creative',this)">Creative</button>
+    <button class="jf" onclick="setJF('ngo',this)">NGO / Dev</button>
+    <input class="jsearch" id="jsearch" placeholder="Search roles or companies..." oninput="renderJobs()"/>
+  </div>
+  <div class="jboard-grid" id="jboardGrid">
+    <div class="jskel"></div><div class="jskel"></div><div class="jskel"></div>
+    <div class="jskel"></div><div class="jskel"></div><div class="jskel"></div>
+  </div>
+</section>
+
+</div>
+<footer>&copy; 2026 Amplify · Career Engine · Powered by GROQ AI &amp; Llama 4 Scout</footer>
+
+<script src="/amplify-env-bootstrap.js"></script>
+<script type="module">
+// Config loaded from server via amplify-env-bootstrap.js
+window.AMPLIFY_ENV = window.AMPLIFY_ENV || {};
+</script>
+<script>
+// ── API KEY ──
+let GROQ_KEY = '';
+async function initKey() {
+  GROQ_KEY = window.AMPLIFY_ENV?.GROQ_KEY || '';
+}
+document.addEventListener('DOMContentLoaded', initKey);
+
+// ── VOICE ──
+// Pick the most natural-sounding voice available.
+// Priority: Samantha (macOS), Google US English Female, any en-US female, any en-US, any English.
+// Avoids robotic Microsoft voices where possible.
+function pickNaturalVoice() {
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length) return null;
+
+  const preferred = [
+    'Google UK English Female',
+    'Google UK English Male',
+    'Google US English',
+    'Microsoft Aria Online (Natural) - English (United States)',
+    'Microsoft Jenny Online (Natural) - English (United States)',
+    'Microsoft Guy Online (Natural) - English (United States)',
+    'Samantha', 'Karen', 'Daniel', 'Moira',
+  ];
+  for (const name of preferred) {
+    const match = voices.find(v => v.name === name);
+    if (match) return match;
+  }
+  const onlineEn = voices.find(v => v.lang.startsWith('en') && v.localService === false);
+  if (onlineEn) return onlineEn;
+  return voices.find(v => v.lang.startsWith('en')) || null;
+}
+function speak(text, onDone) {
+  if (!window.speechSynthesis) { onDone && onDone(); return; }
+
+  const doSpeak = () => {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const voice = pickNaturalVoice();
+    if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = 'en-US'; }
+    u.rate = 1.0; u.pitch = 0.95; u.volume = 1;
+    u.onend  = () => onDone && onDone();
+    u.onerror = () => onDone && onDone();
+    speechSynthesis.speak(u);
+  };
+
+  // Voices may not be loaded yet on first call
+  const voices = speechSynthesis.getVoices();
+  if (voices.length > 0) {
+    doSpeak();
+  } else {
+    speechSynthesis.onvoiceschanged = () => {
+      speechSynthesis.onvoiceschanged = null;
+      doSpeak();
+    };
+    speechSynthesis.getVoices(); // trigger load in some browsers
+  }
+}
+
+// ── AUTO-PLAY: fires once on first user interaction ──
+(function setupAutoPlay() {
+  const greeting = "Hello, lets kickstart your career.";
+  let fired = false;
+
+  function onFirstInteraction() {
+    if (fired) return;
+    fired = true;
+    ['click','keydown','touchstart','scroll'].forEach(ev =>
+      document.removeEventListener(ev, onFirstInteraction, true)
+    );
+    speak(greeting);
+  }
+
+  ['click','keydown','touchstart','scroll'].forEach(ev =>
+    document.addEventListener(ev, onFirstInteraction, { once: true, capture: true })
+  );
+})();
+
+// ── QUESTIONS ──
+const QS = [
+  {id:'values',q:"What matters most to you in a career?",hint:"Be honest — not aspirational. This reveals your real motivators.",type:'chips',
+   opts:['High salary & financial security','Creative freedom & expression','Social impact & helping others','Intellectual challenge & growth','Leadership & influence','Work-life balance','Building something of my own','Recognition & status']},
+  {id:'strengths',q:"When are you genuinely at your best?",hint:"Think of moments you felt energised and capable.",type:'chips',
+   opts:['Solving complex logical problems','Persuading & connecting with people','Analysing data and finding patterns','Designing and creating things','Organising, planning, and leading','Researching and writing clearly','Building or engineering physical things','Empathising and supporting others']},
+  {id:'workenv',q:"Which work environment suits your personality?",hint:"Where you work shapes how well you perform.",type:'chips',
+   opts:['Fast-paced startup','Structured corporate office','Freelance / independent','Remote or hybrid team','Research or academic setting','Field work & on-the-ground','Creative studio or agency','Government or public sector']},
+  {id:'risk',q:"How comfortable are you with uncertainty?",hint:"1 = strongly prefer stability  ·  5 = thrive in ambiguity",type:'scale',min:1,max:5,labels:['Prefer stability','Thrive in ambiguity']},
+  {id:'education',q:"What is your current educational background?",hint:"Every path is valid — be honest.",type:'chips',
+   opts:['HSC / A-levels','Bachelor\'s (ongoing)','Bachelor\'s (complete)','Master\'s or PhD','Diploma or vocational','Self-taught / bootcamp','No formal degree']},
+  {id:'sectors',q:"Which industries excite you most?",hint:"Pick up to 2.",type:'chips',multi:true,max:2,
+   opts:['Technology & Software','Finance & Banking','Healthcare & Biotech','Media & Creative Arts','Engineering & Manufacturing','Education & Research','Law & Governance','NGO & Social Enterprise','E-commerce & Retail','Telecommunications']},
+  {id:'skills',q:"What skills or experience do you already have?",hint:"Technical, interpersonal, academic, or practical — anything counts.",type:'text',
+   placeholder:"e.g. Python for 2 years, managed university social media, 3-month bank internship…"},
+  {id:'collab',q:"How do you prefer to work?",hint:"",type:'chips',
+   opts:['Independently — I work best alone','Small close-knit team','Large collaborative organisation','Leading and delegating to a team','Client-facing, external-relationship roles']},
+  {id:'location',q:"Where do you want to work?",hint:"",type:'chips',
+   opts:['Dhaka — corporate or startup sector','Outside Dhaka — home city or region','Remote for global companies','Open to relocating abroad','Fully flexible — anywhere']},
+  {id:'timeline',q:"What is your career urgency right now?",hint:"This shapes your roadmap timeline.",type:'chips',
+   opts:['Need a role within 3 months','6 months to prepare','Planning a 1-year journey','1–2 years — building foundations','Exploring long-term options']},
+];
+
+let cur=0, ans={}, msel={};
+
+function buildTrack(){
+  document.getElementById('qTrack').innerHTML = QS.map((_,i)=>`<div class="q-pip" id="pip${i}"></div>`).join('');
+}
+function updTrack(){
+  QS.forEach((_,i)=>{
+    const p=document.getElementById(`pip${i}`);
+    if(!p)return;
+    p.className='q-pip'+(i<cur?' done':i===cur?' active':'');
+  });
+}
+function renderQ(){
+  const q=QS[cur];
+  document.getElementById('qStep').textContent=`QUESTION ${cur+1} OF ${QS.length}`;
+  document.getElementById('qQ').textContent=q.q;
+  document.getElementById('qHint').textContent=q.hint||'';
+  document.getElementById('qBack').style.visibility=cur===0?'hidden':'visible';
+  const fwd=document.getElementById('qFwd');
+  fwd.className='q-fwd'+(cur===QS.length-1?' last':'');
+  fwd.textContent=cur===QS.length-1?'🚀 Analyse My Career':'Continue →';
+  const body=document.getElementById('qBody');
+  body.innerHTML='';
+  if(q.type==='chips'){
+    const saved=ans[q.id], ms=msel[q.id]||[];
+    const wrap=document.createElement('div'); wrap.className='chips';
+    q.opts.forEach(o=>{
+      const b=document.createElement('button');
+      b.className='chip'+((q.multi?ms.includes(o):saved===o)?' sel':'');
+      b.textContent=o;
+      b.onclick=()=>{
+        if(q.multi){const idx=ms.indexOf(o);if(idx>-1)ms.splice(idx,1);else if(ms.length<(q.max||99))ms.push(o);msel[q.id]=ms;ans[q.id]=ms.join(', ');}
+        else{ans[q.id]=o;}
+        renderQ();
+      };
+      wrap.appendChild(b);
+    });
+    body.appendChild(wrap);
+    fwd.disabled=!ans[q.id];
+  } else if(q.type==='scale'){
+    const saved=ans[q.id], wrap=document.createElement('div');
+    const row=document.createElement('div'); row.className='scale-row';
+    for(let i=q.min;i<=q.max;i++){
+      const b=document.createElement('button');
+      b.className='s-btn'+(saved==i?' sel':''); b.textContent=i;
+      b.onclick=()=>{ans[q.id]=i;renderQ();};
+      row.appendChild(b);
+    }
+    const labs=document.createElement('div'); labs.className='scale-labs';
+    labs.innerHTML=`<span>${q.labels[0]}</span><span>${q.labels[1]}</span>`;
+    wrap.appendChild(row); wrap.appendChild(labs); body.appendChild(wrap);
+    fwd.disabled=!ans[q.id];
+  } else {
+    const ta=document.createElement('textarea');
+    ta.className='q-ta'; ta.placeholder=q.placeholder; ta.value=ans[q.id]||'';
+    ta.oninput=()=>{ans[q.id]=ta.value;document.getElementById('qFwd').disabled=!ta.value.trim();};
+    body.appendChild(ta); fwd.disabled=!ans[q.id];
+    setTimeout(()=>ta.focus(),80);
+  }
+  updTrack();
+  const card=document.querySelector('.q-card');
+  card.style.cssText='opacity:0;transform:translateY(12px);transition:none';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    card.style.cssText='opacity:1;transform:translateY(0);transition:opacity .26s,transform .26s';
+  }));
+}
+function nextQ(){if(cur<QS.length-1){cur++;renderQ();}else{startAnalysis();}}
+function prevQ(){if(cur>0){cur--;renderQ();}}
+function beginEngine(){
+  document.getElementById('heroSection').style.display='none';
+  document.getElementById('statsRow').style.display='none';
+  const qe=document.getElementById('qEngine');
+  qe.classList.add('show'); buildTrack(); renderQ();
+  setTimeout(()=>qe.scrollIntoView({behavior:'smooth',block:'start'}),60);
+}
+
+// ── ANALYSIS ──
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function startAnalysis(){
+  document.getElementById('qEngine').style.display='none';
+  document.getElementById('analysing').classList.add('show');
+  for(let i=0;i<5;i++){await wait(680);document.getElementById(`l${i}`).classList.add('on');}
+  await callGroq();
+}
+function markL(i){
+  const el=document.getElementById(`l${i}`);
+  el.className='ll dn'; el.textContent='✓ '+el.textContent.replace('⬡ ','');
+}
+async function callGroq(){
+  const profile=Object.entries(ans).map(([k,v])=>`${k}: ${v}`).join('\n');
+  const sys=`You are an expert career counsellor for the Bangladesh job market.
+Return ONLY a valid JSON object — no markdown, no backticks — with keys:
+1. "career": Specific job title
+2. "summary": 2-3 personalised sentences on why this role suits them
+3. "roadmap": [{step,title,duration}] x5
+4. "articles": [{title,url,source,description}] x5 — real URLs from Coursera, freeCodeCamp, HBR, Medium, LinkedIn Learning, dev.to
+5. "jobs": [{title,company,url,tags,requirements}] x5 — real Bangladesh job URLs: bdjobs.com, linkedin.com/jobs, chakri.com, or company career pages`;
+  try {
+    if(!GROQ_KEY) throw new Error('API key not loaded — check /api/groq-key endpoint.');
+    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEY}`},
+      body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',messages:[{role:'system',content:sys},{role:'user',content:`Assessment:\n${profile}`}],temperature:0.42,max_tokens:2400})
+    });
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error?.message||'Groq error');
+    let raw=(data.choices?.[0]?.message?.content||'').replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(raw);
+    [0,1,2,3,4].forEach(i=>markL(i)); await wait(400); showResults(parsed);
+  } catch(err){
+    console.error(err); [0,1,2,3,4].forEach(i=>markL(i)); await wait(300);
+    showResults({career:'Analysis Unavailable',summary:`Error: ${err.message}`,roadmap:[],articles:[],jobs:[]});
+  }
+}
+function showResults(d){
+  document.getElementById('analysing').classList.remove('show');
+  document.getElementById('results').classList.add('show');
+  document.getElementById('rCareer').textContent=d.career||'';
+  document.getElementById('rSum').textContent=d.summary||'';
+  document.getElementById('rRoad').innerHTML=(d.roadmap||[]).map(s=>`<div class="rm"><div class="rm-n">STEP ${s.step}</div><div class="rm-t">${s.title}</div><div class="rm-d">${s.duration}</div></div>`).join('');
+  document.getElementById('rArts').innerHTML=(d.articles||[]).map(a=>`<a class="art-card" href="${a.url}" target="_blank" rel="noopener"><div class="art-src">${a.source}</div><div class="art-title">${a.title}</div><div class="art-desc">${a.description}</div></a>`).join('');
+  document.getElementById('rJobs').innerHTML=(d.jobs||[]).map(j=>`<a class="job-card" href="${j.url}" target="_blank" rel="noopener"><div class="job-co">${j.company}</div><div class="job-t">${j.title}</div><div class="job-tags">${(j.tags||[]).map(t=>`<span class="job-tag">${t}</span>`).join('')}</div><div class="job-r">${j.requirements}</div></a>`).join('');
+  if(window.speechSynthesis&&d.career&&!d.career.includes('Unavailable')){
+    speak(`Your career match is ${d.career}. ${d.summary}`);
+  }
+  setTimeout(()=>document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+function restart(){
+  cur=0;ans={};msel={};
+  document.getElementById('analysing').classList.remove('show');
+  document.getElementById('results').classList.remove('show');
+  const qe=document.getElementById('qEngine'); qe.style.display=''; qe.classList.remove('show');
+  [0,1,2,3,4].forEach(i=>{const el=document.getElementById(`l${i}`);el.className='ll';el.textContent='⬡ '+el.textContent.replace('✓ ','');});
+  document.getElementById('heroSection').style.display='block';
+  document.getElementById('statsRow').style.display='flex';
+  window.scrollTo({top:0,behavior:'smooth'});
+  setTimeout(()=>speak("Welcome back. Let's find the right career path for you."),700);
+}
+
+// ── JOB BOARD ──
+const JOBS=[
+  {sector:'tech',title:'Software Engineer (Backend)',company:'Brain Station 23',tags:['Node.js','REST API','PostgreSQL'],salary:'BDT 60–90k/mo',type:'Full-time',link:'https://brainstation-23.com/career'},
+  {sector:'tech',title:'AI / ML Engineer',company:'Pathao',tags:['Python','TensorFlow','Data Pipelines'],salary:'BDT 80–120k/mo',type:'Full-time',link:'https://pathao.com/bn/career/'},
+  {sector:'tech',title:'Frontend Developer (React)',company:'BJIT Group',tags:['React','TypeScript','Figma'],salary:'BDT 50–75k/mo',type:'Full-time',link:'https://bjitgroup.com/career'},
+  {sector:'tech',title:'DevOps Engineer',company:'Grameenphone',tags:['AWS','Kubernetes','CI/CD'],salary:'BDT 90–130k/mo',type:'Full-time',link:'https://www.grameenphone.com/about/corporate-information/career'},
+  {sector:'tech',title:'Product Manager — Fintech',company:'bKash',tags:['Roadmapping','Agile','Analytics'],salary:'BDT 100–150k/mo',type:'Full-time',link:'https://www.bkash.com/about/career'},
+  {sector:'tech',title:'UX / UI Designer',company:'Daraz BD',tags:['Figma','User Research','Prototyping'],salary:'BDT 45–70k/mo',type:'Full-time',link:'https://careers.daraz.com/'},
+  {sector:'finance',title:'Credit Risk Analyst',company:'Dutch-Bangla Bank',tags:['Excel','Financial Modelling','SQL'],salary:'BDT 55–80k/mo',type:'Full-time',link:'https://www.dutchbanglabank.com/career/career.html'},
+  {sector:'finance',title:'Investment Banking Associate',company:'BRAC Bank',tags:['CFA','DCF Valuation','M&A'],salary:'BDT 90–140k/mo',type:'Full-time',link:'https://www.bracbank.com/en/career'},
+  {sector:'finance',title:'Financial Analyst',company:'Robi Axiata',tags:['FP&A','SAP','Reporting'],salary:'BDT 60–90k/mo',type:'Full-time',link:'https://www.robi.com.bd/en/corporate/career'},
+  {sector:'finance',title:'Fintech Product Analyst',company:'Nagad',tags:['MFS','Data Analysis','KPI Tracking'],salary:'BDT 50–75k/mo',type:'Full-time',link:'https://bdjobs.com'},
+  {sector:'health',title:'Medical Affairs Officer',company:'Square Pharma',tags:['MBBS/Pharm','Regulatory','Documentation'],salary:'BDT 50–70k/mo',type:'Full-time',link:'https://www.squarepharma.com.bd/career.php'},
+  {sector:'health',title:'Public Health Specialist',company:'BRAC Health',tags:['MPH','Field Coordination','DHIS2'],salary:'BDT 55–80k/mo',type:'Contract',link:'https://careers.brac.net/'},
+  {sector:'health',title:'Hospital IT Systems Analyst',company:'Square Hospital',tags:['HIS','SQL','Healthcare IT'],salary:'BDT 45–65k/mo',type:'Full-time',link:'https://bdjobs.com'},
+  {sector:'engineering',title:'Telecom Network Engineer',company:'Ericsson BD',tags:['4G/5G','RAN','Network Optimisation'],salary:'BDT 80–120k/mo',type:'Full-time',link:'https://www.ericsson.com/en/careers'},
+  {sector:'engineering',title:'R&D Electronics Engineer',company:'Walton Hi-Tech',tags:['PCB Design','Embedded C','Prototyping'],salary:'BDT 50–80k/mo',type:'Full-time',link:'https://waltonbd.com/page/career'},
+  {sector:'engineering',title:'Civil / Infrastructure Engineer',company:'Chattogram Port Authority',tags:['AutoCAD','Structural','Project Mgmt'],salary:'BDT 60–90k/mo',type:'Full-time',link:'https://cpa.gov.bd/'},
+  {sector:'creative',title:'Content & Brand Strategist',company:'Daraz BD',tags:['Copywriting','SEO','Social Media'],salary:'BDT 40–60k/mo',type:'Full-time',link:'https://careers.daraz.com/'},
+  {sector:'creative',title:'Motion Designer / Video Editor',company:'Grameenphone Digital',tags:['After Effects','Premiere','Storytelling'],salary:'BDT 35–55k/mo',type:'Full-time',link:'https://www.grameenphone.com/about/corporate-information/career'},
+  {sector:'creative',title:'Digital Marketing Manager',company:'Robi Axiata',tags:['Google Ads','Meta Ads','Analytics'],salary:'BDT 60–90k/mo',type:'Full-time',link:'https://www.robi.com.bd/en/corporate/career'},
+  {sector:'ngo',title:'Programme Manager — Livelihoods',company:'BRAC',tags:['Project Cycle Mgmt','M&E','Budget Mgmt'],salary:'BDT 70–100k/mo',type:'Full-time',link:'https://careers.brac.net/'},
+  {sector:'ngo',title:'Research Analyst — Social Development',company:'BRAC Institute',tags:['Quantitative','Stata/R','Report Writing'],salary:'BDT 55–80k/mo',type:'Full-time',link:'https://careers.brac.net/'},
+  {sector:'ngo',title:'Monitoring & Evaluation Officer',company:'CARE Bangladesh',tags:['Data Collection','KoboToolbox','Reporting'],salary:'BDT 50–75k/mo',type:'Contract',link:'https://bdjobs.com'},
+];
+
+let jobFilter='ALL';
+function setJF(f,btn){
+  jobFilter=f;
+  document.querySelectorAll('.jf').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderJobs();
+}
+function renderJobs(){
+  const q=(document.getElementById('jsearch')?.value||'').toLowerCase();
+  const filtered=JOBS.filter(j=>(jobFilter==='ALL'||j.sector===jobFilter)&&(!q||j.title.toLowerCase().includes(q)||j.company.toLowerCase().includes(q)||j.tags.some(t=>t.toLowerCase().includes(q))));
+  const grid=document.getElementById('jboardGrid');
+  if(!filtered.length){grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;color:var(--txt3);padding:48px 0;font-family:var(--mono);font-size:.8rem">No jobs match your search.</div>`;return;}
+  grid.innerHTML=filtered.map(j=>`
+    <a class="jboard-card" href="${j.link}" target="_blank" rel="noopener">
+      <div class="jb-sector ${j.sector}">${j.sector.charAt(0).toUpperCase()+j.sector.slice(1)}</div>
+      <div class="jb-title">${j.title}</div>
+      <div class="jb-co"><i class="fas fa-building" style="font-size:.6rem;margin-right:5px"></i>${j.company}</div>
+      <div class="jb-tags">${j.tags.map(t=>`<span class="jb-tag">${t}</span>`).join('')}</div>
+      <div class="jb-meta"><span class="jb-salary">${j.salary}</span><span class="jb-type">${j.type}</span></div>
+    </a>`).join('');
+}
+
+// ── INIT ──
+window.addEventListener('load', () => {
+  if (window.speechSynthesis) speechSynthesis.getVoices();
+  renderJobs();
+});
+</script>
+</body>
+</html>

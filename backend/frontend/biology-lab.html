@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Biology Lab — 3D Models · Amplify</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#05080f;
+  --bg2:#090e1a;
+  --bg3:#0e1525;
+  --acc:#4af0c4;
+  --acc2:#2dd4a0;
+  --acc-glow:rgba(74,240,196,0.15);
+  --blue:#5b8fff;
+  --amber:#f0c44a;
+  --rose:#f05b8b;
+  --border:rgba(74,240,196,0.1);
+  --border2:rgba(74,240,196,0.22);
+  --txt:#d4e8e0;
+  --txt2:#6a8f82;
+  --txt3:#2a4a3f;
+  --mono:'DM Mono',monospace;
+  --display:'Syne',sans-serif;
+  --body:'DM Sans',sans-serif;
+  --r:10px;--r2:18px;
+  --tr:0.2s cubic-bezier(.4,0,.2,1)
+}
+
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--body);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(74,240,196,0.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(74,240,196,0.025) 1px,transparent 1px);
+  background-size:48px 48px;
+  pointer-events:none;z-index:0
+}
+.orb{
+  position:fixed;border-radius:50%;pointer-events:none;z-index:0;
+  filter:blur(80px);
+}
+.orb1{width:500px;height:500px;background:radial-gradient(circle,rgba(74,240,196,0.07),transparent 70%);top:-100px;right:-100px}
+.orb2{width:400px;height:400px;background:radial-gradient(circle,rgba(91,143,255,0.07),transparent 70%);bottom:-80px;left:-80px}
+
+.hdr{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(5,8,15,0.88);backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--border);
+}
+.nav{
+  max-width:1200px;margin:0 auto;padding:14px 32px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.nav-left{display:flex;align-items:center;gap:20px}
+.nav-back{font-family:var(--mono);font-size:11px;color:var(--txt2);transition:color var(--tr);text-decoration:none}
+.nav-back:hover{color:var(--acc)}
+.nav-title{font-family:var(--display);font-size:15px;font-weight:700;color:var(--acc);letter-spacing:2px}
+.nav-right{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:1px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 6px var(--acc);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.layout{
+  display:grid;
+  grid-template-columns:280px 1fr;
+  min-height:100vh;
+  padding-top:57px;
+  position:relative;z-index:1;
+}
+
+.sidebar{
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  padding:28px 0;
+  position:sticky;top:57px;height:calc(100vh - 57px);
+  overflow-y:auto;display:flex;flex-direction:column;
+}
+.sidebar-label{
+  font-family:var(--mono);font-size:9px;color:var(--txt3);
+  letter-spacing:3px;padding:0 22px 14px;
+}
+.model-list{display:flex;flex-direction:column;gap:4px;padding:0 12px;flex:1}
+
+.model-item{
+  background:transparent;border:1px solid transparent;
+  border-radius:var(--r);padding:12px 14px;
+  cursor:pointer;transition:all var(--tr);
+  display:flex;align-items:center;gap:14px;
+  text-align:left;width:100%;
+}
+.model-item:hover{background:rgba(74,240,196,0.05);border-color:var(--border)}
+.model-item.active{background:rgba(74,240,196,0.1);border-color:var(--border2)}
+.model-item.active .mi-name{color:var(--acc)}
+
+.mi-icon{
+  width:44px;height:44px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.3rem;flex-shrink:0;
+  border:1px solid;
+  transition:all var(--tr);
+}
+.model-item.active .mi-icon{box-shadow:0 0 14px currentColor}
+
+.mi-text{min-width:0}
+.mi-name{font-family:var(--display);font-size:13px;font-weight:600;color:var(--txt);margin-bottom:3px;transition:color var(--tr);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi-cat{font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:.5px}
+
+.sidebar-info{
+  padding:20px 22px;
+  border-top:1px solid var(--border);
+  margin-top:auto;
+}
+.info-title{font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:2px;margin-bottom:12px}
+.info-body{font-size:12px;color:var(--txt2);line-height:1.65;min-height:56px;transition:all .3s}
+.info-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.info-tag{font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:999px;background:rgba(74,240,196,0.07);border:1px solid var(--border);color:var(--txt2)}
+
+.viewer-area{
+  display:flex;flex-direction:column;
+  background:var(--bg);
+  position:relative;
+}
+
+.viewer-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 28px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg2);
+  flex-shrink:0;
+}
+.viewer-model-name{font-family:var(--display);font-size:1.1rem;font-weight:700;color:var(--txt)}
+.viewer-model-sub{font-family:var(--mono);font-size:10px;color:var(--txt3);margin-top:3px;letter-spacing:1px}
+.viewer-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.ctrl-btn{
+  background:rgba(74,240,196,0.06);border:1px solid var(--border);
+  color:var(--txt2);font-family:var(--mono);font-size:11px;
+  padding:7px 14px;border-radius:var(--r);cursor:pointer;
+  transition:all var(--tr);letter-spacing:.5px;
+  display:flex;align-items:center;gap:6px;
+}
+.ctrl-btn:hover{background:rgba(74,240,196,0.14);border-color:var(--acc);color:var(--acc)}
+.ctrl-btn.active{background:rgba(74,240,196,0.14);border-color:var(--acc);color:var(--acc)}
+
+/* ── AI VOICEOVER BUTTON ── */
+.vo-btn {
+  background: linear-gradient(135deg,rgba(74,240,196,0.14),rgba(91,143,255,0.1));
+  border: 1px solid rgba(74,240,196,0.45);
+  color: var(--acc);
+  font-family: var(--mono); font-size: 11px;
+  padding: 7px 16px; border-radius: var(--r);
+  cursor: pointer; transition: all var(--tr);
+  letter-spacing: .5px; display:flex; align-items:center; gap:7px;
+  position: relative; overflow: hidden;
+}
+.vo-btn::after {
+  content:''; position:absolute; inset:0;
+  background: linear-gradient(90deg,transparent,rgba(74,240,196,0.12),transparent);
+  transform: translateX(-100%);
+}
+.vo-btn:hover { background:rgba(74,240,196,0.22); box-shadow:0 0 18px rgba(74,240,196,0.28); }
+.vo-btn:hover::after { transform:translateX(100%); transition:transform .5s; }
+.vo-btn.speaking {
+  border-color: var(--acc);
+  background: rgba(74,240,196,0.18);
+  box-shadow: 0 0 22px rgba(74,240,196,0.4);
+  animation: vo-glow 1.4s ease-in-out infinite;
+}
+.vo-btn.loading { opacity:.65; cursor:not-allowed; }
+@keyframes vo-glow {
+  0%,100%{box-shadow:0 0 10px rgba(74,240,196,0.25)}
+  50%{box-shadow:0 0 30px rgba(74,240,196,0.6)}
+}
+
+.canvas-wrap{
+  flex:1;position:relative;
+  min-height:0;
+}
+#threeCanvas{
+  display:block;width:100%;height:100%;
+  cursor:grab;
+}
+#threeCanvas:active{cursor:grabbing}
+
+.loading-overlay{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--bg);z-index:10;
+  transition:opacity .4s;
+}
+.loading-overlay.hidden{opacity:0;pointer-events:none}
+.load-spinner{
+  width:52px;height:52px;border-radius:50%;
+  border:2px solid var(--border);
+  border-top-color:var(--acc);
+  animation:spin 1s linear infinite;
+  margin-bottom:20px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-text{font-family:var(--mono);font-size:12px;color:var(--txt2);letter-spacing:1px}
+.load-file{font-family:var(--mono);font-size:10px;color:var(--txt3);margin-top:6px}
+
+.error-overlay{
+  position:absolute;inset:0;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--bg);z-index:10;gap:16px;padding:32px;text-align:center;
+}
+.error-overlay.show{display:flex}
+.error-icon{font-size:2.5rem}
+.error-title{font-family:var(--display);font-size:1.1rem;font-weight:700;color:var(--txt)}
+.error-msg{font-size:13px;color:var(--txt2);line-height:1.6;max-width:380px}
+.error-path{font-family:var(--mono);font-size:11px;color:var(--acc);background:rgba(74,240,196,0.07);border:1px solid var(--border);padding:8px 14px;border-radius:var(--r);margin-top:4px}
+
+.hints-bar{
+  display:flex;align-items:center;gap:20px;
+  padding:10px 28px;border-top:1px solid var(--border);
+  background:var(--bg2);flex-shrink:0;flex-wrap:wrap;
+}
+.hint{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:.5px}
+.hint-key{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);padding:2px 7px;border-radius:4px;font-size:10px}
+.hint-sep{color:var(--txt3);opacity:.3}
+
+.info-panel{
+  position:absolute;top:16px;right:16px;
+  background:rgba(9,14,26,0.9);backdrop-filter:blur(12px);
+  border:1px solid var(--border);border-radius:var(--r2);
+  padding:16px 18px;width:200px;
+  transition:all var(--tr);z-index:5;
+}
+.ip-label{font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:2px;margin-bottom:12px}
+.ip-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.ip-key{font-family:var(--mono);font-size:10px;color:var(--txt2)}
+.ip-val{font-family:var(--mono);font-size:10px;color:var(--acc)}
+
+.rotate-badge{
+  position:absolute;bottom:70px;right:16px;
+  background:rgba(74,240,196,0.1);border:1px solid var(--border2);
+  border-radius:999px;padding:6px 14px;
+  font-family:var(--mono);font-size:10px;color:var(--acc);
+  opacity:0;animation:fadeInOut 3s ease-out 1s forwards;
+  pointer-events:none;
+}
+@keyframes fadeInOut{0%{opacity:0}20%{opacity:1}70%{opacity:1}100%{opacity:0}}
+
+/* ── VOICEOVER SPOTLIGHT RING ── */
+.vo-spotlight {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(74,240,196,0.55);
+  pointer-events: none;
+  z-index: 8;
+  box-shadow:
+    0 0 0 4px rgba(74,240,196,0.08),
+    0 0 32px rgba(74,240,196,0.25),
+    inset 0 0 24px rgba(74,240,196,0.04);
+  opacity: 0;
+  transition: all 0.9s cubic-bezier(0.4,0,0.2,1);
+}
+.vo-spotlight.show { opacity: 1; }
+
+/* ── VOICEOVER HUD ── */
+.vo-hud {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  background: rgba(5,8,15,0.94);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(74,240,196,0.2);
+  border-top: 1px solid rgba(74,240,196,0.35);
+  border-radius: 18px;
+  padding: 16px 20px 14px;
+  z-index: 20;
+  display: none;
+  flex-direction: column;
+  gap: 11px;
+  box-shadow: 0 -4px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(74,240,196,0.04);
+  transform: translateY(12px);
+  opacity: 0;
+  transition: transform .38s cubic-bezier(.4,0,.2,1), opacity .38s;
+}
+.vo-hud.active { display: flex; }
+.vo-hud.visible { transform: translateY(0); opacity: 1; }
+
+.vo-hud-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.vo-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--acc);
+  background: rgba(74,240,196,0.1);
+  border: 1px solid rgba(74,240,196,0.28);
+  border-radius: 999px;
+  padding: 2px 10px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.vo-badge.live { animation: vo-glow 1.4s ease-in-out infinite; }
+.vo-hud-name {
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--txt);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vo-stop-btn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid rgba(240,91,139,0.3);
+  color: #f05b8b;
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all .2s;
+}
+.vo-stop-btn:hover { background: rgba(240,91,139,0.12); border-color: #f05b8b; }
+
+/* Waveform */
+.vo-mid-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.vo-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.vo-bar {
+  width: 3px;
+  background: var(--acc);
+  border-radius: 3px;
+  height: 3px;
+  opacity: 0.35;
+}
+.vo-wave.live .vo-bar {
+  animation: vbar .75s ease-in-out infinite;
+  opacity: 1;
+}
+.vo-bar:nth-child(1){animation-delay:0s}
+.vo-bar:nth-child(2){animation-delay:.09s}
+.vo-bar:nth-child(3){animation-delay:.18s}
+.vo-bar:nth-child(4){animation-delay:.04s}
+.vo-bar:nth-child(5){animation-delay:.13s}
+.vo-bar:nth-child(6){animation-delay:.22s}
+.vo-bar:nth-child(7){animation-delay:.07s}
+.vo-bar:nth-child(8){animation-delay:.16s}
+@keyframes vbar { 0%,100%{height:3px} 50%{height:20px} }
+
+/* Scrolling text */
+.vo-text-wrap {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  max-height: 48px;
+}
+.vo-text-wrap::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 18px;
+  background: linear-gradient(transparent, rgba(5,8,15,0.94));
+  pointer-events: none;
+}
+.vo-text {
+  font-size: 13px;
+  color: var(--txt);
+  line-height: 1.65;
+  transition: opacity .25s;
+}
+.vo-text.fade { opacity: 0.25; }
+
+/* Feature chips */
+.vo-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.vo-chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--txt3);
+  cursor: pointer;
+  transition: all .2s;
+  white-space: nowrap;
+}
+.vo-chip:hover { border-color: rgba(74,240,196,0.35); color: var(--txt2); }
+.vo-chip.active {
+  border-color: var(--acc);
+  color: var(--acc);
+  background: rgba(74,240,196,0.09);
+}
+
+/* Progress dots */
+.vo-progress {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.vo-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--txt3);
+  transition: all .3s;
+}
+.vo-dot.active {
+  background: var(--acc);
+  box-shadow: 0 0 6px var(--acc);
+  width: 14px;
+  border-radius: 3px;
+}
+
+@media(max-width:768px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{position:fixed;left:-280px;top:57px;width:280px;height:calc(100vh - 57px);z-index:50;transition:left .3s ease}
+  .sidebar.open{left:0}
+  .mobile-menu-btn{display:flex!important}
+}
+.mobile-menu-btn{
+  display:none;background:transparent;border:1px solid var(--border);
+  color:var(--txt2);padding:7px 12px;border-radius:var(--r);cursor:pointer;
+  font-size:16px;
+}
+
+.ai-chat-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.45);
+  opacity:0; visibility:hidden;
+  transition:opacity 0.28s ease, visibility 0.28s ease;
+  z-index:140;
+}
+.ai-chat-overlay.open{ opacity:1; visibility:visible; }
+.ai-chat-panel{
+  position:fixed; top:0; right:0;
+  width:420px; max-width:100%; height:100vh;
+  background:rgba(5,8,15,0.98);
+  border-left:1px solid rgba(74,240,196,0.1);
+  box-shadow:-32px 0 80px rgba(0,0,0,0.35);
+  transform:translateX(100%);
+  transition:transform 0.32s ease;
+  z-index:150; display:flex; flex-direction:column;
+}
+.ai-chat-panel.open{ transform:translateX(0); }
+.ai-chat-header{
+  padding:24px 24px 18px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+}
+.ai-chat-title{ font-family:var(--display); font-size:1rem; font-weight:700; letter-spacing:0.03em; color:#fff; }
+.ai-chat-subtitle{ font-family:var(--mono); font-size:11px; color:var(--txt2); letter-spacing:1px; }
+.ai-chat-close{
+  background:transparent; border:1px solid rgba(255,255,255,0.12); color:#fff;
+  width:38px; height:38px; border-radius:12px; cursor:pointer;
+}
+.ai-chat-body{
+  flex:1; overflow-y:auto; padding:20px 22px 12px;
+  display:flex; flex-direction:column; gap:16px;
+}
+.ai-chat-empty{ color:var(--txt2); font-size:13px; line-height:1.8; }
+.ai-message{
+  max-width:100%; padding:14px 18px; border-radius:22px;
+  line-height:1.65; font-size:14px; box-shadow:0 14px 40px rgba(0,0,0,0.18);
+}
+.ai-message.user{
+  align-self:flex-end;
+  background:linear-gradient(135deg,rgba(0,255,136,0.16),rgba(0,255,136,0.04)); color:#fff;
+}
+.ai-message.assistant{
+  align-self:flex-start; background:rgba(255,255,255,0.04); color:var(--text-primary);
+}
+.ai-message.assistant strong{ display:block; margin-bottom:8px; color:#00ff88; }
+.ai-chat-footer{
+  padding:18px 22px 24px; border-top:1px solid rgba(255,255,255,0.08);
+  display:flex; gap:12px; align-items:center;
+}
+.ai-chat-input{
+  flex:1; min-height:48px; border-radius:999px;
+  border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.03);
+  color:#fff; padding:14px 18px; font-size:14px; outline:none; resize:none;
+}
+.ai-chat-send{
+  border:none; border-radius:999px; padding:14px 20px;
+  background:linear-gradient(135deg,var(--acc),var(--acc2));
+  color:#000; cursor:pointer; font-weight:700; white-space:nowrap;
+}
+.ai-chat-status{
+  padding:0 22px 12px; font-family:var(--mono); font-size:11px; color:var(--txt2);
+}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<header class="hdr">
+  <div class="nav">
+    <div class="nav-left">
+      <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleSidebar()">☰</button>
+      <a href="/experiments.html" class="nav-back">← Experiments</a>
+      <span class="nav-title">BIO_LAB · 3D</span>
+      <div style="display:flex;gap:12px;margin-left:16px;">
+        <a href="/index.html" class="nav-link-bio">Home</a>
+        <a href="/career.html" class="nav-link-bio">Career</a>
+        <a href="/routine.html" class="nav-link-bio">Routine</a>
+        <a href="/chemistry.html" class="nav-link-bio">Chemistry</a>
+      </div>
+    </div>
+<style>
+.nav-link-bio{font-family:var(--mono);font-size:11px;color:var(--txt2);text-decoration:none;transition:color var(--tr);}
+.nav-link-bio:hover{color:var(--acc);}
+</style>
+    <div class="nav-right">
+      <span class="live-dot"></span>
+      <span>INTERACTIVE · WebGL</span>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-label">3D MODELS</div>
+    <div class="model-list" id="modelList"></div>
+    <div class="sidebar-info">
+      <div class="info-title">ABOUT THIS MODEL</div>
+      <div class="info-body" id="infoBody">Select a model to view details.</div>
+      <div class="info-tags" id="infoTags"></div>
+    </div>
+  </aside>
+
+  <div class="viewer-area">
+    <div class="viewer-topbar">
+      <div>
+        <div class="viewer-model-name" id="viewerName">Select a Model</div>
+        <div class="viewer-model-sub" id="viewerSub">BIOLOGY · 3D VIEWER</div>
+      </div>
+      <div class="viewer-controls">
+        <button class="ctrl-btn" onclick="resetCamera()" title="Reset view">↺ Reset</button>
+        <button class="ctrl-btn" id="autoRotateBtn" onclick="toggleAutoRotate()">⟳ Rotate</button>
+        <button class="ctrl-btn" id="wireframeBtn" onclick="toggleWireframe()">⬡ Wireframe</button>
+        <button class="ctrl-btn" onclick="zoomIn()">＋ Zoom</button>
+        <button class="ctrl-btn" onclick="zoomOut()">－ Zoom</button>
+        <button class="ctrl-btn" id="askAiBtn" onclick="openAiChat()">💬 Ask AI</button>
+        <button class="vo-btn" id="voBtn" onclick="toggleVoiceover()">🎙️ AI বাংলা ভয়েস</button>
+      </div>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="threeCanvas"></canvas>
+
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="load-spinner"></div>
+        <div class="load-text">Loading model...</div>
+        <div class="load-file" id="loadFile"></div>
+      </div>
+
+      <div class="error-overlay" id="errorOverlay">
+        <div class="error-icon">📂</div>
+        <div class="error-title">Model file not found</div>
+        <div class="error-msg">Make sure the <code>.glb</code> file is inside <code>public/models/</code> in your project folder.</div>
+        <div class="error-path" id="errorPath"></div>
+      </div>
+
+      <div class="info-panel" id="infoPanel">
+        <div class="ip-label">MODEL INFO</div>
+        <div class="ip-row"><span class="ip-key">Vertices</span><span class="ip-val" id="ipVerts">—</span></div>
+        <div class="ip-row"><span class="ip-key">Triangles</span><span class="ip-val" id="ipTris">—</span></div>
+        <div class="ip-row"><span class="ip-key">Meshes</span><span class="ip-val" id="ipMeshes">—</span></div>
+        <div class="ip-row"><span class="ip-key">Materials</span><span class="ip-val" id="ipMats">—</span></div>
+      </div>
+
+      <div class="rotate-badge" id="rotateBadge">Drag to rotate · Scroll to zoom</div>
+
+      <!-- Voiceover spotlight ring -->
+      <div class="vo-spotlight" id="voSpotlight"></div>
+
+      <!-- Voiceover HUD -->
+      <div class="vo-hud" id="voHud">
+        <div class="vo-hud-top">
+          <span class="vo-badge" id="voBadge">AI VOICE · বাংলা</span>
+          <span class="vo-hud-name" id="voHudName">—</span>
+          <button class="vo-stop-btn" onclick="stopVoiceover()" title="Stop">✕</button>
+        </div>
+        <div class="vo-mid-row">
+          <div class="vo-wave" id="voWave">
+            <div class="vo-bar"></div><div class="vo-bar"></div>
+            <div class="vo-bar"></div><div class="vo-bar"></div>
+            <div class="vo-bar"></div><div class="vo-bar"></div>
+            <div class="vo-bar"></div><div class="vo-bar"></div>
+          </div>
+          <div class="vo-text-wrap">
+            <div class="vo-text" id="voText">প্রস্তুত হচ্ছে...</div>
+          </div>
+        </div>
+        <div class="vo-chips" id="voChips"></div>
+        <div class="vo-progress" id="voProgress"></div>
+      </div>
+    </div>
+
+    <div class="hints-bar">
+      <div class="hint"><span class="hint-key">Drag</span> Rotate</div>
+      <div class="hint-sep">·</div>
+      <div class="hint"><span class="hint-key">Scroll</span> Zoom</div>
+      <div class="hint-sep">·</div>
+      <div class="hint"><span class="hint-key">Right-drag</span> Pan</div>
+      <div class="hint-sep">·</div>
+      <div class="hint"><span class="hint-key">R</span> Reset</div>
+      <div class="hint-sep">·</div>
+      <div class="hint"><span class="hint-key">Space</span> Auto-rotate</div>
+      <div class="hint-sep">·</div>
+      <div class="hint"><span class="hint-key">🎙️</span> বাংলা AI ভয়েস</div>
+    </div>
+  </div>
+</div>
+
+<div class="ai-chat-overlay" id="aiChatOverlay" onclick="closeAiChat()"></div>
+<aside class="ai-chat-panel" id="aiChatPanel">
+  <div class="ai-chat-header">
+    <div>
+      <div class="ai-chat-title">Biology AI Tutor</div>
+      <div class="ai-chat-subtitle">Ask questions about diagrams, organs, and models.</div>
+    </div>
+    <button class="ai-chat-close" onclick="closeAiChat()">✕</button>
+  </div>
+  <div class="ai-chat-body" id="aiMessages">
+    <div class="ai-chat-empty">Ask about the selected biological model or any diagram in the page.</div>
+  </div>
+  <div class="ai-chat-status" id="aiStatus">Powered by GROQ AI.</div>
+  <div class="ai-chat-footer">
+    <textarea id="aiPrompt" class="ai-chat-input" rows="2" placeholder="Ask about biology diagrams, organs, DNA structure, cells, or model details..."></textarea>
+    <button class="ai-chat-send" id="aiSendBtn" onclick="sendAiQuestion()">Send</button>
+  </div>
+</aside>
+
+<!-- Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const MODELS = [
+  { id:'kidney',        file:'/models/human_kidney.glb',                  name:'Human Kidney',                  category:'Urinary System',    icon:'🩸', color:'#c084fc', desc:'The kidneys filter blood, remove waste, regulate electrolytes, and produce urine. Essential for homeostasis.',                                                        tags:['Excretory','Homeostasis','Nephron'] },
+  { id:'full_skeleton', file:'/models/skeleton.glb',                       name:'Full Skeleton',                  category:'Skeletal System',   icon:'💀', color:'#e2e8f0', desc:'Complete human skeleton — 206 bones providing structure, protection, and movement. Includes axial and appendicular skeleton.',                                     tags:['Skeletal','Anatomy','Bones'] },
+  { id:'lungs',         file:'/models/realistic_human_lungs.glb',          name:'Realistic Human Lungs',          category:'Respiratory System',icon:'🫁', color:'#f97316', desc:'The lungs facilitate gas exchange — oxygen into blood, carbon dioxide out. Vital for respiration.',                                                              tags:['Respiratory','Gas Exchange','Thorax'] },
+  { id:'digestive_system', file:'/models/digestive_system_human_anatomy.glb', name:'Digestive System',           category:'Digestive Anatomy', icon:'🍽️', color:'#a3e635', desc:'Complete digestive tract from esophagus to intestines. Breaks down food and absorbs nutrients.',                                                                tags:['Digestion','Organs','Nutrient Absorption'] },
+  { id:'dna',           file:'/models/dna.glb',                            name:'DNA Double Helix',               category:'Genetics',          icon:'🧬', color:'#38bdf8', desc:'The blueprint of life — double helix structure storing genetic information. Base pairs: A-T, C-G.',                                                               tags:['Genetics','Molecular','Heredity'] },
+  { id:'cerebellum',    file:'/models/cerebellum.glb',                     name:'Cerebellum',                     category:'Neuroscience',      icon:'🧠', color:'#f05b8b', desc:'The cerebellum coordinates voluntary movements, balance, and fine motor skills. It contains more neurons than the rest of the brain combined.',                    tags:['Nervous System','Brain','Motor Control'] },
+  { id:'humerus',       file:'/models/human_humerus_bone.glb',             name:'Humerus Bone',                   category:'Skeletal System',   icon:'🦴', color:'#f0c44a', desc:'The humerus is the long bone of the upper arm, connecting the shoulder to the elbow.',                                                                           tags:['Skeletal','Upper Limb','Bone'] },
+  { id:'ribs',          file:'/models/low_poly_skeleton_ribs.glb',         name:'Rib Cage',                       category:'Skeletal System',   icon:'🫁', color:'#f0c44a', desc:'The thoracic cage formed by 12 pairs of ribs protects the heart and lungs while enabling breathing.',                                                            tags:['Skeletal','Thorax','Protection'] },
+  { id:'phospholipid',  file:'/models/Phospholipid_bilayer_Beige.glb',     name:'Phospholipid Bilayer',           category:'Cell Biology',      icon:'🔬', color:'#4af0c4', desc:'The fundamental structure of all cell membranes — two layers of phospholipid molecules creating a selectively permeable barrier.',                             tags:['Cell Membrane','Biochemistry','Lipids'] },
+  { id:'rougher',       file:'/models/Rough_ER_Dark_Beige.glb',            name:'Rough Endoplasmic Reticulum',    category:'Cell Biology',      icon:'🔬', color:'#5b8fff', desc:'Studded with ribosomes, the Rough ER synthesizes and processes proteins destined for secretion or membrane insertion.',                                        tags:['Organelle','Protein Synthesis','Cell'] },
+];
+
+const canvas    = document.getElementById('threeCanvas');
+const wrap      = canvas.parentElement;
+const renderer  = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x05080f, 1);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.001, 1000);
+camera.position.set(0, 0, 3);
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);  scene.add(ambientLight);
+const keyLight   = new THREE.DirectionalLight(0x4af0c4, 1.2); keyLight.position.set(3,4,3);   keyLight.castShadow=true; scene.add(keyLight);
+const fillLight  = new THREE.DirectionalLight(0x5b8fff, 0.5); fillLight.position.set(-3,1,-2); scene.add(fillLight);
+const rimLight   = new THREE.DirectionalLight(0xffffff, 0.3); rimLight.position.set(0,-2,-3);  scene.add(rimLight);
+
+let currentModel   = null;
+let autoRotate     = false;
+let wireframeMode  = false;
+let isDragging     = false;
+let isPanning      = false;
+let prevMouse      = { x:0, y:0 };
+let spherical      = { theta:0, phi:Math.PI/2 };
+let panOffset      = new THREE.Vector3();
+let targetDistance = 3;
+let currentDistance = 3;
+let targetSpherical = { theta:0, phi:Math.PI/2 };
+let targetPan      = new THREE.Vector3();
+
+function resize() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 2) { isPanning=true; } else { isDragging=true; }
+  prevMouse = { x:e.clientX, y:e.clientY };
+});
+canvas.addEventListener('mousemove', e => {
+  const dx=e.clientX-prevMouse.x, dy=e.clientY-prevMouse.y;
+  prevMouse = { x:e.clientX, y:e.clientY };
+  if (isDragging) { targetSpherical.theta-=dx*0.008; targetSpherical.phi-=dy*0.008; targetSpherical.phi=Math.max(0.1,Math.min(Math.PI-0.1,targetSpherical.phi)); }
+  if (isPanning)  { const ps=targetDistance*0.001; targetPan.x-=dx*ps; targetPan.y+=dy*ps; }
+});
+window.addEventListener('mouseup', () => { isDragging=false; isPanning=false; });
+canvas.addEventListener('wheel', e => { e.preventDefault(); targetDistance*=(1+e.deltaY*0.001); targetDistance=Math.max(0.3,Math.min(20,targetDistance)); }, {passive:false});
+let lastTouchDist=0;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length===1) { isDragging=true; prevMouse={x:e.touches[0].clientX,y:e.touches[0].clientY}; }
+  else if (e.touches.length===2) { lastTouchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); }
+});
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length===1 && isDragging) {
+    const dx=e.touches[0].clientX-prevMouse.x, dy=e.touches[0].clientY-prevMouse.y;
+    prevMouse={x:e.touches[0].clientX,y:e.touches[0].clientY};
+    targetSpherical.theta-=dx*0.008; targetSpherical.phi-=dy*0.008;
+    targetSpherical.phi=Math.max(0.1,Math.min(Math.PI-0.1,targetSpherical.phi));
+  } else if (e.touches.length===2) {
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    targetDistance*=lastTouchDist/d; targetDistance=Math.max(0.3,Math.min(20,targetDistance)); lastTouchDist=d;
+  }
+},{passive:false});
+canvas.addEventListener('touchend', () => { isDragging=false; });
+window.addEventListener('keydown', e => {
+  if (e.key==='r'||e.key==='R') resetCamera();
+  if (e.key===' ') { e.preventDefault(); toggleAutoRotate(); }
+  if (e.key==='w'||e.key==='W') toggleWireframe();
+});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+function loadGLTFLoader(cb) {
+  if (window.THREE && window.THREE.GLTFLoader) { cb(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+  s.onload = cb;
+  s.onerror = () => showError('Could not load the 3D loader library.');
+  document.head.appendChild(s);
+}
+
+function loadModel(modelData) {
+  document.getElementById('viewerName').textContent = modelData.name;
+  document.getElementById('viewerSub').textContent  = modelData.category.toUpperCase()+' · 3D MODEL';
+  document.getElementById('infoBody').textContent   = modelData.desc;
+  const tagsEl = document.getElementById('infoTags');
+  tagsEl.innerHTML = modelData.tags.map(t=>`<span class="info-tag">${t}</span>`).join('');
+  document.getElementById('ipVerts').textContent='—'; document.getElementById('ipTris').textContent='—';
+  document.getElementById('ipMeshes').textContent='—'; document.getElementById('ipMats').textContent='—';
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.remove('hidden');
+  document.getElementById('loadFile').textContent = modelData.file;
+  document.getElementById('errorOverlay').classList.remove('show');
+  if (currentModel) { scene.remove(currentModel); currentModel=null; }
+  loadGLTFLoader(() => {
+    const loader = new THREE.GLTFLoader();
+    loader.load(modelData.file,
+      (gltf) => {
+        const model = gltf.scene;
+        const box=new THREE.Box3().setFromObject(model);
+        const centre=box.getCenter(new THREE.Vector3());
+        const size=box.getSize(new THREE.Vector3());
+        const maxDim=Math.max(size.x,size.y,size.z);
+        const scale=2/maxDim;
+        model.position.sub(centre.multiplyScalar(scale));
+        model.scale.setScalar(scale);
+        let verts=0,tris=0,meshes=0; const mats=new Set();
+        model.traverse(child => {
+          if (child.isMesh) {
+            meshes++;
+            if (child.geometry) {
+              const pos=child.geometry.attributes.position;
+              if (pos) verts+=pos.count;
+              const idx=child.geometry.index;
+              tris+=idx?idx.count/3:(pos?pos.count/3:0);
+            }
+            if (child.material) { const m=Array.isArray(child.material)?child.material:[child.material]; m.forEach(mat=>mats.add(mat.uuid)); }
+          }
+        });
+        document.getElementById('ipVerts').textContent=verts.toLocaleString();
+        document.getElementById('ipTris').textContent=Math.round(tris).toLocaleString();
+        document.getElementById('ipMeshes').textContent=meshes;
+        document.getElementById('ipMats').textContent=mats.size;
+        scene.add(model); currentModel=model;
+        targetDistance=3; currentDistance=3;
+        targetSpherical={theta:0,phi:Math.PI/2}; spherical={theta:0,phi:Math.PI/2};
+        targetPan.set(0,0,0); panOffset.set(0,0,0);
+        const col=new THREE.Color(modelData.color); keyLight.color.set(col);
+        overlay.classList.add('hidden');
+        const badge=document.getElementById('rotateBadge');
+        badge.style.animation='none'; badge.offsetHeight;
+        badge.style.animation='fadeInOut 3s ease-out 0.2s forwards';
+      },
+      (progress) => { if (progress.total>0) document.getElementById('loadFile').textContent=`${modelData.file} — ${Math.round(progress.loaded/progress.total*100)}%`; },
+      (err) => { console.error(err); overlay.classList.add('hidden'); document.getElementById('errorOverlay').classList.add('show'); document.getElementById('errorPath').textContent=modelData.file; }
+    );
+  });
+}
+
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  const lerpF = 1-Math.pow(0.01,dt*60*0.12);
+  spherical.theta+=(targetSpherical.theta-spherical.theta)*lerpF;
+  spherical.phi+=(targetSpherical.phi-spherical.phi)*lerpF;
+  currentDistance+=(targetDistance-currentDistance)*lerpF;
+  panOffset.lerp(targetPan,lerpF);
+  if (autoRotate) targetSpherical.theta+=dt*0.6;
+  const x=currentDistance*Math.sin(spherical.phi)*Math.sin(spherical.theta);
+  const y=currentDistance*Math.cos(spherical.phi);
+  const z=currentDistance*Math.sin(spherical.phi)*Math.cos(spherical.theta);
+  camera.position.set(x+panOffset.x,y+panOffset.y,z+panOffset.z);
+  camera.lookAt(panOffset.x,panOffset.y,panOffset.z);
+  renderer.render(scene,camera);
+}
+animate();
+
+function resetCamera()     { targetDistance=3; targetSpherical={theta:0,phi:Math.PI/2}; targetPan.set(0,0,0); }
+function toggleAutoRotate(){ autoRotate=!autoRotate; document.getElementById('autoRotateBtn').classList.toggle('active',autoRotate); }
+function toggleWireframe() {
+  wireframeMode=!wireframeMode; document.getElementById('wireframeBtn').classList.toggle('active',wireframeMode);
+  if (currentModel) currentModel.traverse(child => { if (child.isMesh&&child.material) { const m=Array.isArray(child.material)?child.material:[child.material]; m.forEach(mat=>{mat.wireframe=wireframeMode;}); } });
+}
+function zoomIn()  { targetDistance=Math.max(0.3,targetDistance*0.8); }
+function zoomOut() { targetDistance=Math.min(20,targetDistance*1.25); }
+function showError(msg) { document.getElementById('loadingOverlay').classList.add('hidden'); document.getElementById('errorOverlay').classList.add('show'); document.getElementById('errorPath').textContent=msg; }
+
+// ── CRITICAL FIX: keep window._currentModelIdx in sync ──
+// Use a single authoritative object so both the classic script
+// and the ES-module script always see the same value.
+window._currentModelData = { idx: 0 };
+
+function buildSidebar() {
+  const list=document.getElementById('modelList'); list.innerHTML='';
+  MODELS.forEach((m,i) => {
+    const btn=document.createElement('button'); btn.className='model-item'; btn.id=`mi_${m.id}`;
+    btn.innerHTML=`<div class="mi-icon" style="color:${m.color};border-color:${m.color}33;background:${m.color}11">${m.icon}</div><div class="mi-text"><div class="mi-name">${m.name}</div><div class="mi-cat">${m.category.toUpperCase()}</div></div>`;
+    btn.onclick=()=>selectModel(i);
+    list.appendChild(btn);
+  });
+}
+
+function selectModel(index) {
+  // ── FIX: always write the new index to the shared object ──
+  window._currentModelData.idx = index;
+
+  document.querySelectorAll('.model-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`mi_${MODELS[index].id}`).classList.add('active');
+  wireframeMode=false; document.getElementById('wireframeBtn').classList.remove('active');
+  if (window.stopVoiceover) window.stopVoiceover();
+  loadModel(MODELS[index]);
+  if (window.innerWidth<768) document.getElementById('sidebar').classList.remove('open');
+}
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+buildSidebar();
+selectModel(0);
+window.selectModel = selectModel;
+window.resetCamera = resetCamera;
+window.toggleAutoRotate = toggleAutoRotate;
+window.toggleWireframe = toggleWireframe;
+window.zoomIn = zoomIn;
+window.zoomOut = zoomOut;
+window.MODELS = MODELS;
+</script>
+
+<!-- AI Chat (Groq) -->
+<script src="/amplify-env-bootstrap.js"></script>
+<script type="module">
+// Config loaded from server via amplify-env-bootstrap.js
+const GROQ_API_KEY = window.AMPLIFY_ENV?.GROQ_KEY || '';
+const aiChatPanel   = document.getElementById('aiChatPanel');
+const aiChatOverlay = document.getElementById('aiChatOverlay');
+const aiMessages    = document.getElementById('aiMessages');
+const aiPrompt      = document.getElementById('aiPrompt');
+const aiSendBtn     = document.getElementById('aiSendBtn');
+const aiStatus      = document.getElementById('aiStatus');
+
+function openAiChat()  { aiChatPanel.classList.add('open');    aiChatOverlay.classList.add('open');    aiPrompt.focus(); }
+function closeAiChat() { aiChatPanel.classList.remove('open'); aiChatOverlay.classList.remove('open'); }
+
+function appendAiMessage(text,role='assistant') {
+  const m=document.createElement('div'); m.className=`ai-message ${role}`;
+  m.innerHTML=role==='assistant'?`<strong>AI Tutor</strong>${text.replace(/\n/g,'<br/>')}`:`${text.replace(/\n/g,'<br/>')}`;
+  aiMessages.querySelector('.ai-chat-empty')?.remove();
+  aiMessages.appendChild(m); aiMessages.scrollTop=aiMessages.scrollHeight;
+}
+
+async function sendAiQuestion() {
+  const question=aiPrompt.value.trim(); if (!question) return;
+  appendAiMessage(question,'user'); aiPrompt.value=''; aiPrompt.disabled=true; aiSendBtn.disabled=true; aiStatus.textContent='Thinking...';
+  try {
+    if (!GROQ_API_KEY) throw new Error('Missing GROQ API key.');
+    const selectedModel=document.getElementById('viewerName')?.textContent?.trim()||'Biology model';
+    const prompt=`You are an expert biology tutor. The user is viewing the ${selectedModel} model. Answer clearly and concisely. Question: ${question}`;
+    const response=await fetch('https://api.cerebras.ai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_API_KEY}`},
+      body:JSON.stringify({ model:'meta-llama/llama-4-scout-17b-16e-instruct', messages:[{role:'system',content:prompt}], temperature:0.4, max_tokens:1200 })
+    });
+    const data=await response.json();
+    if (!response.ok) throw new Error(data.error?.message||`Groq API error ${response.status}`);
+    appendAiMessage(data.choices?.[0]?.message?.content||'Sorry, could not generate an answer.','assistant');
+    aiStatus.textContent='Ready for another biology question.';
+  } catch(err) {
+    appendAiMessage(`Error: ${err.message||'Unable to ask AI.'}`, 'assistant');
+    aiStatus.textContent='Failed. Check your API key and network.';
+  } finally {
+    aiPrompt.disabled=false; aiSendBtn.disabled=false; aiPrompt.focus();
+  }
+}
+window.openAiChat=openAiChat; window.closeAiChat=closeAiChat; window.sendAiQuestion=sendAiQuestion;
+</script>
+
+<!-- Hand Gesture Control -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script>
+(function() {
+  const pip=document.createElement('div');
+  pip.style.cssText='position:fixed;bottom:90px;right:16px;width:180px;height:135px;border-radius:12px;overflow:hidden;border:1px solid rgba(74,240,196,0.3);background:#000;z-index:200;display:none;box-shadow:0 8px 32px rgba(0,0,0,0.5)';
+  const pipVid=document.createElement('video'); pipVid.style.cssText='width:100%;height:100%;object-fit:cover;transform:scaleX(-1)'; pipVid.autoplay=true; pipVid.muted=true; pipVid.playsInline=true;
+  const pipCanvas=document.createElement('canvas'); pipCanvas.style.cssText='position:absolute;inset:0;width:100%;height:100%';
+  const pipLabel=document.createElement('div'); pipLabel.style.cssText='position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.6);color:#4af0c4;font-family:monospace;font-size:10px;padding:2px 10px;border-radius:999px;white-space:nowrap'; pipLabel.textContent='No gesture';
+  pip.appendChild(pipVid); pip.appendChild(pipCanvas); pip.appendChild(pipLabel); document.body.appendChild(pip);
+  const toggleBtn=document.createElement('button'); toggleBtn.className='ctrl-btn'; toggleBtn.innerHTML='✋ Gesture'; toggleBtn.title='Toggle hand gesture control';
+  document.querySelector('.viewer-controls').appendChild(toggleBtn);
+  let active=false,handsModel=null,stream=null,prevWristX=null,swipeCooldown=0,gestureAutoRotating=false;
+  const ctx2=pipCanvas.getContext('2d');
+  toggleBtn.onclick=async()=>{
+    if (!active) { active=true; toggleBtn.classList.add('active'); toggleBtn.innerHTML='✋ Gesture ON'; pip.style.display='block'; await initGesture(); }
+    else { active=false; toggleBtn.classList.remove('active'); toggleBtn.innerHTML='✋ Gesture'; pip.style.display='none'; if (gestureAutoRotating){gestureAutoRotating=false;autoRotate=false;document.getElementById('autoRotateBtn')?.classList.remove('active');} if(stream)stream.getTracks().forEach(t=>t.stop()); handsModel=null; }
+  };
+  function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+  function isCurled(tip,base){return tip.y>base.y;}
+  function classifyGesture(lm){
+    const thumb=lm[4],index=lm[8],indexBase=lm[5],middle=lm[12],middleBase=lm[9],ring=lm[16],ringBase=lm[13],pinky=lm[20],pinkyBase=lm[17];
+    const indexUp=!isCurled(index,indexBase),middleUp=!isCurled(middle,middleBase),ringUp=!isCurled(ring,ringBase),pinkyUp=!isCurled(pinky,pinkyBase);
+    if(indexUp&&middleUp&&!ringUp&&!pinkyUp)return'victory';
+    if(indexUp&&!middleUp&&!ringUp&&!pinkyUp)return'pointer';
+    if(dist(thumb,index)<0.07)return'pinch';
+    if(indexUp&&middleUp&&ringUp&&pinkyUp)return'palm';
+    return null;
+  }
+  function drawHandOverlay(lm){
+    const W=pipCanvas.width,H=pipCanvas.height;
+    const conn=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20]];
+    ctx2.strokeStyle='rgba(74,240,196,0.8)'; ctx2.lineWidth=1.5;
+    conn.forEach(([a,b])=>{ctx2.beginPath();ctx2.moveTo((1-lm[a].x)*W,lm[a].y*H);ctx2.lineTo((1-lm[b].x)*W,lm[b].y*H);ctx2.stroke();});
+    lm.forEach(pt=>{ctx2.beginPath();ctx2.arc((1-pt.x)*W,pt.y*H,3,0,Math.PI*2);ctx2.fillStyle='#4af0c4';ctx2.fill();});
+  }
+  function setAutoRotate(on){gestureAutoRotating=on;autoRotate=on;document.getElementById('autoRotateBtn')?.classList.toggle('active',on);}
+  function onResults(res){
+    pipCanvas.width=180; pipCanvas.height=135; ctx2.clearRect(0,0,180,135);
+    if(!res.multiHandLandmarks?.length){pipLabel.textContent='No hand';prevWristX=null;swipeCooldown=0;return;}
+    const lm=res.multiHandLandmarks[0]; drawHandOverlay(lm);
+    const gesture=classifyGesture(lm),wristX=lm[0].x;
+    if(gesture==='victory'){if(typeof resetCamera!=='undefined')resetCamera();pipLabel.textContent='✌️ Reset view';prevWristX=wristX;return;}
+    if(gesture==='pointer'){if(!gestureAutoRotating)setAutoRotate(true);pipLabel.textContent='☝️ Auto-rotating…';prevWristX=wristX;return;}
+    if(gesture==='palm'){if(gestureAutoRotating)setAutoRotate(false);pipLabel.textContent='🖐️ Paused';prevWristX=wristX;return;}
+    if(gesture==='pinch'){if(typeof targetDistance!=='undefined')targetDistance=Math.max(0.3,targetDistance*0.995);pipLabel.textContent='🤏 Zoom in';prevWristX=wristX;return;}
+    pipLabel.textContent='Tracking…'; prevWristX=wristX; if(swipeCooldown>0)swipeCooldown--;
+  }
+  async function initGesture(){
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({video:{width:320,height:240,facingMode:'user'}});
+      pipVid.srcObject=stream; await pipVid.play();
+      handsModel=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+      handsModel.setOptions({maxNumHands:1,modelComplexity:0,minDetectionConfidence:0.7,minTrackingConfidence:0.5});
+      handsModel.onResults(onResults); await handsModel.initialize(); pipLabel.textContent='Ready'; runLoop();
+    }catch(e){pipLabel.textContent='Cam error';console.error('Gesture cam:',e);}
+  }
+  async function runLoop(){if(!handsModel||!active)return;try{await handsModel.send({image:pipVid});}catch(e){}requestAnimationFrame(runLoop);}
+})();
+</script>
+
+<!-- ══════════════════════════════════════════
+     AI BANGLA VOICEOVER SYSTEM
+     FIX: reads model id/name from window._currentModelData.idx
+          which is always kept in sync by selectModel()
+══════════════════════════════════════════ -->
+<script type="module">
+// Config loaded from server via amplify-env-bootstrap.js
+const CEREBRAS_API_KEY_MODULE = window.AMPLIFY_ENV?.CEREBRAS_KEY || '';
+
+const btn       = document.getElementById('voBtn');
+const hud       = document.getElementById('voHud');
+const wave      = document.getElementById('voWave');
+const textEl    = document.getElementById('voText');
+const chipsEl   = document.getElementById('voChips');
+const progressEl= document.getElementById('voProgress');
+const hudName   = document.getElementById('voHudName');
+const badge     = document.getElementById('voBadge');
+const spotlight = document.getElementById('voSpotlight');
+const canvasWrap= document.querySelector('.canvas-wrap');
+
+let _voActive   = false;
+let voSegments  = [];
+let voSegIdx    = 0;
+let voTimers    = [];
+
+// CHANGE 1: UPDATED PREDEFINED SEGMENTS WITH 4 ENTRIES EACH (NO DASHES)
+const PREDEFINED_SEGMENTS = {
+  kidney: [
+    { label:'পরিচিতি',        text:'কিডনি মানবদেহের একটি অত্যন্ত গুরুত্বপূর্ণ অঙ্গ। এটি রক্ত পরিশোধন করে এবং শরীরে পানি ও লবণের ভারসাম্য রক্ষা করে।',                                                         zoom:2.8, phi:Math.PI/2, theta:0.0 },
+    { label:'রেনাল কর্টেক্স', text:'কিডনির বাইরের স্তর হলো রেনাল কর্টেক্স। এখানে নেফ্রনের বেশিরভাগ অংশ থাকে এবং রক্ত ফিল্টারিং শুরু হয়।',                                                                    zoom:1.7, phi:1.4, theta:0.3 },
+    { label:'নেফ্রন',          text:'নেফ্রন হলো কিডনির মূল কার্যকরী একক। প্রতিটি কিডনিতে প্রায় দশ লক্ষ নেফ্রন থাকে যা রক্ত থেকে বর্জ্য পদার্থ আলাদা করে।',                                                  zoom:1.5, phi:1.2, theta:0.8 },
+    { label:'রেনাল পেলভিস',   text:'রেনাল পেলভিস হলো কিডনির ভেতরের ফাঁপা অংশ যেখানে প্রস্রাব জমা হয়। এখান থেকে মূত্রনালির মাধ্যমে প্রস্রাব মূত্রথলিতে যায়।',                                                zoom:1.6, phi:0.9, theta:1.1 },
+  ],
+  full_skeleton: [
+    { label:'পরিচিতি',        text:'মানব কঙ্কাল ২০৬টি হাড় নিয়ে গঠিত। এটি শরীরকে কাঠামো দেয়, অঙ্গ রক্ষা করে এবং চলাচলে সাহায্য করে।',                                                                       zoom:2.8, phi:Math.PI/2, theta:0.0 },
+    { label:'মাথার খুলি',     text:'মাথার খুলি বা ক্র্যানিয়াম মস্তিষ্ককে সুরক্ষিত রাখে। এটি ২২টি হাড় দিয়ে তৈরি যা পরস্পর জোড়া লাগানো।',                                                                    zoom:1.4, phi:0.6, theta:0.0 },
+    { label:'মেরুদণ্ড',        text:'মেরুদণ্ডে ৩৩টি কশেরুকা রয়েছে। এটি শরীরের মূল কাঠামো এবং মেরুরজ্জুকে রক্ষা করে।',                                                                                         zoom:2.0, phi:Math.PI/2, theta:0.2 },
+    { label:'অ্যাপেন্ডিকুলার', text:'অ্যাপেন্ডিকুলার কঙ্কালে দুই হাত ও দুই পা সহ মোট ১২৬টি হাড় আছে। এই হাড়গুলো আমাদের নড়াচড়া এবং কাজ করার শক্তি দেয়।',                                                   zoom:1.5, phi:1.4, theta:0.6 },
+  ],
+  lungs: [
+    { label:'পরিচিতি',        text:'ফুসফুস শ্বাসতন্ত্রের প্রধান অঙ্গ। বাতাস থেকে অক্সিজেন রক্তে নেওয়া এবং কার্বন ডাইঅক্সাইড বের করে দেওয়াই এর কাজ।',                                                         zoom:2.8, phi:Math.PI/2, theta:0.0 },
+    { label:'ব্রংকাস',         text:'শ্বাসনালি দুটি প্রধান ব্রংকাসে বিভক্ত হয়ে প্রতিটি ফুসফুসে প্রবেশ করে। এরপর এগুলো ক্রমশ ছোট ছোট শাখায় ভাগ হয়।',                                                         zoom:1.8, phi:1.1, theta:0.3 },
+    { label:'অ্যালভিওলাই',     text:'অ্যালভিওলাই হলো ক্ষুদ্র বায়ু থলি যেখানে গ্যাস বিনিময় হয়। দুটি ফুসফুসে প্রায় ৩০ কোটি অ্যালভিওলাই আছে।',                                                                zoom:2.2, phi:1.4, theta:0.3 },
+    { label:'ফুসফুসের পর্দা',  text:'প্লুরা নামের দ্বিস্তরী পর্দা ফুসফুসকে ঘিরে রাখে। এই পর্দার মাঝখানে তরল থাকে যা শ্বাসের সময় ঘর্ষণ কমায়।',                                                                zoom:1.6, phi:0.8, theta:0.9 },
+  ],
+  digestive_system: [
+    { label:'পরিচিতি',        text:'পরিপাকতন্ত্র খাদ্যকে ক্ষুদ্র পুষ্টিতে ভেঙে রক্তে শোষণ করে। এটি মুখ থেকে মলদ্বার পর্যন্ত প্রায় ৯ মিটার দীর্ঘ।',                                                            zoom:2.8, phi:Math.PI/2, theta:0.0 },
+    { label:'পাকস্থলী',        text:'পাকস্থলীতে হাইড্রোক্লোরিক অ্যাসিড ও পাচকরস নিঃসৃত হয়। এটি খাবারকে তরল মিশ্রণে পরিণত করে।',                                                                               zoom:1.8, phi:1.1, theta:0.3 },
+    { label:'ক্ষুদ্রান্ত্র',   text:'ক্ষুদ্রান্ত্র প্রায় ছয় মিটার লম্বা। এখানে বেশিরভাগ পুষ্টি শোষণ হয় এবং ভিলাই নামের ক্ষুদ্র প্রবর্ধন শোষণ ক্ষমতা বাড়ায়।',                                            zoom:1.5, phi:1.3, theta:0.7 },
+    { label:'বৃহদান্ত্র',      text:'বৃহদান্ত্র পানি পুনরায় শোষণ করে এবং বর্জ্য পদার্থ ঘন করে। এখানে কোটি কোটি উপকারী ব্যাকটেরিয়া থাকে।',                                                                     zoom:1.6, phi:0.9, theta:1.1 },
+  ],
+  dna: [
+    { label:'পরিচিতি',        text:'ডিএনএ হলো জীবনের নীলনকশা যা প্রতিটি কোষের নিউক্লিয়াসে থাকে। একটি মানব কোষে প্রায় দুই মিটার লম্বা ডিএনএ ভাঁজ করা থাকে।',                                                  zoom:2.8, phi:Math.PI/2, theta:0.0 },
+    { label:'ডাবল হেলিক্স',   text:'ডিএনএর ডাবল হেলিক্স গঠন ১৯৫৩ সালে ওয়াটসন ও ক্রিক আবিষ্কার করেন। দুটি শিকল পরস্পর প্যাঁচানো সিঁড়ির মতো সাজানো।',                                                         zoom:1.6, phi:0.8, theta:0.5 },
+    { label:'বেস পেয়ার',      text:'অ্যাডেনিন সবসময় থাইমিনের সাথে এবং সাইটোসিন সবসময় গুয়ানিনের সাথে জোড়া বাঁধে। এই নির্দিষ্ট জোড়াবদ্ধতাই জেনেটিক তথ্য সংরক্ষণ করে।',                                    zoom:1.8, phi:1.3, theta:1.0 },
+    { label:'জিন ও কোড',      text:'মানব জিনোমে প্রায় তিন শত কোটি বেস পেয়ার আছে। এই বেস পেয়ারের ক্রম নির্ধারণ করে প্রোটিন তৈরির নির্দেশ।',                                                                   zoom:1.5, phi:1.0, theta:0.2 },
+  ],
+  cerebellum: [
+    { label:'পরিচিতি',        text:'সেরিবেলাম মস্তিষ্কের পেছনের নিচের অংশে থাকে। এটি ঐচ্ছিক নড়াচড়া সমন্বয়, ভারসাম্য এবং সূক্ষ্ম মোটর দক্ষতা নিয়ন্ত্রণ করে।',                                              zoom:2.8, phi:Math.PI/2, theta:0.0 },
+    { label:'সেরিবেলার কর্টেক্স', text:'সেরিবেলামের বাইরের স্তরে পুরকিনজে কোষ থাকে যা আন্দোলন সমন্বয় নিয়ন্ত্রণ করে। এই কোষগুলো মস্তিষ্কের সবচেয়ে বড় নিউরনগুলোর মধ্যে একটি।',                              zoom:1.8, phi:0.9, theta:0.3 },
+    { label:'ডিপ নিউক্লিয়াই',  text:'সেরিবেলামের ভেতরে ডেন্টেট, ইন্টারপোজিটাস ও ফাস্টিগিয়াল নামের নিউক্লিয়াস আছে। এগুলো সেরিবেলামের আউটপুট তথ্য মস্তিষ্কের অন্যান্য অংশে পাঠায়।',                       zoom:1.5, phi:1.2, theta:0.8 },
+    { label:'ভার্মিস',         text:'ভার্মিস হলো সেরিবেলামের মধ্যবর্তী অংশ যা শরীরের মাঝখানের নড়াচড়া নিয়ন্ত্রণ করে। এটি হাঁটার ছন্দ এবং দাঁড়ানোর ভারসাম্যে গুরুত্বপূর্ণ ভূমিকা রাখে।',                    zoom:1.6, phi:0.7, theta:1.2 },
+  ],
+  humerus: [
+    { label:'পরিচিতি',        text:'হিউমারাস হলো উপরের বাহুর লম্বা হাড় যা কাঁধ থেকে কনুই পর্যন্ত বিস্তৃত। এটি কাঁধের বল-সকেট জয়েন্ট এবং কনুইয়ের হিঞ্জ জয়েন্ট তৈরিতে অংশ নেয়।',                            zoom:2.8, phi:Math.PI/2, theta:0.0 },
+    { label:'হিউমারাল হেড',   text:'হিউমারাসের গোলাকার মাথা স্কাপুলার গ্লেনয়েড ফোসার সাথে বল-সকেট জয়েন্ট তৈরি করে। এই জয়েন্ট শরীরের সবচেয়ে বেশি নড়াচড়ার সুবিধা দেয়।',                                    zoom:1.8, phi:0.7, theta:0.2 },
+    { label:'ডায়াফাইসিস',     text:'হিউমারাসের মধ্যবর্তী লম্বা অংশকে ডায়াফাইসিস বলে। এটি বাইরের দিক থেকে কম্প্যাক্ট হাড় এবং ভেতর থেকে ফাঁপা যা ওজন কমিয়ে শক্তি ধরে রাখে।',                              zoom:1.6, phi:1.0, theta:0.5 },
+    { label:'ডিস্টাল এন্ড',    text:'হিউমারাসের নিচের প্রান্তে ট্রকলিয়া ও ক্যাপিটুলাম থাকে। এগুলো রেডিয়াস ও আলনা হাড়ের সাথে মিলে কনুইয়ের জয়েন্ট তৈরি করে।',                                                  zoom:1.7, phi:1.3, theta:0.9 },
+  ],
+  ribs: [
+    { label:'পরিচিতি',        text:'পাঁজরের খাঁচা ১২ জোড়া পাঁজর নিয়ে গঠিত। এটি হৃদপিণ্ড ও ফুসফুসকে রক্ষা করে এবং শ্বাসের সময় বুকের আয়তন পরিবর্তনে সাহায্য করে।',                                           zoom:2.8, phi:Math.PI/2, theta:0.0 },
+    { label:'সত্যিকার পাঁজর', text:'প্রথম সাত জোড়া পাঁজরকে সত্যিকার পাঁজর বলে কারণ এগুলো সরাসরি স্টার্নামের সাথে যুক্ত। এগুলো বুকের খাঁচার সবচেয়ে মজবুত অংশ।',                                               zoom:1.8, phi:1.3, theta:0.4 },
+    { label:'মিথ্যা পাঁজর',   text:'অষ্টম থেকে দশম পাঁজর স্টার্নামের সাথে সরাসরি না লেগে কার্টিলেজের মাধ্যমে যুক্ত। এদের মিথ্যা পাঁজর বলা হয়।',                                                                   zoom:1.6, phi:1.1, theta:0.8 },
+    { label:'ভাসমান পাঁজর',   text:'একাদশ ও দ্বাদশ জোড়া পাঁজর সামনের দিকে কোনো হাড়ের সাথে যুক্ত নয়। তাই এদের ভাসমান পাঁজর বলে।',                                                                               zoom:1.5, phi:0.8, theta:1.2 },
+  ],
+  phospholipid: [
+    { label:'পরিচিতি',        text:'ফসফোলিপিড বিলেয়ার সকল কোষের ঝিল্লির মূল গঠন। এই দ্বিস্তরী ঝিল্লি কোষের ভেতরের পরিবেশকে বাইরের থেকে আলাদা রাখে।',                                                            zoom:2.8, phi:Math.PI/2, theta:0.0 },
+    { label:'বিলেয়ার গঠন',   text:'ফসফোলিপিড বিলেয়ারে হাইড্রোফিলিক মাথা বাইরে থাকে এবং হাইড্রোফোবিক লেজ ভেতরে থাকে। এই সাজানো পানিকে বাধা দেয় এবং কোষকে সুরক্ষিত রাখে।',                                  zoom:1.8, phi:0.7, theta:0.4 },
+    { label:'ফসফেট মাথা',     text:'ফসফোলিপিডের মাথায় ফসফেট গ্রুপ থাকে যা পানির সাথে মেশে। এই হাইড্রোফিলিক বৈশিষ্ট্যই ঝিল্লির বাইরের স্তর তৈরিতে সাহায্য করে।',                                               zoom:1.7, phi:1.1, theta:0.7 },
+    { label:'চর্বির লেজ',     text:'দুটি ফ্যাটি অ্যাসিড লেজ পানি এড়িয়ে চলে তাই ভেতরমুখী থাকে। এই লেজের সম্পৃক্ততা ঝিল্লির তরলতা নিয়ন্ত্রণ করে।',                                                               zoom:1.6, phi:0.9, theta:1.1 },
+  ],
+  rougher: [
+    { label:'পরিচিতি',        text:'রাফ এন্ডোপ্লাজমিক রেটিকুলাম কোষের প্রোটিন কারখানা। এর পৃষ্ঠে রাইবোসোম থাকে যা ঝিল্লি ও রপ্তানির জন্য প্রোটিন তৈরি করে।',                                                   zoom:2.8, phi:Math.PI/2, theta:0.0 },
+    { label:'রাইবোসোম',        text:'রাফ ইআরের গায়ে লেগে থাকা রাইবোসোম মেসেঞ্জার আরএনএর নির্দেশ পড়ে প্রোটিন তৈরি করে। তৈরি প্রোটিন সরাসরি ইআরের ভেতরে প্রবেশ করে প্রক্রিয়াজাত হয়।',                        zoom:2.0, phi:0.9, theta:0.6 },
+    { label:'সিস্টার্নি',      text:'রাফ ইআর চ্যাপ্টা থলির মতো সিস্টার্নি নামের কক্ষ নিয়ে গঠিত। এই কক্ষগুলোতে প্রোটিন ভাঁজ করা হয় এবং রাসায়নিকভাবে পরিবর্তিত করা হয়।',                                       zoom:1.7, phi:1.2, theta:0.3 },
+    { label:'গলজি সংযোগ',     text:'রাফ ইআর থেকে ভেসিকেলের মাধ্যমে প্রোটিন গলজি বডিতে পাঠানো হয়। গলজি বডি প্রোটিনকে চূড়ান্তভাবে প্রক্রিয়া করে গন্তব্যে পাঠায়।',                                              zoom:1.5, phi:0.7, theta:1.0 },
+  ],
+};
+
+async function fetchAiSegmentsForModel(modelName) {
+  const key = CEREBRAS_API_KEY_MODULE;
+  if (!key) return null;
+  try {
+    // CHANGE 2: Updated prompt with 4 sections and instruction to avoid hyphens/dashes
+    const r = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
+      body: JSON.stringify({
+        model: 'llama3.1-8b',
+        max_completion_tokens: 1200,
+        temperature: 0.6,
+        messages: [{
+          role: 'user',
+          content: `তুমি একজন বাংলা জীববিজ্ঞান শিক্ষক। "${modelName}" সম্পর্কে নিচের চারটি বিষয়ে আলাদা আলাদাভাবে দুই বাক্য করে বাংলায় লেখো।
+
+লেখার নিয়ম (অবশ্যই মানতে হবে):
+- কোনো হাইফেন বা ড্যাশ চিহ্ন ব্যবহার করবে না
+- সংক্ষিপ্ত রূপ ব্যবহার করবে না, সবসময় পূর্ণ শব্দ লিখবে
+- "বড়" লিখবে না, "বড়ো" লিখবে। "ছোট" লিখবে না, "ছোটো" লিখবে
+- "হলো" লিখবে, "হল" লিখবে না। "করো" লিখবে, "কর" লিখবে না
+- সংখ্যা সবসময় বাংলা অক্ষরে লিখবে (যেমন: ১০ লক্ষ, ৩০ কোটি)
+- বাক্য সহজ, স্পষ্ট এবং বাংলা TTS-এ সঠিকভাবে উচ্চারণযোগ্য হতে হবে
+- কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না, সম্পূর্ণ বাংলায় লিখবে
+
+JSON ফরম্যাটে উত্তর দাও, অন্য কিছু লিখবে না:
+{
+  "পরিচিতি": "এই অঙ্গ বা কাঠামোর সাধারণ পরিচয় ও অবস্থান নিয়ে দুটি বাক্য",
+  "গঠন": "এর শারীরিক ও আণবিক গঠন সম্পর্কে দুটি নির্দিষ্ট তথ্যসমৃদ্ধ বাক্য",
+  "বৈশিষ্ট্য": "এর সবচেয়ে গুরুত্বপূর্ণ জৈবিক বৈশিষ্ট্য ও বিশেষত্ব নিয়ে দুটি বাক্য",
+  "কার্যকারিতা": "শরীরে এর মূল ভূমিকা ও কাজ নিয়ে দুটি বাক্য, একটি সংখ্যাগত তথ্য অন্তর্ভুক্ত করো"
+}`
+        }]
+      })
+    });
+    const d = await r.json();
+    const raw = d.choices?.[0]?.message?.content?.trim();
+    if (!raw) return null;
+    const clean = raw.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
+  } catch { return null; }
+}
+
+async function fetchBanglaIntro(modelName) {
+  const key = CEREBRAS_API_KEY_MODULE;
+  if (!key) return null;
+  try {
+    // CHANGE 3: Updated intro prompt to avoid hyphens/dashes
+    const r = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
+      body: JSON.stringify({
+        model: 'llama3.1-8b',
+        max_completion_tokens: 600,
+        temperature: 0.6,
+        messages: [{
+          role: 'user',
+          content: `তুমি একজন অভিজ্ঞ বাংলা জীববিজ্ঞান শিক্ষক। একজন শিক্ষার্থী এখন "${modelName}" এর ইন্টারেক্টিভ থ্রিডি মডেল দেখছে।
+
+এই অঙ্গ বা কাঠামো সম্পর্কে ঠিক দুটি বাংলা বাক্য লেখো যেখানে প্রথম বাক্যে এর সবচেয়ে গুরুত্বপূর্ণ জৈবিক কাজটি স্পষ্টভাবে বলো এবং দ্বিতীয় বাক্যে একটি চমকপ্রদ বৈজ্ঞানিক তথ্য বা সংখ্যা উল্লেখ করো।
+
+অবশ্যই মানতে হবে:
+- কোনো হাইফেন বা ড্যাশ চিহ্ন ব্যবহার করবে না
+- "বড়" লিখবে না, "বড়ো" লিখবে। "ছোট" লিখবে না, "ছোটো" লিখবে
+- "হলো" লিখবে, "হল" লিখবে না
+- সংখ্যা বাংলা অক্ষরে লিখবে (যেমন: ত্রিশ কোটি, দশ লক্ষ)
+- কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না
+- বাক্য বাংলা TTS-এ সঠিকভাবে উচ্চারণযোগ্য হতে হবে
+- কোনো ভূমিকা বা শিরোনাম ছাড়াই শুধু দুটি বাক্য দাও`
+        }]
+      })
+    });
+    const d = await r.json();
+    return d.choices?.[0]?.message?.content?.trim() || null;
+  } catch { return null; }
+}
+
+function speak(text, onEnd) {
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'bn-BD';
+  const voices = window.speechSynthesis.getVoices();
+  const v = voices.find(v=>v.lang.startsWith('bn')) || voices.find(v=>v.lang.startsWith('hi')) || voices[0];
+  if (v) u.voice = v;
+  u.rate = 0.88; u.pitch = 1.05; u.volume = 1.0;
+  u.onend  = onEnd;
+  u.onerror = onEnd;
+  window.speechSynthesis.speak(u);
+}
+
+function zoomToSeg(seg) {
+  if (typeof window.targetDistance !== 'undefined') window.targetDistance = seg.zoom;
+  if (typeof window.targetSpherical !== 'undefined') { window.targetSpherical.phi = seg.phi; window.targetSpherical.theta = seg.theta; }
+  const cw = canvasWrap.clientWidth, ch = canvasWrap.clientHeight;
+  const size = Math.min(cw, ch) * 0.30;
+  const cx = cw * 0.5 + Math.sin(seg.theta) * cw * 0.09;
+  const cy = ch * 0.5 + (seg.phi - Math.PI/2) * ch * 0.12;
+  spotlight.style.width = size + 'px'; spotlight.style.height = size + 'px';
+  spotlight.style.left = (cx - size/2) + 'px'; spotlight.style.top = (cy - size/2) + 'px';
+  spotlight.classList.add('show');
+}
+
+function buildProgress(count) {
+  progressEl.innerHTML = Array.from({length:count},(_,i)=>`<div class="vo-dot" id="vd${i}"></div>`).join('');
+}
+function setProgress(idx) { document.querySelectorAll('.vo-dot').forEach((d,i)=>d.classList.toggle('active',i===idx)); }
+function setActiveChip(idx) { chipsEl.querySelectorAll('.vo-chip').forEach((c,i)=>c.classList.toggle('active',i===idx)); }
+
+function speakSeg(idx) {
+  if (!_voActive || idx >= voSegments.length) { endVO(); return; }
+  voSegIdx = idx;
+  const seg = voSegments[idx];
+  setActiveChip(idx); setProgress(idx); zoomToSeg(seg);
+  textEl.classList.add('fade');
+  setTimeout(() => { textEl.textContent = seg.text; textEl.classList.remove('fade'); }, 220);
+  wave.classList.add('live'); badge.classList.add('live');
+  btn.classList.add('speaking'); btn.innerHTML = '⏹ থামাও';
+  speak(seg.text, () => {
+    if (!_voActive) return;
+    wave.classList.remove('live');
+    const t = setTimeout(()=>speakSeg(idx+1), 850);
+    voTimers.push(t);
+  });
+}
+
+async function startVO() {
+  const { id, name } = getCurrentModelInfo();
+  _voActive = true; voSegIdx = 0;
+  hud.classList.add('active');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>hud.classList.add('visible')));
+  hudName.textContent = name;
+  btn.classList.add('loading'); btn.innerHTML = '⏳ লোড হচ্ছে...';
+  textEl.textContent = 'Collecting information';
+
+  const predefined = id ? PREDEFINED_SEGMENTS[id] : null;
+  let aiFallback = null;
+
+  if (!predefined) {
+    aiFallback = await fetchAiSegmentsForModel(name);
+  }
+
+  const intro = await fetchBanglaIntro(name);
+
+  if (!_voActive) return;
+  btn.classList.remove('loading');
+
+  if (predefined) {
+    voSegments = [...predefined];
+  } else if (aiFallback) {
+    // CHANGE 2B: Updated fallback segments to use 4 entries (matched to new JSON keys)
+    voSegments = [
+      { label:'পরিচিতি',         text: aiFallback.পরিচিতি,      zoom:2.8, phi:Math.PI/2, theta:0.0 },
+      { label:'শারীরিক গঠন',     text: aiFallback.গঠন,          zoom:2.0, phi:Math.PI/2, theta:0.3 },
+      { label:'জৈবিক বৈশিষ্ট্য', text: aiFallback.বৈশিষ্ট্য,   zoom:1.7, phi:1.1,       theta:-0.5 },
+      { label:'মূল কার্যকারিতা', text: aiFallback.কার্যকারিতা, zoom:1.5, phi:0.8,       theta:0.8 },
+    ];
+  } else {
+    voSegments = [{ label:'বিবরণ', text:`${name} একটি গুরুত্বপূর্ণ জৈবিক কাঠামো যা শরীরের স্বাভাবিক কার্যক্রম বজায় রাখতে সাহায্য করে।`, zoom:2.0, phi:Math.PI/2, theta:0.3 }];
+  }
+
+  if (intro) voSegments.unshift({ label:'AI পরিচিতি', text: intro, zoom:2.8, phi:Math.PI/2, theta:0.0 });
+
+  chipsEl.innerHTML = voSegments.map((s,i)=>`<span class="vo-chip" data-i="${i}">${s.label}</span>`).join('');
+  chipsEl.querySelectorAll('.vo-chip').forEach(c=>c.addEventListener('click',()=>{
+    if(!_voActive)return; voTimers.forEach(clearTimeout); voTimers=[];
+    window.speechSynthesis.cancel(); speakSeg(+c.dataset.i);
+  }));
+  buildProgress(voSegments.length);
+  speakSeg(0);
+}
+
+function endVO() {
+  _voActive = false;
+  window.speechSynthesis.cancel();
+  voTimers.forEach(clearTimeout); voTimers = [];
+  wave.classList.remove('live'); badge.classList.remove('live');
+  spotlight.classList.remove('show');
+  btn.classList.remove('speaking','loading');
+  btn.innerHTML = '🎙️ AI বাংলা ভয়েস';
+  if (typeof window.targetDistance !== 'undefined') window.targetDistance = 3;
+  if (typeof window.targetSpherical !== 'undefined') { window.targetSpherical.phi=Math.PI/2; window.targetSpherical.theta=0; }
+}
+
+function getCurrentModelInfo() {
+  const models = window.MODELS;
+  const idx    = window._currentModelData ? window._currentModelData.idx : 0;
+  if (models && models[idx]) {
+    return { id: models[idx].id, name: models[idx].name };
+  }
+  const name = document.getElementById('viewerName')?.textContent?.trim() || 'এই মডেল';
+  if (models) {
+    const found = models.find(m => m.name === name);
+    if (found) return { id: found.id, name: found.name };
+  }
+  return { id: null, name };
+}
+
+window.stopVoiceover = function() {
+  if (_voActive) endVO();
+  hud.classList.remove('visible');
+  setTimeout(()=>hud.classList.remove('active'), 380);
+};
+window.toggleVoiceover = function() {
+  if (_voActive) { window.stopVoiceover(); }
+  else { startVO(); }
+};
+window.speechSynthesis.getVoices();
+if ('onvoiceschanged' in window.speechSynthesis) window.speechSynthesis.onvoiceschanged = ()=>window.speechSynthesis.getVoices();
+</script>
+</body>
+</html>

@@ -1,0 +1,2117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Chemistry Lab — Live Reactions</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#070d07;--bg2:#0c140c;--bg3:#101810;
+  --acc:#00ff88;--acc2:#00cc6a;
+  --border:rgba(0,255,136,0.12);--border2:rgba(0,255,136,0.28);
+  --txt:#d8ead8;--txt2:#6a9a6a;--txt3:#2a4a2a;
+  --mono:'Space Mono',monospace;--body:'DM Sans',sans-serif;
+  --r:12px;--r2:20px;--tr:0.2s cubic-bezier(.4,0,.2,1)
+}
+body{background:var(--bg);color:var(--txt);font-family:var(--body);line-height:1.5;overflow-x:hidden}
+
+/* HEADER */
+.hdr{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(7,13,7,0.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+.nav{max-width:1100px;margin:0 auto;padding:12px 28px;display:flex;align-items:center;justify-content:space-between}
+.nav-title{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--acc);letter-spacing:3px}
+.nav-right{font-family:var(--mono);font-size:10px;color:var(--txt3);display:flex;gap:16px;letter-spacing:1px}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:100px 28px 60px;position:relative;overflow:hidden}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,136,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+.hero-glow{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(0,255,136,0.07) 0%,transparent 70%);top:-10%;right:-5%;pointer-events:none}
+.hero-inner{max-width:1100px;width:100%;display:grid;grid-template-columns:1fr 460px;gap:64px;align-items:center}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,255,136,0.07);border:1px solid var(--border);color:var(--acc2);font-family:var(--mono);font-size:11px;padding:6px 14px;border-radius:999px;margin-bottom:24px;letter-spacing:.5px}
+h1{font-family:var(--mono);font-size:clamp(2.2rem,4vw,3.6rem);font-weight:700;line-height:1.1;letter-spacing:-.02em;margin-bottom:20px}
+h1 span{color:var(--acc)}
+.hero-sub{font-size:.95rem;color:var(--txt2);max-width:420px;margin-bottom:36px;line-height:1.75}
+.stats{display:flex;gap:12px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column;align-items:center;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px 20px;min-width:76px}
+.stat-n{font-family:var(--mono);font-size:1.4rem;font-weight:700;color:var(--acc)}
+.stat-l{font-size:11px;color:var(--txt2);margin-top:2px}
+
+/* CONTROLS */
+.controls{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:18px 28px;position:sticky;top:57px;z-index:50;backdrop-filter:blur(12px)}
+.ctrl-inner{max-width:1100px;margin:0 auto}
+.ctrl-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.search-wrap{position:relative}
+.srch-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px}
+.lab-search{background:var(--bg3);border:1px solid var(--border);color:var(--txt);font-family:var(--body);font-size:13px;padding:8px 14px 8px 34px;border-radius:999px;outline:none;width:200px;transition:border-color var(--tr)}
+.lab-search:focus{border-color:var(--acc)}
+.filter-btns{display:flex;gap:6px;flex-wrap:wrap}
+.fbtn{background:transparent;border:1px solid var(--border);color:var(--txt2);font-family:var(--body);font-size:12px;font-weight:500;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all var(--tr)}
+.fbtn.active,.fbtn:hover{background:var(--acc);color:#000;border-color:var(--acc)}
+.exp-count{font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:1px}
+
+/* MAIN */
+.lab-main{padding:48px 28px 80px;max-width:1100px;margin:0 auto}
+.section{margin-bottom:56px}
+.section.hidden{display:none}
+.sec-header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.sec-tag{font-family:var(--mono);font-size:11px;color:var(--acc);background:rgba(0,255,136,0.08);border:1px solid var(--border);padding:4px 10px;border-radius:6px;letter-spacing:1px}
+.sec-header h2{font-family:var(--mono);font-size:.95rem;font-weight:700;color:var(--txt);letter-spacing:.5px;white-space:nowrap}
+.sec-line{flex:1;height:1px;background:var(--border)}
+.exp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+
+/* CARDS */
+.exp-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;display:flex;flex-direction:column;transition:all var(--tr);animation:cardIn .4s ease forwards;opacity:0;cursor:pointer}
+@keyframes cardIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.exp-card:hover{border-color:var(--border2);transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.4),0 0 0 1px rgba(0,255,136,.1)}
+.card-top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 10px;border-bottom:1px solid var(--border);position:relative}
+.card-icon{font-size:1.2rem}
+.card-badge{font-family:var(--mono);font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid;letter-spacing:.5px}
+.featured{position:absolute;top:-1px;right:-1px;background:var(--acc);color:#000;font-family:var(--mono);font-size:9px;font-weight:700;padding:3px 10px;border-radius:0 var(--r2) 0 8px;letter-spacing:1px}
+.card-body{padding:14px 16px;flex:1}
+.card-body h3{font-size:.92rem;font-weight:600;color:var(--txt);margin-bottom:7px;line-height:1.3}
+.card-body p{font-size:12px;color:var(--txt2);line-height:1.55;margin-bottom:10px}
+.card-eq{font-family:var(--mono);font-size:11px;color:var(--acc);background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.1);border-radius:6px;padding:7px 10px;line-height:1.4;word-break:break-word}
+.card-footer{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 12px;border-top:1px solid var(--border)}
+.card-tag{font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:999px;background:rgba(0,255,136,.07);color:var(--txt2);border:1px solid var(--border);letter-spacing:.5px}
+.launch-btn{background:transparent;border:1px solid var(--border2);color:var(--acc);font-family:var(--mono);font-size:11px;font-weight:700;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all var(--tr);letter-spacing:.5px}
+.launch-btn:hover{background:var(--acc);color:#000;border-color:var(--acc)}
+
+/* MODAL OVERLAY */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s}
+.modal-overlay.open{opacity:1;visibility:visible}
+.modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);width:100%;max-width:780px;max-height:92vh;overflow-y:auto;transform:scale(.95);transition:transform .25s}
+.modal-overlay.open .modal-box{transform:scale(1)}
+.modal-hdr{display:flex;align-items:flex-start;justify-content:space-between;padding:22px 24px 14px;border-bottom:1px solid var(--border);gap:16px}
+.modal-htitle{font-family:var(--mono);font-size:.95rem;font-weight:700;color:var(--txt)}
+.modal-close{background:transparent;border:1px solid var(--border);color:var(--txt2);width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--tr);flex-shrink:0}
+.modal-close:hover{border-color:var(--acc);color:var(--acc)}
+
+/* LAB AREA */
+.lab-area{display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:24px}
+@media(max-width:640px){.lab-area{grid-template-columns:1fr}}
+.lab-left{}
+.lab-right{display:flex;flex-direction:column;gap:16px}
+
+/* BEAKER CANVAS */
+.beaker-wrap{position:relative;width:100%;aspect-ratio:3/4;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;display:flex;align-items:center;justify-content:center}
+#rxCanvas{display:block;width:100%;height:100%}
+
+/* CONTROLS PANEL */
+.chem-controls{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.chem-controls h4{font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:2px;margin-bottom:14px}
+.reagent-btns{display:flex;flex-direction:column;gap:8px}
+.reagent-btn{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);color:var(--txt2);font-family:var(--mono);font-size:11px;padding:9px 14px;border-radius:var(--r);cursor:pointer;transition:all .25s;text-align:left;display:flex;align-items:center;gap:10px}
+.reagent-btn:hover,.reagent-btn.active{background:rgba(0,255,136,.15);border-color:var(--acc);color:var(--acc)}
+.reagent-btn .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:all .25s}
+.reagent-btn:hover .dot,.reagent-btn.active .dot{box-shadow:0 0 6px currentColor}
+
+/* OBSERVATION BOX */
+.obs-box{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.obs-label{font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:2px;margin-bottom:10px;display:block}
+.obs-eq{font-family:var(--mono);font-size:12px;color:var(--acc);margin-bottom:10px;min-height:16px;transition:all .3s}
+.obs-text{font-size:12px;color:var(--txt2);line-height:1.6;min-height:36px;transition:all .3s}
+.obs-state{display:flex;align-items:center;gap:8px;margin-top:10px}
+.state-dot{width:8px;height:8px;border-radius:50%;background:var(--txt3);transition:all .4s;flex-shrink:0}
+.state-label{font-family:var(--mono);font-size:10px;color:var(--txt2);transition:all .3s}
+
+/* STEPS */
+.steps-box{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.steps-label{font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:2px;margin-bottom:12px;display:block}
+.step-item{display:flex;gap:10px;margin-bottom:10px;align-items:flex-start}
+.step-num{width:22px;height:22px;border-radius:50%;border:1px solid var(--border);font-family:var(--mono);font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--txt3);transition:all .4s}
+.step-num.done{background:rgba(0,255,136,.12);border-color:var(--acc);color:var(--acc)}
+.step-txt{font-size:12px;color:var(--txt2);padding-top:3px;transition:color .3s}
+.step-item.active .step-txt{color:var(--txt)}
+
+/* RESET BTN */
+.reset-btn{background:transparent;border:1px solid var(--border);color:var(--txt2);font-family:var(--mono);font-size:11px;padding:8px 16px;border-radius:999px;cursor:pointer;width:100%;transition:all .25s;margin-top:2px}
+.reset-btn:hover{border-color:rgba(255,80,80,.5);color:#ff5050}
+
+/* footer */
+.lab-footer{border-top:1px solid var(--border);padding:24px 28px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--txt3)}
+
+/* HERO DISPLAY */
+.hero-display{display:flex;flex-direction:column;align-items:center;gap:16px}
+.hero-beaker-svg{filter:drop-shadow(0 0 20px rgba(0,255,136,.2))}
+.hero-eq-box{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px 18px;width:100%;text-align:center}
+.hero-eq-lbl{font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:2px;display:block;margin-bottom:6px}
+.hero-eq{font-family:var(--mono);font-size:12px;color:var(--acc);transition:opacity .2s}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 6px var(--acc);animation:pulse 2s ease-in-out infinite;display:inline-block;margin-right:6px}
+#voiceToast{transition:opacity 0.4s ease;}
+
+/* PARTICLE bursts */
+@keyframes floatUp{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-80px) scale(.3);opacity:0}}
+@keyframes ripple{0%{transform:scale(.8);opacity:.8}100%{transform:scale(3);opacity:0}}
+.particle{position:absolute;border-radius:50%;pointer-events:none;animation:floatUp 1.5s ease-out forwards}
+.ripple-el{position:absolute;border-radius:50%;border:2px solid;pointer-events:none;animation:ripple .8s ease-out forwards}
+
+@media(max-width:900px){.hero-inner{grid-template-columns:1fr}.hero-display{display:none}}
+@media(max-width:600px){.lab-main{padding:32px 16px 60px}.exp-grid{grid-template-columns:1fr}.ctrl-row{flex-direction:column;align-items:stretch}.lab-search{width:100%}}
+
+/* AGENTIC LAB ASSISTANT */
+.agent-panel{display:none;margin-top:14px;border-radius:var(--r);overflow:hidden;border:1px solid rgba(0,200,255,0.25);background:rgba(0,12,28,0.7)}
+.agent-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;background:rgba(0,150,255,0.09);border-bottom:1px solid rgba(0,200,255,0.15)}
+.agent-hdr-left{display:flex;align-items:center;gap:8px}
+.agent-hdr span.lbl{font-family:var(--mono);font-size:10px;color:#00ccff;letter-spacing:1.5px;font-weight:700}
+.agent-status-dot{width:7px;height:7px;border-radius:50%;background:#00ccff;flex-shrink:0}
+.agent-status-dot.thinking{animation:agentPulse 0.8s ease-in-out infinite}
+.agent-status-dot.idle{background:#2a4a2a;animation:none}
+.agent-status-dot.acting{background:#00ff88;animation:agentPulse 0.5s ease-in-out infinite}
+@keyframes agentPulse{0%,100%{opacity:.3;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}
+.agent-status-txt{font-family:var(--mono);font-size:9px;color:#4a8aaa;letter-spacing:1px}
+.agent-thought-log{max-height:130px;overflow-y:auto;padding:8px 14px;border-bottom:1px solid rgba(0,200,255,0.08)}
+.agent-thought-log:empty{display:none}
+.thought-entry{display:flex;gap:8px;margin-bottom:6px;align-items:flex-start}
+.thought-tag{font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:4px;letter-spacing:.5px;flex-shrink:0;margin-top:1px}
+.thought-tag.think{background:rgba(255,200,0,0.12);color:#ffd000;border:1px solid rgba(255,200,0,0.2)}
+.thought-tag.act{background:rgba(0,255,136,0.1);color:#00ff88;border:1px solid rgba(0,255,136,0.2)}
+.thought-tag.obs{background:rgba(0,180,255,0.1);color:#00ccff;border:1px solid rgba(0,180,255,0.2)}
+.thought-tag.quiz{background:rgba(200,100,255,0.12);color:#cc88ff;border:1px solid rgba(200,100,255,0.2)}
+.thought-txt{font-size:11px;color:#7aacbc;line-height:1.5}
+.agent-body{padding:12px 14px}
+.agent-main-text{font-size:12px;color:#a0c8d8;line-height:1.7;min-height:28px}
+.agent-quiz-area{display:none;margin-top:10px;padding:10px;background:rgba(200,100,255,0.06);border:1px solid rgba(200,100,255,0.2);border-radius:8px}
+.agent-quiz-q{font-size:12px;color:#cc88ff;margin-bottom:8px;font-weight:500}
+.agent-quiz-input{background:rgba(0,0,0,0.3);border:1px solid rgba(200,100,255,0.3);color:var(--txt);font-family:var(--body);font-size:12px;padding:7px 10px;border-radius:6px;width:100%;outline:none;margin-bottom:8px}
+.agent-quiz-input:focus{border-color:#cc88ff}
+.agent-quiz-submit{background:rgba(200,100,255,0.15);border:1px solid rgba(200,100,255,0.4);color:#cc88ff;font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all .2s;letter-spacing:.5px}
+.agent-quiz-submit:hover{background:rgba(200,100,255,0.3)}
+.agent-thinking-dots{display:inline-flex;gap:4px;align-items:center;vertical-align:middle}
+.agent-thinking-dots span{width:5px;height:5px;border-radius:50%;background:#00ccff;animation:agentPulse 1.1s ease-in-out infinite}
+.agent-thinking-dots span:nth-child(2){animation-delay:.2s}
+.agent-thinking-dots span:nth-child(3){animation-delay:.4s}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="nav">
+    <div style="display:flex;gap:16px;align-items:center;">
+      <span style="font-family:var(--mono);font-size:12px;color:var(--txt2);text-decoration:none;">← Experiments</span>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--txt2);text-decoration:none;">Home</span>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--txt2);text-decoration:none;">Career</span>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--txt2);text-decoration:none;">Routine</span>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--txt2);text-decoration:none;">Biology</span>
+    </div>
+    <div style="display:flex;gap:16px;align-items:center;">
+      <span><span class="status-dot"></span>LIVE</span>
+      <span>24°C · 1.0 ATM</span>
+      <button onclick="stopAllSpeech()" title="Stop all speech immediately" style="display:flex;align-items:center;gap:7px;background:rgba(255,60,60,0.1);border:1px solid rgba(255,60,60,0.35);color:#ff5050;font-family:var(--mono);font-size:11px;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all 0.2s;letter-spacing:.5px;">
+        <span>⏹</span><span>Stop Speech</span>
+      </button>
+      <button id="voiceBtn" onclick="startVoiceCommand()" title="Speak an experiment name" style="display:flex;align-items:center;gap:7px;background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.25);color:var(--acc);font-family:var(--mono);font-size:11px;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all 0.2s;letter-spacing:.5px;">
+        <span id="micIcon">🎙️</span><span id="voiceBtnLabel">Speak Experiment</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div id="voiceToast" style="position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:rgba(7,13,7,0.96);border:1px solid rgba(0,255,136,0.35);border-radius:16px;padding:14px 24px;font-family:'Space Mono',monospace;font-size:13px;color:#00ff88;display:none;z-index:999;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,0.5);text-align:center;min-width:280px;">
+  <span id="voiceToastText">🎙️ Listening...</span>
+</div>
+
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-inner">
+    <div>
+      <div class="hero-badge">⚗️ HSC Chemistry · Animated Experiments</div>
+      <h1>Virtual<br/><span>Chemistry Lab</span></h1>
+      <p class="hero-sub">Watch reactions happen live — mix chemicals, see color changes, precipitates forming, and gas bubbles in real-time. Click Launch → on any card.</p>
+      <div class="stats">
+        <div class="stat"><span class="stat-n">24</span><span class="stat-l">Experiments</span></div>
+        <div class="stat"><span class="stat-n">7</span><span class="stat-l">Sections</span></div>
+        <div class="stat"><span class="stat-n">Live</span><span class="stat-l">Animations</span></div>
+      </div>
+    </div>
+    <div class="hero-display">
+      <svg class="hero-beaker-svg" width="160" viewBox="0 0 160 200">
+        <path d="M35 20L35 140Q35 165 80 165Q125 165 125 140L125 20Z" fill="none" stroke="#00ff88" stroke-width="2.5" opacity=".8"/>
+        <line x1="28" y1="20" x2="132" y2="20" stroke="#00ff88" stroke-width="3"/>
+        <path id="hLiquid" d="M37 95L37 140Q37 162 80 162Q123 162 123 140L123 95Z" fill="#00ff8820" style="transition:fill 1s ease"/>
+        <path d="M37 95Q60 87 80 95Q100 103 123 95" fill="none" stroke="#00ff88" stroke-width="1.5" opacity=".6"/>
+        <circle id="hb1" cx="60" cy="130" r="3" fill="#00ff8840"/>
+        <circle id="hb2" cx="90" cy="118" r="4" fill="#00ff8830"/>
+        <circle id="hb3" cx="75" cy="140" r="2.5" fill="#00ff8850"/>
+      </svg>
+      <div class="hero-eq-box">
+        <span class="hero-eq-lbl">LIVE EQUATION</span>
+        <div class="hero-eq" id="heroEq">NaOH + HCl → NaCl + H₂O</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="controls">
+  <div class="ctrl-inner">
+    <div class="ctrl-row">
+      <div class="search-wrap">
+        <span class="srch-icon">🔍</span>
+        <input class="lab-search" id="labSearch" placeholder="Search..." oninput="filterExp()"/>
+      </div>
+      <div class="filter-btns" id="filterBtns">
+        <button class="fbtn active" onclick="setSection('ALL',this)">All</button>
+        <button class="fbtn" onclick="setSection('cation',this)">Cation</button>
+        <button class="fbtn" onclick="setSection('anion',this)">Anion</button>
+        <button class="fbtn" onclick="setSection('solution',this)">Solutions</button>
+        <button class="fbtn" onclick="setSection('titration',this)">Titration</button>
+        <button class="fbtn" onclick="setSection('heat',this)">Heat</button>
+        <button class="fbtn" onclick="setSection('rate',this)">Rate</button>
+        <button class="fbtn" onclick="setSection('organic',this)">Organic</button>
+        <button class="fbtn" onclick="setSection('advanced',this)">Advanced</button>
+      </div>
+    </div>
+    <div class="exp-count" id="expCount">Showing 24 experiments</div>
+  </div>
+</div>
+
+<main class="lab-main" id="mainGrid">
+
+<!-- CATION TESTS -->
+<div class="section" data-section="cation">
+  <div class="sec-header"><div class="sec-tag">2.1</div><h2>Cation Tests</h2><div class="sec-line"></div></div>
+  <div class="exp-grid">
+    <div class="exp-card" data-section="cation" data-name="Ammonium Ion NH₄⁺ Test">
+      <div class="card-top"><div class="card-icon">🧪</div><div class="card-badge" style="background:rgba(255,140,0,.15);color:#ff8c00">NH₄⁺</div></div>
+      <div class="card-body"><h3>Ammonium Ion Test</h3><p>Add NaOH → pungent smell of NH₃ gas. Turns moist red litmus blue.</p><div class="card-eq">NH₄⁺ + OH⁻ → NH₃↑ + H₂O</div></div>
+      <div class="card-footer"><span class="card-tag">Cation</span><button class="launch-btn" onclick="openLab('Ammonium Ion (NH₄⁺) Test','nh4')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="cation" data-name="Ferrous Ion Fe²⁺ Test">
+      <div class="card-top"><div class="card-icon">🧪</div><div class="card-badge" style="background:rgba(34,197,94,.15);color:#22c55e">Fe²⁺</div></div>
+      <div class="card-body"><h3>Ferrous Ion Test</h3><p>Add NaOH → dirty green precipitate. Add K₃[Fe(CN)₆] → Turnbull's blue.</p><div class="card-eq">Fe²⁺ + 2OH⁻ → Fe(OH)₂↓</div></div>
+      <div class="card-footer"><span class="card-tag">Cation</span><button class="launch-btn" onclick="openLab('Ferrous Ion (Fe²⁺) Test','fe2')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="cation" data-name="Ferric Ion Fe³⁺ Test">
+      <div class="card-top"><div class="card-icon">🧪</div><div class="card-badge" style="background:rgba(239,68,68,.15);color:#ef4444">Fe³⁺</div></div>
+      <div class="card-body"><h3>Ferric Ion Test</h3><p>Add NaOH → reddish-brown precipitate. Add KSCN → blood-red color.</p><div class="card-eq">Fe³⁺ + 3OH⁻ → Fe(OH)₃↓</div></div>
+      <div class="card-footer"><span class="card-tag">Cation</span><button class="launch-btn" onclick="openLab('Ferric Ion (Fe³⁺) Test','fe3')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="cation" data-name="Copper II Ion Cu²⁺ Test">
+      <div class="card-top"><div class="card-icon">🧪</div><div class="card-badge" style="background:rgba(56,189,248,.15);color:#38bdf8">Cu²⁺</div></div>
+      <div class="card-body"><h3>Copper(II) Ion Test</h3><p>Add NaOH → pale blue precipitate. Add excess NH₃ → deep blue solution.</p><div class="card-eq">Cu²⁺ + 2OH⁻ → Cu(OH)₂↓</div></div>
+      <div class="card-footer"><span class="card-tag">Cation</span><button class="launch-btn" onclick="openLab('Copper(II) Ion (Cu²⁺) Test','cu2')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="cation" data-name="Zinc Ion Zn²⁺ Test">
+      <div class="card-top"><div class="card-icon">🧪</div><div class="card-badge" style="background:rgba(148,163,184,.15);color:#94a3b8">Zn²⁺</div></div>
+      <div class="card-body"><h3>Zinc Ion Test</h3><p>Add NaOH → white gelatinous ppt, dissolves in excess NaOH (amphoteric).</p><div class="card-eq">Zn²⁺ + 2OH⁻ → Zn(OH)₂↓</div></div>
+      <div class="card-footer"><span class="card-tag">Cation</span><button class="launch-btn" onclick="openLab('Zinc Ion (Zn²⁺) Test','zn2')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="cation" data-name="Lead Ion Pb²⁺ Test">
+      <div class="card-top"><div class="card-icon">🧪</div><div class="card-badge" style="background:rgba(250,204,21,.15);color:#facc15">Pb²⁺</div></div>
+      <div class="card-body"><h3>Lead Ion Test</h3><p>Add H₂SO₄ → white precipitate of PbSO₄. Add KI → yellow PbI₂ precipitate.</p><div class="card-eq">Pb²⁺ + SO₄²⁻ → PbSO₄↓</div></div>
+      <div class="card-footer"><span class="card-tag">Cation</span><button class="launch-btn" onclick="openLab('Lead Ion (Pb²⁺) Test','pb2')">Launch →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ANION TESTS -->
+<div class="section" data-section="anion">
+  <div class="sec-header"><div class="sec-tag">2.1</div><h2>Anion Tests</h2><div class="sec-line"></div></div>
+  <div class="exp-grid">
+    <div class="exp-card" data-section="anion" data-name="Carbonate CO₃²⁻ Test">
+      <div class="card-top"><div class="card-icon">⚗️</div><div class="card-badge" style="background:rgba(20,184,166,.15);color:#14b8a6">CO₃²⁻</div></div>
+      <div class="card-body"><h3>Carbonate Test</h3><p>Add dilute HCl → brisk effervescence of CO₂. Turns limewater milky.</p><div class="card-eq">CO₃²⁻ + 2H⁺ → H₂O + CO₂↑</div></div>
+      <div class="card-footer"><span class="card-tag">Anion</span><button class="launch-btn" onclick="openLab('Carbonate (CO₃²⁻) Test','co3')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="anion" data-name="Sulfate SO₄²⁻ Test">
+      <div class="card-top"><div class="card-icon">⚗️</div><div class="card-badge" style="background:rgba(168,85,247,.15);color:#a855f7">SO₄²⁻</div></div>
+      <div class="card-body"><h3>Sulfate Test</h3><p>Add BaCl₂ + dilute HCl → white precipitate of BaSO₄, insoluble in acid.</p><div class="card-eq">Ba²⁺ + SO₄²⁻ → BaSO₄↓</div></div>
+      <div class="card-footer"><span class="card-tag">Anion</span><button class="launch-btn" onclick="openLab('Sulfate (SO₄²⁻) Test','so4')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="anion" data-name="Chloride Cl⁻ Test">
+      <div class="card-top"><div class="card-icon">⚗️</div><div class="card-badge" style="background:rgba(99,102,241,.15);color:#6366f1">Cl⁻</div></div>
+      <div class="card-body"><h3>Chloride Test</h3><p>Add AgNO₃ + dilute HNO₃ → white curdy precipitate of AgCl, soluble in NH₃.</p><div class="card-eq">Ag⁺ + Cl⁻ → AgCl↓</div></div>
+      <div class="card-footer"><span class="card-tag">Anion</span><button class="launch-btn" onclick="openLab('Chloride (Cl⁻) Test','cl')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="anion" data-name="Acetate CH₃COO⁻ Test">
+      <div class="card-top"><div class="card-icon">⚗️</div><div class="card-badge" style="background:rgba(161,98,7,.15);color:#d97706">CH₃COO⁻</div></div>
+      <div class="card-body"><h3>Acetate Test</h3><p>Add dilute H₂SO₄ → vinegar-like smell of acetic acid on warming.</p><div class="card-eq">CH₃COO⁻ + H⁺ → CH₃COOH↑</div></div>
+      <div class="card-footer"><span class="card-tag">Anion</span><button class="launch-btn" onclick="openLab('Acetate (CH₃COO⁻) Test','acetate')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="anion" data-name="Nitrate NO₃⁻ Brown Ring Test">
+      <div class="card-top"><div class="card-icon">⚗️</div><div class="card-badge" style="background:rgba(249,115,22,.15);color:#f97316">NO₃⁻</div></div>
+      <div class="card-body"><h3>Nitrate — Brown Ring Test</h3><p>Add fresh FeSO₄ + conc. H₂SO₄ slowly. Brown ring at interface confirms NO₃⁻.</p><div class="card-eq">NO₃⁻ + Fe²⁺ → [Fe(NO)]²⁺</div></div>
+      <div class="card-footer"><span class="card-tag">Anion</span><button class="launch-btn" onclick="openLab('Nitrate (NO₃⁻) Brown Ring Test','no3')">Launch →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- SOLUTIONS -->
+<div class="section" data-section="solution">
+  <div class="sec-header"><div class="sec-tag">2.2</div><h2>Preparation of Solutions</h2><div class="sec-line"></div></div>
+  <div class="exp-grid">
+    <div class="exp-card" data-section="solution" data-name="Preparing 0.1M H₂SO₄">
+      <div class="card-top"><div class="card-icon">🔬</div><div class="card-badge" style="background:rgba(6,182,212,.15);color:#06b6d4">0.1M</div></div>
+      <div class="card-body"><h3>Preparing 0.1M H₂SO₄</h3><p>Calculate volume of conc. H₂SO₄. Always add acid to water carefully.</p><div class="card-eq">M₁V₁ = M₂V₂</div></div>
+      <div class="card-footer"><span class="card-tag">Solution</span><button class="launch-btn" onclick="openLab('Preparing 0.1M H₂SO₄','h2so4')">Launch →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- TITRATION -->
+<div class="section" data-section="titration">
+  <div class="sec-header"><div class="sec-tag">2.3</div><h2>Titration Experiments</h2><div class="sec-line"></div></div>
+  <div class="exp-grid">
+    <div class="exp-card" data-section="titration" data-name="Acid-Base Titration HCl vs NaOH">
+      <div class="card-top"><div class="card-icon">⚗️</div><div class="card-badge" style="background:rgba(236,72,153,.15);color:#ec4899">Acid-Base</div><span class="featured">Featured</span></div>
+      <div class="card-body"><h3>Acid-Base Titration</h3><p>HCl vs NaOH with phenolphthalein indicator. Find exact equivalence point.</p><div class="card-eq">HCl + NaOH → NaCl + H₂O</div></div>
+      <div class="card-footer"><span class="card-tag">Titration</span><button class="launch-btn" onclick="openLab('Acid-Base Titration (HCl vs NaOH)','titration')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="titration" data-name="Redox Titration KMnO₄ vs Oxalic Acid">
+      <div class="card-top"><div class="card-icon">⚗️</div><div class="card-badge" style="background:rgba(124,58,237,.15);color:#7c3aed">Redox</div></div>
+      <div class="card-body"><h3>Redox Titration (KMnO₄)</h3><p>KMnO₄ vs Oxalic Acid. Purple to colourless at endpoint — self-indicating.</p><div class="card-eq">MnO₄⁻ + C₂O₄²⁻ → Mn²⁺ + CO₂</div></div>
+      <div class="card-footer"><span class="card-tag">Titration</span><button class="launch-btn" onclick="openLab('Redox Titration (KMnO₄ vs Oxalic Acid)','redox')">Launch →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- HEAT -->
+<div class="section" data-section="heat">
+  <div class="sec-header"><div class="sec-tag">2.4</div><h2>Heat &amp; Crystallization</h2><div class="sec-line"></div></div>
+  <div class="exp-grid">
+    <div class="exp-card" data-section="heat" data-name="Heat of Neutralization">
+      <div class="card-top"><div class="card-icon">🔥</div><div class="card-badge" style="background:rgba(245,158,11,.15);color:#f59e0b">Exothermic</div></div>
+      <div class="card-body"><h3>Heat of Neutralization</h3><p>Measure temperature change when HCl + NaOH react. Calculate ΔH.</p><div class="card-eq">ΔH = -mcΔT</div></div>
+      <div class="card-footer"><span class="card-tag">Heat</span><button class="launch-btn" onclick="openLab('Heat of Neutralization','heat')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="heat" data-name="Copper Sulfate Crystals">
+      <div class="card-top"><div class="card-icon">💎</div><div class="card-badge" style="background:rgba(59,130,246,.15);color:#3b82f6">CuSO₄</div></div>
+      <div class="card-body"><h3>Copper Sulfate Crystals</h3><p>Dissolve CuSO₄ in hot water, filter, evaporate to form beautiful blue crystals.</p><div class="card-eq">CuSO₄ · 5H₂O (blue crystals)</div></div>
+      <div class="card-footer"><span class="card-tag">Crystals</span><button class="launch-btn" onclick="openLab('Copper Sulfate Crystals','cuso4')">Launch →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- RATE -->
+<div class="section" data-section="rate">
+  <div class="sec-header"><div class="sec-tag">2.5</div><h2>Rate of Reaction</h2><div class="sec-line"></div></div>
+  <div class="exp-grid">
+    <div class="exp-card" data-section="rate" data-name="Sodium Thiosulfate HCl Rate">
+      <div class="card-top"><div class="card-icon">⏱️</div><div class="card-badge" style="background:rgba(132,204,22,.15);color:#84cc16">Na₂S₂O₃</div></div>
+      <div class="card-body"><h3>Thiosulfate + HCl Rate</h3><p>Measure time for X mark to disappear as sulfur precipitates. Vary concentration.</p><div class="card-eq">Na₂S₂O₃ + 2HCl → S↓ + SO₂ + 2NaCl</div></div>
+      <div class="card-footer"><span class="card-tag">Rate</span><button class="launch-btn" onclick="openLab('Rate of Reaction: Thiosulfate + HCl','rate1')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="rate" data-name="Decomposition of Hydrogen Peroxide">
+      <div class="card-top"><div class="card-icon">⏱️</div><div class="card-badge" style="background:rgba(74,222,128,.15);color:#4ade80">H₂O₂</div></div>
+      <div class="card-body"><h3>H₂O₂ Decomposition</h3><p>MnO₂ catalyst speeds up decomposition. Collect O₂ gas by water displacement.</p><div class="card-eq">2H₂O₂ → 2H₂O + O₂↑</div></div>
+      <div class="card-footer"><span class="card-tag">Rate</span><button class="launch-btn" onclick="openLab('Decomposition of Hydrogen Peroxide','h2o2')">Launch →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ORGANIC -->
+
+<div class="section" data-section="organic">
+  <div class="sec-header"><div class="sec-tag">2.6</div><h2>Organic Functional Groups</h2><div class="sec-line"></div></div>
+  <div class="exp-grid">
+    <div class="exp-card" data-section="organic" data-name="Aldol Condensation Reaction">
+      <div class="card-top"><div class="card-icon">🔗</div><div class="card-badge" style="background:rgba(250,204,21,.15);color:#facc15">Aldol</div></div>
+      <div class="card-body"><h3>Aldol Condensation</h3><p>Base-catalysed C–C bond formation between two carbonyl compounds. Cold → aldol; warm → dehydration product.</p><div class="card-eq">2CH₃CHO → CH₃CH(OH)CH₂CHO</div></div>
+      <div class="card-footer"><span class="card-tag">Named Rxn</span><button class="launch-btn" onclick="openLab('Aldol Condensation','aldol')">Launch →</button></div>
+    </div>
+
+    <div class="exp-card" data-section="organic" data-name="Cannizzaro Reaction Disproportionation">
+      <div class="card-top"><div class="card-icon">⚖️</div><div class="card-badge" style="background:rgba(167,139,250,.15);color:#a78bfa">Cann.</div></div>
+      <div class="card-body"><h3>Cannizzaro Reaction</h3><p>Disproportionation of aldehydes with no α-hydrogen under conc. NaOH. One oxidised, one reduced.</p><div class="card-eq">2HCHO + NaOH → CH₃OH + HCOONa</div></div>
+      <div class="card-footer"><span class="card-tag">Named Rxn</span><button class="launch-btn" onclick="openLab('Cannizzaro Reaction','cannizzaro')">Launch →</button></div>
+    </div>
+
+    <div class="exp-card" data-section="organic" data-name="Grignard Reagent Reaction">
+      <div class="card-top"><div class="card-icon">🧲</div><div class="card-badge" style="background:rgba(52,211,153,.15);color:#34d399">RMgX</div></div>
+      <div class="card-body"><h3>Grignard Reaction</h3><p>Organomagnesium reagent attacks carbonyl compounds. Powerful C–C bond formation giving alcohols.</p><div class="card-eq">R–MgX + R′CHO → R–CH(OH)–R′</div></div>
+      <div class="card-footer"><span class="card-tag">Named Rxn</span><button class="launch-btn" onclick="openLab('Grignard Reaction','grignard')">Launch →</button></div>
+    </div>
+
+    <div class="exp-card" data-section="organic" data-name="Lucas Test Alcohol Classification">
+      <div class="card-top"><div class="card-icon">🔍</div><div class="card-badge" style="background:rgba(251,146,60,.15);color:#fb923c">Lucas</div></div>
+      <div class="card-body"><h3>Lucas Test</h3><p>Distinguishes 1°, 2°, 3° alcohols. Turbidity with ZnCl₂/HCl: instant (3°), 5 min (2°), no rxn (1°).</p><div class="card-eq">ROH + HCl → RCl + H₂O</div></div>
+      <div class="card-footer"><span class="card-tag">Named Rxn</span><button class="launch-btn" onclick="openLab('Lucas Test','lucas')">Launch →</button></div>
+    </div>
+
+    <div class="exp-card" data-section="organic" data-name="Fehling Test Reducing Sugar Aldehyde">
+      <div class="card-top"><div class="card-icon">🟥</div><div class="card-badge" style="background:rgba(239,68,68,.15);color:#f87171">Fehling</div></div>
+      <div class="card-body"><h3>Fehling's Test</h3><p>Deep blue Cu²⁺ solution turns brick-red Cu₂O with aldehydes and reducing sugars on heating.</p><div class="card-eq">RCHO + 2Cu²⁺ → Cu₂O↓ (brick-red)</div></div>
+      <div class="card-footer"><span class="card-tag">Named Rxn</span><button class="launch-btn" onclick="openLab('Fehling\'s Test','fehling')">Launch →</button></div>
+    </div>
+
+    <div class="exp-card" data-section="organic" data-name="Baeyer Test Unsaturation KMnO4">
+      <div class="card-top"><div class="card-icon">🟣</div><div class="card-badge" style="background:rgba(167,139,250,.15);color:#c084fc">Baeyer</div></div>
+      <div class="card-body"><h3>Baeyer's Test</h3><p>Cold dilute KMnO₄ decolourises in presence of C=C double bond, forming diol. Tests unsaturation.</p><div class="card-eq">Alkene + KMnO₄ → diol + MnO₂</div></div>
+      <div class="card-footer"><span class="card-tag">Named Rxn</span><button class="launch-btn" onclick="openLab('Baeyer\'s Test','baeyer')">Launch →</button></div>
+    </div>
+
+    <div class="exp-card" data-section="organic" data-name="Friedel-Crafts Alkylation Acylation Benzene">
+      <div class="card-top"><div class="card-icon">🔁</div><div class="card-badge" style="background:rgba(6,182,212,.15);color:#22d3ee">F-C</div></div>
+      <div class="card-body"><h3>Friedel-Crafts Reaction</h3><p>AlCl₃-catalysed electrophilic substitution on benzene ring. Alkylation or acylation depending on reagent.</p><div class="card-eq">C₆H₆ + RCl → C₆H₅R + HCl</div></div>
+      <div class="card-footer"><span class="card-tag">Named Rxn</span><button class="launch-btn" onclick="openLab('Friedel-Crafts Reaction','friedel_crafts')">Launch →</button></div>
+    </div>
+
+    <div class="exp-card" data-section="organic" data-name="Diels-Alder Cycloaddition Diene Dienophile">
+      <div class="card-top"><div class="card-icon">🔄</div><div class="card-badge" style="background:rgba(20,184,166,.15);color:#2dd4bf">D-A</div></div>
+      <div class="card-body"><h3>Diels-Alder Reaction</h3><p>[4+2] cycloaddition of a diene + dienophile → six-membered ring. Concerted, stereospecific, no ionic intermediate.</p><div class="card-eq">Diene + dienophile → cyclohexene</div></div>
+      <div class="card-footer"><span class="card-tag">Named Rxn</span><button class="launch-btn" onclick="openLab('Diels-Alder Reaction','diels_alder')">Launch →</button></div>
+    </div>
+
+    <div class="exp-card" data-section="organic" data-name="Sandmeyer Reaction Diazonium Aryl Halide">
+      <div class="card-top"><div class="card-icon">💥</div><div class="card-badge" style="background:rgba(251,191,36,.15);color:#fbbf24">Sand.</div></div>
+      <div class="card-body"><h3>Sandmeyer Reaction</h3><p>Diazonium salt + CuX → aryl halide + N₂. Used to introduce halogens/CN onto benzene ring.</p><div class="card-eq">ArN₂⁺ + CuX → ArX + N₂↑</div></div>
+      <div class="card-footer"><span class="card-tag">Named Rxn</span><button class="launch-btn" onclick="openLab('Sandmeyer Reaction','sandmeyer')">Launch →</button></div>
+    </div>
+
+    <div class="exp-card" data-section="organic" data-name="Hofmann Degradation Amide to Amine">
+      <div class="card-top"><div class="card-icon">✂️</div><div class="card-badge" style="background:rgba(244,114,182,.15);color:#f472b6">Hof.</div></div>
+      <div class="card-body"><h3>Hofmann Degradation</h3><p>Primary amide + Br₂ + NaOH → primary amine with one fewer carbon. Rearrangement via isocyanate.</p><div class="card-eq">RCONH₂ + Br₂/NaOH → RNH₂ + CO₂</div></div>
+      <div class="card-footer"><span class="card-tag">Named Rxn</span><button class="launch-btn" onclick="openLab('Hofmann Degradation','hofmann')">Launch →</button></div>
+    </div>
+
+    <div class="exp-card" data-section="organic" data-name="Alcohol Test with Sodium">
+      <div class="card-top"><div class="card-icon">🔥</div><div class="card-badge" style="background:rgba(251,146,60,.15);color:#fb923c">-OH</div></div>
+      <div class="card-body"><h3>Alcohol Test (Na)</h3><p>Add Na metal to ethanol → brisk effervescence of H₂ gas confirms -OH group.</p><div class="card-eq">2C₂H₅OH + 2Na → 2C₂H₅ONa + H₂↑</div></div>
+      <div class="card-footer"><span class="card-tag">Organic</span><button class="launch-btn" onclick="openLab('Alcohol Test with Sodium','alcohol')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="organic" data-name="Aldehyde Tollens Test Silver Mirror">
+      <div class="card-top"><div class="card-icon">🪞</div><div class="card-badge" style="background:rgba(226,232,240,.12);color:#cbd5e1">-CHO</div></div>
+      <div class="card-body"><h3>Aldehyde — Tollen's Test</h3><p>Add Tollen's reagent + warm → silver mirror on flask wall confirms aldehyde.</p><div class="card-eq">RCHO + 2[Ag(NH₃)₂]⁺ → RCOO⁻ + 2Ag↓</div></div>
+      <div class="card-footer"><span class="card-tag">Organic</span><button class="launch-btn" onclick="openLab('Aldehyde — Tollen\'s Test','aldehyde')">Launch →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADVANCED -->
+<div class="section" data-section="advanced">
+  <div class="sec-header"><div class="sec-tag">2.7</div><h2>Advanced Techniques</h2><div class="sec-line"></div></div>
+  <div class="exp-grid">
+    <div class="exp-card" data-section="advanced" data-name="Estimation of Sodium Carbonate">
+      <div class="card-top"><div class="card-icon">🧮</div><div class="card-badge" style="background:rgba(45,212,191,.15);color:#2dd4bf">Na₂CO₃</div></div>
+      <div class="card-body"><h3>Estimation of Na₂CO₃</h3><p>Quantitative analysis of sodium carbonate by double indicator titration method.</p><div class="card-eq">Na₂CO₃ + 2HCl → 2NaCl + H₂O + CO₂</div></div>
+      <div class="card-footer"><span class="card-tag">Advanced</span><button class="launch-btn" onclick="openLab('Estimation of Sodium Carbonate','na2co3')">Launch →</button></div>
+    </div>
+    <div class="exp-card" data-section="advanced" data-name="Distillation and Purification">
+      <div class="card-top"><div class="card-icon">🌡️</div><div class="card-badge" style="background:rgba(120,144,156,.15);color:#90a4ae">Distill</div></div>
+      <div class="card-body"><h3>Distillation &amp; Purification</h3><p>Separate mixtures by boiling point differences. Set up distillation apparatus.</p><div class="card-eq">Mixture → Heat → Vapour → Condense → Pure</div></div>
+      <div class="card-footer"><span class="card-tag">Advanced</span><button class="launch-btn" onclick="openLab('Distillation and Purification','distill')">Launch →</button></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:2px;margin-bottom:6px">LAB SESSION</div>
+        <h2 class="modal-htitle" id="modalTitle"></h2>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button id="pauseBtn" onclick="togglePause()" title="Pause / Resume" style="background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.25);color:var(--acc);font-family:var(--mono);font-size:11px;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all 0.2s;display:none;letter-spacing:.5px;">⏸ Pause</button>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+    </div>
+    <div class="lab-area">
+      <div class="lab-left">
+        <div class="beaker-wrap" id="beakerWrap">
+          <canvas id="rxCanvas"></canvas>
+        </div>
+      </div>
+      <div class="lab-right">
+        <div class="chem-controls">
+          <h4>ADD REAGENTS</h4>
+          <div class="reagent-btns" id="reagentBtns"></div>
+        </div>
+        <div class="obs-box">
+          <span class="obs-label">OBSERVATION</span>
+          <div class="obs-eq" id="obsEq"></div>
+          <div class="obs-text" id="obsText">Add a reagent to begin the reaction...</div>
+          <div class="obs-state">
+            <div class="state-dot" id="stateDot"></div>
+            <div class="state-label" id="stateLabel">Waiting</div>
+          </div>
+        </div>
+        <div class="steps-box">
+          <span class="steps-label">PROCEDURE</span>
+          <div id="stepsList"></div>
+        </div>
+        <button class="reset-btn" id="stopSessionBtn" onclick="stopSession()" style="display:none;border-color:rgba(255,80,80,.5);color:#ff5050;">⏹ End Session</button>
+        <button class="reset-btn" onclick="resetLab()">↺ Reset Experiment</button>
+        <div class="agent-panel" id="agentPanel">
+          <div class="agent-hdr">
+            <div class="agent-hdr-left">
+              <div class="agent-status-dot idle" id="agentDot"></div>
+              <span class="lbl">🤖 AGENTIC TUTOR</span>
+            </div>
+            <span class="agent-status-txt" id="agentStatusTxt">IDLE</span>
+          </div>
+          <div class="agent-thought-log" id="agentThoughtLog"></div>
+          <div class="agent-body">
+            <div class="agent-main-text" id="agentMainText"></div>
+            <div class="agent-quiz-area" id="agentQuizArea">
+              <div class="agent-quiz-q" id="agentQuizQ"></div>
+              <input class="agent-quiz-input" id="agentQuizInput" placeholder="Type your answer..." />
+              <button class="agent-quiz-submit" onclick="submitQuizAnswer()">Submit Answer →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="lab-footer">
+  <span>Amplify · HSC Chemistry Practicals</span>
+  <span>34 Experiments · 7 Sections</span>
+</footer>
+
+<script src="/amplify-env-bootstrap.js"></script>
+<script type="module">
+// Config will be loaded by amplify-env-bootstrap.js and available on window.AMPLIFY_ENV
+// This waits for the config to be loaded before using it
+window.AMPLIFY_ENV = window.AMPLIFY_ENV || {};
+</script>
+<script>
+// ===================== EXPERIMENT DATA =====================
+const EXP = {
+  nh4:{
+    equation:'NH₄⁺ + OH⁻ → NH₃↑ + H₂O',
+    steps:['Add NaOH solution dropwise','Warm the mixture gently','Test gas with moist red litmus paper'],
+    reagents:[
+      {label:'Add NaOH solution',color:'rgba(240,240,220,0.6)',dot:'#ddeedd',obs:'Solution becomes colourless — NH₃ gas released.',state:'NH₃ gas detected!',stateC:'#aaffaa',phase:'gas'},
+    ],
+    initial:{color:'rgba(255,220,100,0.35)',label:'NH₄⁺ solution'},
+    final:{color:'rgba(245,255,245,0.3)',label:'Clear + NH₃↑'},
+    specialEffect:'gas'
+  },
+  fe2:{
+    equation:'Fe²⁺ + 2OH⁻ → Fe(OH)₂↓',
+    steps:['Add NaOH solution dropwise','Observe green precipitate','Add K₃[Fe(CN)₆] for confirmation'],
+    reagents:[
+      {label:'Add NaOH solution',color:'rgba(100,200,120,0.5)',dot:'#66bb88',obs:'Dirty green precipitate of Fe(OH)₂ forms!',state:'Green ppt formed!',stateC:'#66ee88',phase:'precipitate'},
+      {label:'Add K₃[Fe(CN)₆]',color:'rgba(40,100,220,0.5)',dot:'#4488ff',obs:'Turnbull\'s blue forms — confirms Fe²⁺.',state:'Turnbull\'s Blue!',stateC:'#4499ff',phase:'color'},
+    ],
+    initial:{color:'rgba(140,210,140,0.35)',label:'Fe²⁺ solution'},
+    final:{color:'rgba(80,160,100,0.55)',label:'Fe(OH)₂↓ ppt'},
+    specialEffect:'precipitate'
+  },
+  fe3:{
+    equation:'Fe³⁺ + 3OH⁻ → Fe(OH)₃↓',
+    steps:['Add NaOH solution dropwise','Observe reddish-brown precipitate','Add KSCN for confirmation'],
+    reagents:[
+      {label:'Add NaOH solution',color:'rgba(180,80,40,0.5)',dot:'#cc5533',obs:'Reddish-brown precipitate of Fe(OH)₃ forms!',state:'Brown ppt formed!',stateC:'#ff8855',phase:'precipitate'},
+      {label:'Add KSCN',color:'rgba(220,20,20,0.6)',dot:'#ff2222',obs:'Blood-red colour appears — Fe(SCN)³ complex!',state:'Blood-red!',stateC:'#ff3333',phase:'color'},
+    ],
+    initial:{color:'rgba(200,140,60,0.35)',label:'Fe³⁺ solution'},
+    final:{color:'rgba(180,60,20,0.6)',label:'Fe(OH)₃↓ ppt'},
+    specialEffect:'precipitate'
+  },
+  cu2:{
+    equation:'Cu²⁺ + 2OH⁻ → Cu(OH)₂↓',
+    steps:['Add NaOH solution dropwise','Pale blue precipitate forms','Add excess NH₃ → deep blue complex'],
+    reagents:[
+      {label:'Add NaOH solution',color:'rgba(150,210,240,0.5)',dot:'#88ccee',obs:'Pale blue precipitate of Cu(OH)₂ forms!',state:'Blue ppt formed!',stateC:'#88ddff',phase:'precipitate'},
+      {label:'Add excess NH₃',color:'rgba(30,80,200,0.65)',dot:'#2255dd',obs:'Deep blue [Cu(NH₃)₄]²⁺ complex — beautiful!',state:'Deep blue complex!',stateC:'#4477ff',phase:'color'},
+    ],
+    initial:{color:'rgba(56,189,248,0.35)',label:'Cu²⁺ (blue soln)'},
+    final:{color:'rgba(30,80,200,0.65)',label:'Deep blue complex'},
+    specialEffect:'color'
+  },
+  zn2:{
+    equation:'Zn²⁺ + 2OH⁻ → Zn(OH)₂↓',
+    steps:['Add NaOH solution dropwise','White gelatinous precipitate forms','Add excess NaOH — ppt dissolves (amphoteric)'],
+    reagents:[
+      {label:'Add NaOH (little)',color:'rgba(220,220,220,0.5)',dot:'#cccccc',obs:'White gelatinous precipitate of Zn(OH)₂!',state:'White ppt formed!',stateC:'#dddddd',phase:'precipitate'},
+      {label:'Add excess NaOH',color:'rgba(200,255,200,0.25)',dot:'#88ff88',obs:'Ppt dissolves — Zn²⁺ is amphoteric (forms ZnO₂²⁻).',state:'Ppt dissolved!',stateC:'#88ff88',phase:'dissolve'},
+    ],
+    initial:{color:'rgba(200,220,255,0.3)',label:'Zn²⁺ solution'},
+    final:{color:'rgba(220,255,220,0.3)',label:'Zincate soln'},
+    specialEffect:'dissolve'
+  },
+  pb2:{
+    equation:'Pb²⁺ + SO₄²⁻ → PbSO₄↓',
+    steps:['Add dilute H₂SO₄ dropwise','White precipitate of PbSO₄ forms','Add KI → bright yellow PbI₂'],
+    reagents:[
+      {label:'Add H₂SO₄',color:'rgba(240,240,220,0.5)',dot:'#eeeecc',obs:'White precipitate of PbSO₄ — insoluble!',state:'White ppt!',stateC:'#eeeecc',phase:'precipitate'},
+      {label:'Add KI solution',color:'rgba(255,220,40,0.65)',dot:'#ffdd22',obs:'Bright yellow PbI₂ precipitate confirms Pb²⁺!',state:'Yellow PbI₂!',stateC:'#ffee44',phase:'color'},
+    ],
+    initial:{color:'rgba(230,230,200,0.3)',label:'Pb²⁺ solution'},
+    final:{color:'rgba(255,230,40,0.6)',label:'PbI₂ yellow ppt'},
+    specialEffect:'precipitate'
+  },
+  co3:{
+    equation:'CO₃²⁻ + 2H⁺ → H₂O + CO₂↑',
+    steps:['Add dilute HCl to carbonate','Brisk effervescence of CO₂ gas','Pass gas through limewater to confirm'],
+    reagents:[
+      {label:'Add dilute HCl',color:'rgba(240,255,240,0.3)',dot:'#ccffcc',obs:'Brisk effervescence! CO₂ gas evolving rapidly.',state:'CO₂ gas ↑',stateC:'#aaffaa',phase:'gas'},
+    ],
+    initial:{color:'rgba(200,240,220,0.4)',label:'CO₃²⁻ solution'},
+    final:{color:'rgba(240,255,240,0.3)',label:'Clear + CO₂↑'},
+    specialEffect:'gas'
+  },
+  so4:{
+    equation:'Ba²⁺ + SO₄²⁻ → BaSO₄↓',
+    steps:['Add BaCl₂ solution','Add dilute HCl','White precipitate insoluble in acid'],
+    reagents:[
+      {label:'Add BaCl₂ + HCl',color:'rgba(255,255,255,0.5)',dot:'#eeeeee',obs:'Dense white precipitate of BaSO₄ — insoluble in acid!',state:'BaSO₄ ppt!',stateC:'#dddddd',phase:'precipitate'},
+    ],
+    initial:{color:'rgba(200,180,255,0.3)',label:'SO₄²⁻ solution'},
+    final:{color:'rgba(240,240,240,0.55)',label:'BaSO₄↓ white ppt'},
+    specialEffect:'precipitate'
+  },
+  cl:{
+    equation:'Ag⁺ + Cl⁻ → AgCl↓ (white curdy)',
+    steps:['Add AgNO₃ + dilute HNO₃','White curdy precipitate forms','Add NH₃ — ppt dissolves'],
+    reagents:[
+      {label:'Add AgNO₃ + HNO₃',color:'rgba(240,240,240,0.55)',dot:'#dddddd',obs:'White curdy precipitate of AgCl forms!',state:'AgCl ppt!',stateC:'#dddddd',phase:'precipitate'},
+      {label:'Add dilute NH₃',color:'rgba(240,255,255,0.3)',dot:'#aaffff',obs:'Ppt dissolves — [Ag(NH₃)₂]⁺ complex forms.',state:'Ppt dissolved!',stateC:'#88ffff',phase:'dissolve'},
+    ],
+    initial:{color:'rgba(200,220,240,0.3)',label:'Cl⁻ solution'},
+    final:{color:'rgba(230,250,255,0.3)',label:'Dissolved complex'},
+    specialEffect:'precipitate'
+  },
+  acetate:{
+    equation:'CH₃COO⁻ + H⁺ → CH₃COOH↑',
+    steps:['Add dilute H₂SO₄','Warm gently','Detect vinegar-like odour'],
+    reagents:[
+      {label:'Add H₂SO₄ + heat',color:'rgba(255,240,200,0.4)',dot:'#ffcc66',obs:'Vinegar smell! Acetic acid vapour detected — confirms acetate.',state:'Acetic acid ↑',stateC:'#ffcc44',phase:'gas'},
+    ],
+    initial:{color:'rgba(255,240,200,0.3)',label:'CH₃COO⁻ solution'},
+    final:{color:'rgba(255,255,220,0.35)',label:'CH₃COOH vapour'},
+    specialEffect:'gas'
+  },
+  no3:{
+    equation:'NO₃⁻ + Fe²⁺ + H₂SO₄ → [Fe(NO)]²⁺',
+    steps:['Add fresh FeSO₄ solution','Add conc. H₂SO₄ carefully down the side','Brown ring appears at interface'],
+    reagents:[
+      {label:'Add FeSO₄ solution',color:'rgba(180,220,160,0.4)',dot:'#88cc66',obs:'FeSO₄ layer added. Ready for acid.',state:'Fe²⁺ added',stateC:'#88cc66',phase:'layer'},
+      {label:'Add conc. H₂SO₄ slowly',color:'rgba(150,100,50,0.5)',dot:'#996633',obs:'Brown ring at interface! [Fe(NO)]²⁺ complex — nitrate confirmed!',state:'Brown ring! ✓',stateC:'#cc8844',phase:'ring'},
+    ],
+    initial:{color:'rgba(220,200,100,0.3)',label:'NO₃⁻ solution'},
+    final:{color:'rgba(160,90,30,0.55)',label:'Brown ring!'},
+    specialEffect:'ring'
+  },
+  h2so4:{
+    equation:'M₁V₁ = M₂V₂ → dilute to 0.1M',
+    steps:['Calculate volume of conc. H₂SO₄','Add acid carefully to water','Dilute to 1000mL mark'],
+    reagents:[
+      {label:'Add acid to water',color:'rgba(240,255,255,0.4)',dot:'#ccffff',obs:'Heat generated — acid dissolves in water. Always add acid to water!',state:'Dilution done',stateC:'#88ffcc',phase:'dissolve'},
+    ],
+    initial:{color:'rgba(200,240,255,0.2)',label:'Distilled water'},
+    final:{color:'rgba(200,240,255,0.35)',label:'0.1M H₂SO₄'},
+    specialEffect:'dissolve'
+  },
+  titration:{
+    equation:'HCl + NaOH → NaCl + H₂O',
+    steps:['Add phenolphthalein indicator','Titrate NaOH from burette','Pink → colourless at endpoint'],
+    reagents:[
+      {label:'Add phenolphthalein',color:'rgba(255,150,200,0.45)',dot:'#ff88cc',obs:'Solution turns pink — indicator added to basic solution.',state:'Pink indicator',stateC:'#ff88cc',phase:'color'},
+      {label:'Add HCl (titrate)',color:'rgba(245,245,240,0.35)',dot:'#aaffaa',obs:'Pink fades to colourless — equivalence point reached!',state:'Endpoint! ✓',stateC:'#00ff88',phase:'color'},
+    ],
+    initial:{color:'rgba(255,150,200,0.25)',label:'NaOH + indicator'},
+    final:{color:'rgba(240,245,245,0.3)',label:'NaCl at endpoint'},
+    specialEffect:'color'
+  },
+  redox:{
+    equation:'2MnO₄⁻ + 5C₂O₄²⁻ + 16H⁺ → 2Mn²⁺ + 10CO₂ + 8H₂O',
+    steps:['Warm oxalic acid solution','Add KMnO₄ from burette dropwise','Purple → colourless at endpoint'],
+    reagents:[
+      {label:'Add KMnO₄ dropwise',color:'rgba(180,0,200,0.5)',dot:'#cc00cc',obs:'Purple KMnO₄ drops decolourised — oxidation occurring.',state:'Reacting...',stateC:'#cc44cc',phase:'color'},
+      {label:'At endpoint (excess)',color:'rgba(245,245,250,0.3)',dot:'#00ff88',obs:'Permanent pale pink — endpoint! KMnO₄ is self-indicating.',state:'Endpoint! ✓',stateC:'#00ff88',phase:'color'},
+    ],
+    initial:{color:'rgba(200,230,200,0.35)',label:'Oxalic acid (warm)'},
+    final:{color:'rgba(240,200,255,0.3)',label:'Pale pink endpoint'},
+    specialEffect:'color'
+  },
+  heat:{
+    equation:'ΔH = -mcΔT = -57 kJ/mol',
+    steps:['Measure initial temperatures','Mix HCl and NaOH','Record temperature rise'],
+    reagents:[
+      {label:'Mix HCl + NaOH',color:'rgba(255,200,100,0.5)',dot:'#ffaa33',obs:'Temperature rises! Exothermic reaction. ΔT ≈ 6-7°C.',state:'Temp ↑ 7°C!',stateC:'#ffaa33',phase:'heat'},
+    ],
+    initial:{color:'rgba(200,230,255,0.3)',label:'HCl solution'},
+    final:{color:'rgba(255,180,60,0.4)',label:'NaCl + heat'},
+    specialEffect:'heat'
+  },
+  cuso4:{
+    equation:'CuSO₄ · 5H₂O (blue crystals)',
+    steps:['Dissolve CuSO₄ in hot water','Filter to remove impurities','Cool slowly — blue crystals form'],
+    reagents:[
+      {label:'Add hot water + dissolve',color:'rgba(56,189,248,0.5)',dot:'#38bdf8',obs:'CuSO₄ dissolves → bright blue solution.',state:'Blue solution',stateC:'#38bdf8',phase:'dissolve'},
+      {label:'Cool slowly → crystals',color:'rgba(30,100,200,0.6)',dot:'#2255cc',obs:'Beautiful blue CuSO₄·5H₂O crystals forming!',state:'Crystals forming!',stateC:'#4499ff',phase:'crystal'},
+    ],
+    initial:{color:'rgba(200,230,200,0.3)',label:'CuSO₄ powder + water'},
+    final:{color:'rgba(30,100,200,0.6)',label:'Blue crystals ✓'},
+    specialEffect:'crystal'
+  },
+  rate1:{
+    equation:'Na₂S₂O₃ + 2HCl → S↓ + SO₂ + 2NaCl',
+    steps:['Mix Na₂S₂O₃ and HCl solutions','Start timer immediately','Observe X mark through flask'],
+    reagents:[
+      {label:'Add HCl → start timer',color:'rgba(255,255,200,0.4)',dot:'#ffff88',obs:'Yellow sulfur precipitating — solution becoming cloudy. X mark fading!',state:'Turbidity ↑',stateC:'#dddd44',phase:'turbid'},
+    ],
+    initial:{color:'rgba(200,255,200,0.3)',label:'Na₂S₂O₃ solution'},
+    final:{color:'rgba(255,255,150,0.55)',label:'S↓ ppt — X gone!'},
+    specialEffect:'turbid'
+  },
+  h2o2:{
+    equation:'2H₂O₂ → 2H₂O + O₂↑',
+    steps:['Add MnO₂ catalyst to H₂O₂','Vigorous O₂ gas evolution','Test O₂ with glowing splint'],
+    reagents:[
+      {label:'Add MnO₂ catalyst',color:'rgba(220,250,220,0.4)',dot:'#44dd44',obs:'Vigorous effervescence! O₂ gas evolving rapidly. MnO₂ is not consumed.',state:'O₂ gas ↑↑',stateC:'#44ff44',phase:'gas'},
+    ],
+    initial:{color:'rgba(200,240,200,0.3)',label:'H₂O₂ solution'},
+    final:{color:'rgba(220,255,220,0.35)',label:'H₂O + O₂↑'},
+    specialEffect:'gas'
+  },
+  alcohol:{
+    equation:'2C₂H₅OH + 2Na → 2C₂H₅ONa + H₂↑',
+    steps:['Add small piece of Na metal to ethanol','Observe effervescence','Test H₂ gas with lighted splint'],
+    reagents:[
+      {label:'Add Na metal',color:'rgba(255,230,150,0.4)',dot:'#ffcc44',obs:'Brisk effervescence of H₂ gas! Squeaky pop confirms H₂.',state:'H₂ gas ↑',stateC:'#ffdd66',phase:'gas'},
+    ],
+    initial:{color:'rgba(220,200,160,0.3)',label:'Ethanol'},
+    final:{color:'rgba(240,240,200,0.35)',label:'Ethoxide + H₂↑'},
+    specialEffect:'gas'
+  },
+  aldehyde:{
+    equation:'RCHO + 2[Ag(NH₃)₂]⁺ → RCOO⁻ + 2Ag↓',
+    steps:['Add Tollen\'s reagent to aldehyde','Warm gently in water bath','Silver mirror forms on flask walls'],
+    reagents:[
+      {label:'Add Tollen\'s reagent + warm',color:'rgba(220,220,220,0.5)',dot:'#dddddd',obs:'Silver mirror deposits on flask walls! Ag⁺ reduced to Ag metal.',state:'Silver mirror! ✓',stateC:'#ddddaa',phase:'silver'},
+    ],
+    initial:{color:'rgba(240,240,220,0.3)',label:'Aldehyde solution'},
+    final:{color:'rgba(200,200,180,0.4)',label:'Silver mirror ✓'},
+    specialEffect:'silver'
+  },
+  na2co3:{
+    equation:'Na₂CO₃ + 2HCl → 2NaCl + H₂O + CO₂',
+    steps:['Add phenolphthalein — 1st endpoint','Continue to methyl orange — 2nd endpoint','Calculate Na₂CO₃ content'],
+    reagents:[
+      {label:'Titrate to 1st endpoint',color:'rgba(255,200,220,0.4)',dot:'#ff88aa',obs:'Phenolphthalein endpoint — pink → colourless. HCO₃⁻ stage.',state:'1st endpoint ✓',stateC:'#ff88aa',phase:'color'},
+      {label:'Titrate to 2nd endpoint',color:'rgba(255,180,80,0.4)',dot:'#ffaa44',obs:'Methyl orange endpoint — yellow → orange. CO₂ released!',state:'2nd endpoint ✓',stateC:'#ff8833',phase:'gas'},
+    ],
+    initial:{color:'rgba(200,240,220,0.35)',label:'Na₂CO₃ solution'},
+    final:{color:'rgba(255,220,140,0.4)',label:'NaCl at endpoint'},
+    specialEffect:'color'
+  },
+  distill:{
+    equation:'Low bp fraction → distils first',
+    steps:['Set up distillation apparatus','Heat mixture gradually','Collect fractions at diff. temperatures'],
+    reagents:[
+      {label:'Apply heat',color:'rgba(255,180,80,0.45)',dot:'#ffaa44',obs:'Temperature rising — lower boiling point component vaporising.',state:'Vapour rising',stateC:'#ffaa44',phase:'heat'},
+      {label:'Collect condensate',color:'rgba(200,240,255,0.4)',dot:'#88ccff',obs:'Pure fraction collected — separated by boiling point!',state:'Pure fraction ✓',stateC:'#88ccff',phase:'dissolve'},
+    ],
+    initial:{color:'rgba(200,220,200,0.3)',label:'Mixed liquid'},
+    final:{color:'rgba(200,240,255,0.4)',label:'Pure fractions'},
+    specialEffect:'heat'
+  }
+};
+
+// ===================== CANVAS ENGINE =====================
+let canvas, ctx, animId;
+let particles=[], bubbles=[], precipParts=[], crystalParts=[];
+let currentExp=null, reagentStep=0;
+let liquidColor='rgba(200,230,255,0.35)', targetColor='rgba(200,230,255,0.35)';
+let lerpColor={r:200,g:230,b:255,a:0.35};
+let precipLevel=0, turbidity=0, ringLevel=0, silverLevel=0, heatWave=0;
+let W=0, H2=0;
+
+function parseRGBA(str){
+  const m=str.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/);
+  if(!m)return{r:200,g:220,b:255,a:0.3};
+  return{r:+m[1],g:+m[2],b:+m[3],a:+m[4]};
+}
+function lerpVal(a,b,t){return a+(b-a)*t}
+function colorStr(c){return`rgba(${Math.round(c.r)},${Math.round(c.g)},${Math.round(c.b)},${c.a.toFixed(2)})`}
+
+function initCanvas(){
+  canvas=document.getElementById('rxCanvas');
+  const wrap=document.getElementById('beakerWrap');
+  W=wrap.clientWidth; H2=wrap.clientHeight;
+  canvas.width=W; canvas.height=H2;
+  ctx=canvas.getContext('2d');
+}
+
+class Bubble{
+  constructor(){this.reset()}
+  reset(){
+    this.x=W*.25+Math.random()*W*.5;
+    this.y=H2*.75+Math.random()*H2*.1;
+    this.r=1.5+Math.random()*3.5;
+    this.vy=-.5-Math.random()*1.5;
+    this.vx=(Math.random()-.5)*.5;
+    this.alpha=.5+Math.random()*.4;
+    this.life=1;
+  }
+  update(){
+    this.x+=this.vx; this.y+=this.vy;
+    this.life-=.008+Math.random()*.006;
+    this.alpha=this.life*.8;
+    if(this.y<H2*.2||this.life<=0)this.reset();
+  }
+  draw(){
+    ctx.beginPath();
+    ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(200,255,220,${this.alpha})`;
+    ctx.lineWidth=1;
+    ctx.stroke();
+  }
+}
+
+class Particle{
+  constructor(x,y,color){
+    this.x=x; this.y=y;
+    this.color=color;
+    this.r=2+Math.random()*4;
+    this.vx=(Math.random()-.5)*4;
+    this.vy=-2-Math.random()*4;
+    this.gravity=.12;
+    this.alpha=1;
+    this.life=1;
+  }
+  update(){
+    this.x+=this.vx; this.y+=this.vy;
+    this.vy+=this.gravity;
+    this.life-=.02;
+    this.alpha=this.life;
+  }
+  draw(){
+    ctx.beginPath();
+    ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+    ctx.fillStyle=this.color.replace(')',`,${this.alpha})`).replace('rgb','rgba');
+    ctx.fill();
+  }
+}
+
+class Snowflake{
+  constructor(){this.reset()}
+  reset(){
+    this.x=W*.2+Math.random()*W*.6;
+    this.y=H2*.3+Math.random()*H2*.3;
+    this.r=1+Math.random()*3;
+    this.vy=.3+Math.random()*.5;
+    this.vx=(Math.random()-.5)*.3;
+    this.alpha=.4+Math.random()*.5;
+  }
+  update(){
+    this.x+=this.vx; this.y+=this.vy;
+    if(this.y>H2*.85)this.reset();
+  }
+  draw(c){
+    ctx.beginPath();
+    ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${c},${this.alpha})`;
+    ctx.fill();
+  }
+}
+
+let snowflakes=[];
+
+function spawnBurst(n,color){
+  for(let i=0;i<n;i++){
+    const cx=W*.25+Math.random()*W*.5;
+    const cy=H2*.4+Math.random()*H2*.35;
+    particles.push(new Particle(cx,cy,color));
+  }
+}
+
+function startBubbles(n){
+  bubbles=[];
+  for(let i=0;i<n;i++)bubbles.push(new Bubble());
+}
+
+function startSnowflakes(n,c){
+  snowflakes=[];
+  for(let i=0;i<n;i++)snowflakes.push(new Snowflake());
+  snowflakes._color=c;
+}
+
+let tick=0;
+function draw(){
+  animId=requestAnimationFrame(draw);
+  ctx.clearRect(0,0,W,H2);
+  tick++;
+
+  const tc=parseRGBA(targetColor);
+  lerpColor.r=lerpVal(lerpColor.r,tc.r,.03);
+  lerpColor.g=lerpVal(lerpColor.g,tc.g,.03);
+  lerpColor.b=lerpVal(lerpColor.b,tc.b,.03);
+  lerpColor.a=lerpVal(lerpColor.a,tc.a,.03);
+
+  const bx=W*.15, bw=W*.7, bh=H2*.72;
+  const by=H2*.13;
+
+  ctx.beginPath();
+  ctx.moveTo(bx,by);
+  ctx.lineTo(bx,by+bh*.88);
+  ctx.quadraticCurveTo(bx,by+bh,bx+bw/2,by+bh);
+  ctx.quadraticCurveTo(bx+bw,by+bh,bx+bw,by+bh*.88);
+  ctx.lineTo(bx+bw,by);
+  ctx.strokeStyle='rgba(0,255,136,0.55)';
+  ctx.lineWidth=2.5;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(bx-8,by);
+  ctx.lineTo(bx+bw+8,by);
+  ctx.strokeStyle='rgba(0,255,136,0.7)';
+  ctx.lineWidth=3;
+  ctx.stroke();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(bx+2,by+bh*.1);
+  ctx.lineTo(bx+2,by+bh*.87);
+  ctx.quadraticCurveTo(bx+2,by+bh-.5,bx+bw/2,by+bh-.5);
+  ctx.quadraticCurveTo(bx+bw-2,by+bh-.5,bx+bw-2,by+bh*.87);
+  ctx.lineTo(bx+bw-2,by+bh*.1);
+  ctx.closePath();
+  ctx.clip();
+
+  const liqTop=by+bh*.22;
+  ctx.fillStyle=colorStr(lerpColor);
+  ctx.fillRect(bx+2,liqTop,bw-4,by+bh-liqTop);
+
+  if(turbidity>0){
+    ctx.fillStyle=`rgba(240,230,160,${turbidity*.6})`;
+    ctx.fillRect(bx+2,liqTop,bw-4,by+bh-liqTop);
+  }
+
+  if(ringLevel>0){
+    const ringY=liqTop+(by+bh-liqTop)*.45;
+    const grad=ctx.createLinearGradient(0,ringY-10,0,ringY+10);
+    grad.addColorStop(0,'transparent');
+    grad.addColorStop(.5,`rgba(140,80,20,${ringLevel*.8})`);
+    grad.addColorStop(1,'transparent');
+    ctx.fillStyle=grad;
+    ctx.fillRect(bx+2,ringY-10,bw-4,20);
+  }
+
+  if(silverLevel>0){
+    ctx.fillStyle=`rgba(200,200,180,${silverLevel*.7})`;
+    ctx.fillRect(bx+2,liqTop,bw-4,(by+bh-liqTop)*.5);
+    for(let i=0;i<5;i++){
+      const sx=bx+5+Math.random()*(bw-10);
+      const sy=liqTop+Math.random()*(by+bh-liqTop)*.4;
+      ctx.fillStyle=`rgba(255,255,240,${Math.random()*.3})`;
+      ctx.fillRect(sx,sy,Math.random()*20+5,1);
+    }
+  }
+
+  if(precipLevel>0){
+    const pHeight=(by+bh-liqTop)*precipLevel*.35;
+    ctx.fillStyle=`rgba(${currentExp?.precipColor||'200,200,180'},${Math.min(precipLevel*.7,.7)})`;
+    ctx.fillRect(bx+2,by+bh-pHeight,bw-4,pHeight);
+    for(let i=0;i<30*precipLevel;i++){
+      ctx.fillStyle=`rgba(255,255,255,${Math.random()*.15})`;
+      ctx.fillRect(bx+5+Math.random()*(bw-10),by+bh-pHeight+Math.random()*pHeight,Math.random()*3+1,Math.random()*2+1);
+    }
+  }
+
+  if(heatWave>0){
+    for(let i=0;i<3;i++){
+      const wy=liqTop+10+i*20;
+      ctx.beginPath();
+      for(let x2=bx+5;x2<bx+bw-5;x2+=3){
+        const wave=Math.sin((x2-bx)*.1+tick*.08+i*2)*4*heatWave;
+        if(x2===Math.ceil(bx+5))ctx.moveTo(x2,wy+wave);
+        else ctx.lineTo(x2,wy+wave);
+      }
+      ctx.strokeStyle=`rgba(255,180,60,${heatWave*.25})`;
+      ctx.lineWidth=1.5;
+      ctx.stroke();
+    }
+  }
+
+  ctx.beginPath();
+  for(let x2=bx+2;x2<bx+bw-2;x2+=2){
+    const wave=Math.sin((x2-bx)*.05+tick*.04)*2.5;
+    if(x2===bx+2)ctx.moveTo(x2,liqTop+wave);
+    else ctx.lineTo(x2,liqTop+wave);
+  }
+  ctx.strokeStyle=colorStr({...lerpColor,a:Math.min(lerpColor.a+.2,.7)});
+  ctx.lineWidth=1.5;
+  ctx.stroke();
+
+  ctx.restore();
+
+  bubbles.forEach(b=>{b.update();b.draw()});
+
+  if(snowflakes.length){
+    snowflakes.forEach(s=>{s.update();s.draw(snowflakes._color||'200,200,200')});
+  }
+
+  particles=particles.filter(p=>{p.update();p.draw();return p.life>0});
+
+  for(let i=1;i<=4;i++){
+    const gy=H2*.13+H2*.72*.88-(H2*.72*.88/5)*i;
+    ctx.beginPath();
+    ctx.moveTo(bx,gy);
+    ctx.lineTo(bx+12,gy);
+    ctx.strokeStyle='rgba(0,255,136,0.3)';
+    ctx.lineWidth=1;
+    ctx.stroke();
+    ctx.fillStyle='rgba(0,255,136,0.3)';
+    ctx.font='9px Space Mono';
+    ctx.fillText(`${i*20}`,bx+14,gy+3);
+  }
+
+  if(currentExp){
+    ctx.fillStyle='rgba(0,255,136,0.5)';
+    ctx.font='bold 10px Space Mono';
+    ctx.textAlign='center';
+    ctx.fillText(currentExp.initial.label,W/2,H2*.93);
+    ctx.textAlign='left';
+  }
+
+  if(heatWave>0){
+    const tx=W*.88, ty=H2*.25;
+    ctx.fillStyle=`rgba(255,${Math.round(150-heatWave*100)},60,${.6+heatWave*.3})`;
+    ctx.fillRect(tx-3,ty,6,H2*.45*heatWave);
+    ctx.beginPath();
+    ctx.arc(tx,ty+H2*.45*heatWave+4,6,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle='rgba(0,255,136,0.5)';
+    ctx.font='9px Space Mono';
+    ctx.textAlign='center';
+    ctx.fillText(`${Math.round(24+heatWave*8)}°C`,tx,ty-5);
+    ctx.textAlign='left';
+  }
+}
+
+// ===================== LAB CONTROLLER =====================
+function openLab(name, key){
+  const exp=EXP[key];
+  if(!exp)return;
+  currentExp={...exp, key};
+  reagentStep=0;
+  particles=[];
+  bubbles=[];
+  snowflakes=[];
+  precipLevel=0;
+  turbidity=0;
+  ringLevel=0;
+  silverLevel=0;
+  heatWave=0;
+
+  document.getElementById('modalTitle').textContent=name;
+  document.getElementById('obsEq').textContent=exp.equation;
+  document.getElementById('obsText').textContent='Add a reagent to begin the reaction...';
+  document.getElementById('stateLabel').textContent='Ready';
+  document.getElementById('stateDot').style.background='var(--txt3)';
+  document.getElementById('stateDot').style.boxShadow='none';
+
+  const btnDiv=document.getElementById('reagentBtns');
+  btnDiv.innerHTML='';
+  exp.reagents.forEach((r,i)=>{
+    const btn=document.createElement('button');
+    btn.className='reagent-btn';
+    btn.id=`rbtn_${i}`;
+    btn.innerHTML=`<span class="dot" style="background:${r.dot}"></span>${r.label}`;
+    btn.onclick=()=>addReagent(i,r,btn);
+    btnDiv.appendChild(btn);
+  });
+
+  const stList=document.getElementById('stepsList');
+  stList.innerHTML='';
+  exp.steps.forEach((s,i)=>{
+    const el=document.createElement('div');
+    el.className='step-item';
+    el.id=`step_${i}`;
+    el.innerHTML=`<div class="step-num" id="sn_${i}">${i+1}</div><div class="step-txt">${s}</div>`;
+    stList.appendChild(el);
+  });
+
+  targetColor=exp.initial.color;
+  lerpColor=parseRGBA(exp.initial.color);
+
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  document.getElementById('agentPanel').style.display='none';
+  // show pause btn, reset pause state
+  isPaused = false;
+  const pb = document.getElementById('pauseBtn');
+  pb.style.display = 'inline-flex';
+  pb.textContent = '⏸ Pause';
+  pb.style.background = 'rgba(0,255,136,0.08)';
+  pb.style.borderColor = 'rgba(0,255,136,0.25)';
+  pb.style.color = 'var(--acc)';
+
+  setTimeout(()=>{
+    if(animId)cancelAnimationFrame(animId);
+    initCanvas();
+    draw();
+  },50);
+
+  const heq=document.getElementById('heroEq');
+  if(heq){heq.style.opacity='0';setTimeout(()=>{heq.textContent=exp.equation;heq.style.opacity='1';},200);}
+}
+
+function addReagent(idx, reagent, btn){
+  if(btn.classList.contains('active'))return;
+  btn.classList.add('active');
+
+  document.querySelectorAll('.reagent-btn').forEach((b,i)=>{if(i<idx)b.disabled=true;});
+
+  document.getElementById('obsEq').textContent=currentExp.equation;
+  document.getElementById('obsText').textContent=reagent.obs;
+  document.getElementById('stateLabel').textContent=reagent.state;
+  document.getElementById('stateDot').style.background=reagent.stateC;
+  document.getElementById('stateDot').style.boxShadow=`0 0 8px ${reagent.stateC}`;
+
+  const sn=document.getElementById(`sn_${idx}`);
+  if(sn){sn.classList.add('done');}
+  const si=document.getElementById(`step_${idx}`);
+  if(si)si.classList.add('active');
+
+  targetColor=reagent.color;
+
+  const phase=reagent.phase;
+  if(phase==='gas'){
+    startBubbles(25+Math.random()*10);
+    spawnBurst(20,'rgba(200,255,200)');
+  } else if(phase==='precipitate'){
+    spawnBurst(35,reagent.dot);
+    precipLevel=0;
+    const pc=reagent.color.match(/rgba\((\d+),\s*(\d+),\s*(\d+)/);
+    currentExp.precipColor=pc?`${pc[1]},${pc[2]},${pc[3]}`:'200,200,200';
+    animatePrecip();
+    startBubbles(5);
+  } else if(phase==='color'){
+    spawnBurst(25,reagent.dot);
+    startBubbles(8);
+    setTimeout(()=>{
+      if(reagent.state.includes('endpoint')||reagent.state.includes('Blue')||reagent.state.includes('red'))
+        spawnBurst(40,reagent.dot);
+    },600);
+  } else if(phase==='dissolve'){
+    startBubbles(12);
+    precipLevel=Math.max(0,precipLevel*.1);
+    snowflakes=[];
+  } else if(phase==='heat'){
+    heatWave=0;
+    animateHeat();
+    startBubbles(18);
+    spawnBurst(15,'rgba(255,180,60)');
+  } else if(phase==='turbid'){
+    animateTurbid();
+    startBubbles(6);
+  } else if(phase==='ring'){
+    animateRing();
+  } else if(phase==='silver'){
+    animateSilver();
+  } else if(phase==='crystal'){
+    animateCrystal(reagent.dot);
+    startBubbles(4);
+  } else if(phase==='layer'){
+    startBubbles(6);
+    spawnBurst(12,reagent.dot);
+  }
+
+  reagentStep=idx+1;
+
+  // Trigger AI Tutor after the final reagent — wait for all TTS to finish first
+  const totalReagents = currentExp.reagents.length;
+  if(idx === totalReagents - 1){
+    // Poll until speechSynthesis is idle and agentSpeaking is false
+    const waitForSpeechDone = () => {
+      if(window.speechSynthesis.speaking || window.speechSynthesis.pending || agentSpeaking){
+        setTimeout(waitForSpeechDone, 300);
+      } else {
+        setTimeout(() => triggerAITutor(currentExp, reagent), 1200);
+      }
+    };
+    setTimeout(waitForSpeechDone, 1000);
+  }
+}
+
+function animatePrecip(){
+  if(precipLevel<1){precipLevel=Math.min(1,precipLevel+.025);setTimeout(animatePrecip,50);}
+}
+function animateHeat(){
+  if(heatWave<1){heatWave=Math.min(1,heatWave+.02);setTimeout(animateHeat,60);}
+}
+function animateTurbid(){
+  if(turbidity<1){turbidity=Math.min(1,turbidity+.02);setTimeout(animateTurbid,60);}
+}
+function animateRing(){
+  if(ringLevel<1){ringLevel=Math.min(1,ringLevel+.025);setTimeout(animateRing,55);}
+}
+function animateSilver(){
+  if(silverLevel<1){silverLevel=Math.min(1,silverLevel+.02);setTimeout(animateSilver,55);}
+}
+function animateCrystal(dotColor){
+  const c=dotColor.replace('#','');
+  const r=parseInt(c.slice(0,2),16),g=parseInt(c.slice(2,4),16),b=parseInt(c.slice(4,6),16);
+  const snowC=`${r},${g},${b}`;
+  startSnowflakes(40,snowC);
+  precipLevel=0;
+  animatePrecip();
+}
+
+// ===================== AGENTIC LAB ASSISTANT =====================
+let isPaused = false;
+let agentAbort = false;    // set true to stop an in-progress agent loop
+let quizResolve = null;    // holds promise resolver while waiting for student answer
+
+// ---- Agent UI helpers ----
+function agentSetStatus(mode, txt){
+  const dot = document.getElementById('agentDot');
+  const stxt = document.getElementById('agentStatusTxt');
+  dot.className = 'agent-status-dot ' + mode;
+  stxt.textContent = txt.toUpperCase();
+}
+
+function agentLog(type, text){
+  const log = document.getElementById('agentThoughtLog');
+  const entry = document.createElement('div');
+  entry.className = 'thought-entry';
+  entry.innerHTML = `<span class="thought-tag ${type}">${type.toUpperCase()}</span><span class="thought-txt">${text}</span>`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+function agentSetMain(html){
+  document.getElementById('agentMainText').innerHTML = html;
+}
+
+function agentThinking(){
+  agentSetMain('<div class="agent-thinking-dots"><span></span><span></span><span></span></div>');
+}
+
+function agentResetUI(){
+  document.getElementById('agentThoughtLog').innerHTML = '';
+  document.getElementById('agentQuizArea').style.display = 'none';
+  agentSetMain('');
+  agentSetStatus('idle','idle');
+}
+
+// ---- Pause button ----
+function togglePause(){
+  isPaused = !isPaused;
+  const btn = document.getElementById('pauseBtn');
+  if(isPaused){
+    window.speechSynthesis.pause();
+    if(animId){ cancelAnimationFrame(animId); animId = null; }
+    btn.textContent = '▶ Resume';
+    btn.style.background = 'rgba(255,200,0,0.15)';
+    btn.style.borderColor = 'rgba(255,200,0,0.5)';
+    btn.style.color = '#ffd000';
+  } else {
+    window.speechSynthesis.resume();
+    if(!animId){ draw(); }
+    btn.textContent = '⏸ Pause';
+    btn.style.background = 'rgba(0,255,136,0.08)';
+    btn.style.borderColor = 'rgba(0,255,136,0.25)';
+    btn.style.color = 'var(--acc)';
+  }
+}
+
+// ---- Agent tools (callable by the AI) ----
+const AGENT_TOOLS = [
+  {
+    name: 'speak_to_student',
+    description: 'Say something aloud and show it as the main message to the student.',
+    parameters: { type:'object', properties:{ text:{ type:'string', description:'What to say' } }, required:['text'] }
+  },
+  {
+    name: 'add_reagent',
+    description: 'Add the next reagent in the current experiment by index (0-based). Only call if the button is not already active.',
+    parameters: { type:'object', properties:{ index:{ type:'integer', description:'Reagent button index to click' } }, required:['index'] }
+  },
+  {
+    name: 'reset_experiment',
+    description: 'Reset the current experiment beaker to its initial state.',
+    parameters: { type:'object', properties:{} }
+  },
+  {
+    name: 'open_experiment',
+    description: 'Open a different experiment by its key (e.g. fe3, cu2, titration). Use to demonstrate a related reaction.',
+    parameters: { type:'object', properties:{ key:{ type:'string', description:'Experiment key' }, name:{ type:'string', description:'Human-readable name' } }, required:['key','name'] }
+  },
+  {
+    name: 'ask_student',
+    description: 'Ask the student a question and wait for their typed answer. Use to quiz comprehension.',
+    parameters: { type:'object', properties:{ question:{ type:'string', description:'The question to ask' } }, required:['question'] }
+  },
+  {
+    name: 'finish',
+    description: 'End the agent session when teaching is complete.',
+    parameters: { type:'object', properties:{ summary:{ type:'string', description:'Short closing remark' } }, required:['summary'] }
+  }
+];
+
+// ---- Execute a single tool call ----
+let _justAnsweredQuiz = false;
+
+async function executeTool(name, args){
+  agentLog('act', `${name}(${JSON.stringify(args).slice(0,80)})`);
+
+  if(name === 'speak_to_student'){
+    agentSetMain(args.text);
+    await agentSpeak(args.text);
+    // If this speak is the feedback after a quiz answer, show follow-up
+    if(_justAnsweredQuiz){
+      _justAnsweredQuiz = false;
+      const choice = await waitForFollowUp();
+      await agentSpeak(
+        choice === 're-explain'
+          ? "Sure, let me go over that again."
+          : choice === 'move-on'
+          ? "Great, let's move on."
+          : "Excellent! Well done."
+      );
+      return { result: 'spoken', followUp: choice };
+    }
+    return { result: 'spoken' };
+  }
+
+  if(name === 'add_reagent'){
+    const btns = document.querySelectorAll('.reagent-btn');
+    const idx = args.index;
+    if(btns[idx] && !btns[idx].classList.contains('active') && !btns[idx].disabled){
+      btns[idx].click();
+      await delay(2200);
+      return { result: 'reagent added', observation: document.getElementById('obsText').textContent };
+    }
+    return { result: 'reagent already added or invalid index' };
+  }
+
+  if(name === 'reset_experiment'){
+    resetLab();
+    await delay(600);
+    return { result: 'experiment reset' };
+  }
+
+  if(name === 'open_experiment'){
+    const key = args.key;
+    const expName = args.name;
+    if(!EXP[key]) return { result: `unknown experiment key: ${key}` };
+    closeModal();
+    await delay(400);
+    openLab(expName, key);
+    await delay(800);
+    return { result: `opened ${expName}`, equation: EXP[key].equation };
+  }
+
+  if(name === 'ask_student'){
+    const result = await askStudentQuestion(args.question);
+    _justAnsweredQuiz = true; // next speak_to_student = feedback → trigger follow-up after
+    return result;
+  }
+
+  if(name === 'finish'){
+    agentSetMain(`<span style="color:var(--acc)">✓ ${args.summary}</span>`);
+    agentSetStatus('idle','done');
+    await agentSpeak(args.summary);
+    return { result: 'session finished' };
+  }
+
+  return { result: 'unknown tool' };
+}
+
+function delay(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+// ---- Quiz UI: returns a promise that resolves with the student's answer ----
+function askStudentQuestion(question){
+  return new Promise(async resolve => {
+    agentLog('quiz', question);
+    // Speak the question first, THEN show the input
+    await agentSpeak(question);
+    if(agentAbort){ resolve({ result: 'aborted' }); return; }
+
+    const area = document.getElementById('agentQuizArea');
+    const qEl = document.getElementById('agentQuizQ');
+    const inp = document.getElementById('agentQuizInput');
+    qEl.textContent = question;
+    inp.value = '';
+    area.style.display = 'block';
+    inp.focus();
+
+    quizResolve = (answer) => {
+      area.style.display = 'none';
+      quizResolve = null;
+      resolve({ result: 'student answered', answer });
+    };
+  });
+}
+
+// ---- Yes/No follow-up after agent gives feedback ----
+function showFollowUp(onUnderstood, onNotUnderstood, onMoveOn){
+  const area = document.getElementById('agentQuizArea');
+  const qEl = document.getElementById('agentQuizQ');
+  const inp = document.getElementById('agentQuizInput');
+  inp.style.display = 'none';
+  document.querySelector('.agent-quiz-submit').style.display = 'none';
+
+  qEl.textContent = 'Did you understand? Ready to move on?';
+
+  // Build yes/no/re-explain buttons
+  const btnWrap = document.createElement('div');
+  btnWrap.id = 'followUpBtns';
+  btnWrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:4px';
+  btnWrap.innerHTML = `
+    <button onclick="handleFollowUp('yes')" style="background:rgba(0,255,136,0.15);border:1px solid rgba(0,255,136,0.4);color:#00ff88;font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:6px;cursor:pointer">✓ Yes, understood</button>
+    <button onclick="handleFollowUp('no')" style="background:rgba(255,180,0,0.1);border:1px solid rgba(255,180,0,0.3);color:#ffb400;font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:6px;cursor:pointer">↺ Explain again</button>
+    <button onclick="handleFollowUp('next')" style="background:rgba(0,180,255,0.1);border:1px solid rgba(0,180,255,0.3);color:#00ccff;font-family:var(--mono);font-size:10px;padding:6px 14px;border-radius:6px;cursor:pointer">→ Move on</button>
+  `;
+  area.appendChild(btnWrap);
+  area.style.display = 'block';
+
+  window._followUpCallbacks = { yes: onUnderstood, no: onNotUnderstood, next: onMoveOn };
+}
+
+function handleFollowUp(choice){
+  const area = document.getElementById('agentQuizArea');
+  const inp = document.getElementById('agentQuizInput');
+  const sub = document.querySelector('.agent-quiz-submit');
+  const btns = document.getElementById('followUpBtns');
+  if(btns) btns.remove();
+  inp.style.display = 'block';
+  if(sub) sub.style.display = 'block';
+  area.style.display = 'none';
+  if(window._followUpCallbacks && window._followUpCallbacks[choice]){
+    window._followUpCallbacks[choice]();
+    window._followUpCallbacks = null;
+  }
+}
+
+function waitForFollowUp(){
+  return new Promise(resolve => {
+    showFollowUp(
+      () => resolve('understood'),
+      () => resolve('re-explain'),
+      () => resolve('move-on')
+    );
+  });
+}
+
+let agentSpeaking = false; // true while agent TTS is active
+
+// ---- Speak wrapper that returns a Promise ----
+function agentSpeak(text){
+  return new Promise(resolve => {
+    if(agentAbort){ resolve(); return; }
+    agentSpeaking = true;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    const voice = getBestVoice();
+    if(voice) utt.voice = voice;
+    utt.rate = 0.92; utt.pitch = 1.0; utt.volume = 1.0;
+    utt.onend = () => { agentSpeaking = false; resolve(); };
+    utt.onerror = () => { agentSpeaking = false; resolve(); };
+    window.speechSynthesis.speak(utt);
+  });
+}
+
+function submitQuizAnswer(){
+  const inp = document.getElementById('agentQuizInput');
+  const answer = inp.value.trim();
+  if(!answer) return;
+  if(quizResolve) quizResolve(answer);
+}
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && quizResolve) submitQuizAnswer();
+});
+
+// ---- Call Groq with tool-use ----
+let _pendingFollowUp = false;
+
+async function callGroq(messages){
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + (window.AMPLIFY_ENV?.GROQ_KEY || '') },
+    body: JSON.stringify({
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      max_tokens: 500,
+      tools: AGENT_TOOLS.map(t => ({ type:'function', function: t })),
+      tool_choice: 'auto',
+      messages
+    })
+  });
+  if(!res.ok){ const e = await res.text(); throw new Error(`Groq ${res.status}: ${e}`); }
+  return res.json();
+}
+
+// ---- Main agentic loop ----
+async function runAgentLoop(exp, lastReagent){
+  agentAbort = false;
+  const panel = document.getElementById('agentPanel');
+  panel.style.display = 'block';
+  agentResetUI();
+  agentSetStatus('thinking','thinking');
+  agentThinking();
+
+  // Build experiment state for the agent
+  const expName = document.getElementById('modalTitle').textContent;
+  const availableKeys = Object.keys(EXP).join(', ');
+  const reagentStatus = exp.reagents.map((r,i) => {
+    const btn = document.querySelectorAll('.reagent-btn')[i];
+    return `[${i}] "${r.label}" — ${btn && btn.classList.contains('active') ? 'DONE' : 'available'}`;
+  }).join('\n');
+
+  const systemPrompt = `You are an agentic chemistry tutor AI controlling a virtual chemistry lab for HSC students.
+
+CRITICAL: You MUST only call tools using proper JSON function call format. Never write function calls as plain text or XML. Always use the tool_calls mechanism provided by the API.
+
+Your goals after a reaction completes (execute in this order):
+1. Call speak_to_student to explain WHY the result happened at an ionic/molecular level (1-2 sentences)
+2. Call speak_to_student to address one common student misconception about this reaction
+3. Optionally call add_reagent or open_experiment to demonstrate something related
+4. Call ask_student with one quiz question to check comprehension
+5. Call speak_to_student to give brief feedback on their answer
+6. Call finish with a short closing remark
+
+Rules:
+- ALWAYS use tool calls — never respond with plain text
+- Keep each speak_to_student text short: 1-3 sentences max
+- Available experiment keys: ${availableKeys}
+- Call finish when done — do not loop forever`;
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: `Current experiment: ${expName}
+Equation: ${exp.equation}
+Reagents:\n${reagentStatus}
+Last observation: ${lastReagent.obs}
+Result state: ${lastReagent.state}
+
+Start the teaching session now.` }
+  ];
+
+  let iterations = 0;
+  const MAX_ITER = 12;
+
+  while(iterations < MAX_ITER && !agentAbort){
+    iterations++;
+    agentSetStatus('thinking','thinking');
+    agentThinking();
+
+    let data;
+    try {
+      data = await callGroq(messages);
+    } catch(err){
+      agentLog('obs', `API error: ${err.message}`);
+      agentSetMain('Agent encountered an API error. Check console.');
+      agentSetStatus('idle','error');
+      return;
+    }
+
+    const msg = data.choices[0].message;
+    messages.push(msg); // add assistant turn
+
+    // No tool calls → shouldn't happen with tool_choice:required, but handle gracefully
+    if(!msg.tool_calls || msg.tool_calls.length === 0){
+      if(msg.content) agentSetMain(msg.content);
+      agentSetStatus('idle','done');
+      break;
+    }
+
+    // Execute each tool call
+    const toolResults = [];
+    for(const tc of msg.tool_calls){
+      if(agentAbort) break;
+      const toolName = tc.function.name;
+      let toolArgs = {};
+      try { toolArgs = JSON.parse(tc.function.arguments); } catch(e){}
+
+      agentSetStatus('acting', toolName.replace(/_/g,' '));
+
+      const result = await executeTool(toolName, toolArgs);
+      agentLog('obs', JSON.stringify(result).slice(0,120));
+
+      toolResults.push({
+        role: 'tool',
+        tool_call_id: tc.id,
+        content: JSON.stringify(result)
+      });
+
+      if(toolName === 'finish') { agentAbort = true; break; }
+    }
+
+    // Add tool results to message history
+    messages.push(...toolResults);
+
+    if(agentAbort) break;
+    await delay(300);
+  }
+
+  agentSetStatus('idle','done');
+}
+
+// ---- Entry point: called when last reagent is added ----
+function triggerAITutor(exp, lastReagent){
+  runAgentLoop(exp, lastReagent);
+}
+
+function resetLab(){
+  particles=[];
+  bubbles=[];
+  snowflakes=[];
+  precipLevel=0;
+  turbidity=0;
+  ringLevel=0;
+  silverLevel=0;
+  heatWave=0;
+  reagentStep=0;
+  if(currentExp){
+    targetColor=currentExp.initial.color;
+    document.getElementById('obsText').textContent='Add a reagent to begin the reaction...';
+    document.getElementById('stateLabel').textContent='Ready';
+    document.getElementById('stateDot').style.background='var(--txt3)';
+    document.getElementById('stateDot').style.boxShadow='none';
+    document.querySelectorAll('.reagent-btn').forEach(b=>{b.classList.remove('active');b.disabled=false;});
+    document.querySelectorAll('.step-num').forEach(n=>n.classList.remove('done'));
+    document.querySelectorAll('.step-item').forEach(s=>s.classList.remove('active'));
+    document.getElementById('agentPanel').style.display='none';
+    agentAbort = true;
+    if(quizResolve){ quizResolve('(reset)'); }
+    // resume if paused
+    if(isPaused){
+      isPaused=false;
+      window.speechSynthesis.resume();
+      if(!animId) draw();
+      const pb=document.getElementById('pauseBtn');
+      pb.textContent='⏸ Pause';
+      pb.style.background='rgba(0,255,136,0.08)';
+      pb.style.borderColor='rgba(0,255,136,0.25)';
+      pb.style.color='var(--acc)';
+    }
+  }
+}
+
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow='';
+  if(animId){cancelAnimationFrame(animId);animId=null;}
+  if(isPaused){ isPaused=false; window.speechSynthesis.resume(); }
+  window.speechSynthesis.cancel();
+  agentAbort = true;
+  if(quizResolve){ quizResolve('(closed)'); }
+  document.getElementById('pauseBtn').style.display='none';
+}
+
+// ===================== FILTERING =====================
+let activeSection='ALL';
+function setSection(sec,btn){
+  activeSection=sec;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  filterExp();
+}
+function filterExp(){
+  const q=document.getElementById('labSearch').value.toLowerCase();
+  let count=0;
+  document.querySelectorAll('.section').forEach(sec=>{
+    let vis=false;
+    sec.querySelectorAll('.exp-card').forEach(card=>{
+      const name=(card.dataset.name||'').toLowerCase();
+      const cs=card.dataset.section;
+      const matchS=activeSection==='ALL'||cs===activeSection;
+      const matchQ=!q||name.includes(q);
+      if(matchS&&matchQ){card.style.display='flex';vis=true;count++;}
+      else card.style.display='none';
+    });
+    sec.classList.toggle('hidden',!vis);
+  });
+  document.getElementById('expCount').textContent=`Showing ${count} experiment${count!==1?'s':''}`;
+}
+window.setSection=setSection;
+window.filterExp=filterExp;
+window.openLab=openLab;
+window.closeModal=closeModal;
+window.resetLab=resetLab;
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+document.querySelectorAll('.exp-card').forEach((c,i)=>c.style.animationDelay=`${i*.03}s`);
+filterExp();
+
+// ===================== GUIDED SESSION =====================
+const SECTION_MAP = [
+  { keys: ['organic', 'organic chemistry', 'organics'],
+    label: 'Organic Chemistry',
+    experiments: ['alcohol','aldehyde','fehling','baeyer'] },
+  { keys: ['cation', 'cation test', 'cations'],
+    label: 'Cation Tests',
+    experiments: ['nh4','fe2','fe3','cu2','zn2','pb2'] },
+  { keys: ['anion', 'anion test', 'anions'],
+    label: 'Anion Tests',
+    experiments: ['co3','so4','cl','acetate','no3'] },
+  { keys: ['titration', 'titrations'],
+    label: 'Titration',
+    experiments: ['titration','redox','na2co3'] },
+  { keys: ['rate', 'kinetics', 'rate of reaction'],
+    label: 'Rate of Reaction',
+    experiments: ['rate1','h2o2'] },
+  { keys: ['heat', 'enthalpy', 'calorimetry'],
+    label: 'Heat Experiments',
+    experiments: ['heat','cuso4'] },
+];
+
+const SESSION = { active: false, queue: [], index: 0, label: '' };
+
+function matchSection(transcript) {
+  const t = transcript.toLowerCase();
+  for (const s of SECTION_MAP) {
+    for (const k of s.keys) {
+      if (t.includes(k)) return s;
+    }
+  }
+  return null;
+}
+
+function listenForYesNo(onResult) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { onResult('unclear'); return; }
+  const r = new SR();
+  r.lang = 'en-US'; r.interimResults = false; r.maxAlternatives = 3;
+  r.onresult = (e) => {
+    const said = e.results[0][0].transcript.toLowerCase();
+    if (said.includes('yes') || said.includes('yeah') || said.includes('yep') || said.includes('sure') || said.includes('next') || said.includes('got it')) {
+      onResult('yes');
+    } else if (said.includes('no') || said.includes('nope') || said.includes('again') || said.includes('repeat') || said.includes('stop')) {
+      onResult('no');
+    } else {
+      onResult('unclear');
+    }
+  };
+  r.onerror = () => onResult('unclear');
+  r.start();
+}
+
+function runGuidedSession() {
+  if (!SESSION.active) return;
+  const stopBtn = document.getElementById('stopSessionBtn');
+  if (stopBtn) stopBtn.style.display = 'block';
+
+  const currentKey = SESSION.queue[SESSION.index];
+  const voiceEntry = VOICE_MAP.find(v => v.key === currentKey);
+  const expName = voiceEntry ? voiceEntry.name : currentKey;
+  const expData = EXP[currentKey];
+  const summary = expData ? expData.reagents[0].obs.split('.')[0] + '.' : '';
+
+  speak(`That was the ${expName}. ${summary} Did you understand this reaction? Say yes or no.`, () => {
+    showToast('🎙️ Did you understand? Say yes or no...');
+    listenForYesNo((answer) => {
+      hideToast();
+      if (answer === 'no' || answer === 'unclear') {
+        speak('No problem, let me show it again.', () => {
+          resetLab();
+          setTimeout(() => {
+            autoRunExperiment(EXP[currentKey]);
+            const reagentCount = EXP[currentKey] ? EXP[currentKey].reagents.length : 1;
+            setTimeout(runGuidedSession, reagentCount * 4000 + 3000);
+          }, 600);
+        });
+      } else {
+        const hasNext = SESSION.index + 1 < SESSION.queue.length;
+        if (hasNext) {
+          const nextKey = SESSION.queue[SESSION.index + 1];
+          const nextEntry = VOICE_MAP.find(v => v.key === nextKey);
+          const nextName = nextEntry ? nextEntry.name : nextKey;
+          speak(`Great! Shall I show the next reaction — ${nextName}? Say yes or no.`, () => {
+            showToast(`🎙️ Next: ${nextName}? Say yes or no...`);
+            listenForYesNo((ans2) => {
+              hideToast();
+              if (ans2 === 'yes') {
+                SESSION.index++;
+                speak(`Opening ${nextName}.`, () => {
+                  closeModal();
+                  setTimeout(() => {
+                    openLab(nextName, SESSION.queue[SESSION.index]);
+                    setTimeout(() => {
+                      const exp = EXP[SESSION.queue[SESSION.index]];
+                      if (exp) {
+                        autoRunExperiment(exp);
+                        setTimeout(runGuidedSession, exp.reagents.length * 4000 + 3000);
+                      }
+                    }, 800);
+                  }, 400);
+                });
+              } else {
+                SESSION.active = false;
+                if (stopBtn) stopBtn.style.display = 'none';
+                speak(`Alright! You completed ${SESSION.index + 1} experiments in ${SESSION.label}. Well done!`);
+                showToast(`✅ Session ended — ${SESSION.index + 1} done`, 4000);
+              }
+            });
+          });
+        } else {
+          SESSION.active = false;
+          if (stopBtn) stopBtn.style.display = 'none';
+          speak(`Excellent! You finished all ${SESSION.queue.length} experiments in ${SESSION.label}. That's the full section!`);
+          showToast(`🎉 All ${SESSION.queue.length} done!`, 5000);
+        }
+      }
+    });
+  });
+}
+
+function stopSession() {
+  SESSION.active = false;
+  window.speechSynthesis.cancel();
+  const stopBtn = document.getElementById('stopSessionBtn');
+  if (stopBtn) stopBtn.style.display = 'none';
+  showToast('Session ended.', 2000);
+}
+
+// ===================== VOICE ASSISTANT =====================
+const VOICE_MAP = [
+  {keys:['ammonium','nh4','ammonia'],key:'nh4',name:'Ammonium Ion (NH₄⁺) Test'},
+  {keys:['ferrous','fe2','iron two','iron 2','iron ii'],key:'fe2',name:'Ferrous Ion (Fe²⁺) Test'},
+  {keys:['ferric','fe3','iron three','iron 3','iron iii'],key:'fe3',name:'Ferric Ion (Fe³⁺) Test'},
+  {keys:['copper','cu2','cupric'],key:'cu2',name:'Copper Ion (Cu²⁺) Test'},
+  {keys:['zinc','zn','zn2'],key:'zn2',name:'Zinc Ion (Zn²⁺) Test'},
+  {keys:['lead','pb','pb2','plumbous'],key:'pb2',name:'Lead Ion (Pb²⁺) Test'},
+  {keys:['carbonate','co3','carbon dioxide test'],key:'co3',name:'Carbonate (CO₃²⁻) Test'},
+  {keys:['sulphate','sulfate','so4','barium'],key:'so4',name:'Sulphate (SO₄²⁻) Test'},
+  {keys:['chloride','cl','silver nitrate'],key:'cl',name:'Chloride (Cl⁻) Test'},
+  {keys:['acetate','acetic','ch3coo','ethanoate','vinegar'],key:'acetate',name:'Acetate (CH₃COO⁻) Test'},
+  {keys:['nitrate','no3','brown ring'],key:'no3',name:'Nitrate (NO₃⁻) Brown Ring Test'},
+  {keys:['sulphuric acid','sulfuric acid','h2so4','preparation'],key:'h2so4',name:'Preparing 0.1M H₂SO₄'},
+  {keys:['acid base titration','acid-base','hcl naoh','neutralisation titration','neutralization titration'],key:'titration',name:'Acid-Base Titration (HCl vs NaOH)'},
+  {keys:['redox','permanganate','kmno4','oxalic','manganate'],key:'redox',name:'Redox Titration (KMnO₄ vs Oxalic Acid)'},
+  {keys:['heat neutralization','heat of neutralization','enthalpy','delta h','exothermic'],key:'heat',name:'Heat of Neutralization'},
+  {keys:['copper sulphate','copper sulfate','cuso4','crystal'],key:'cuso4',name:'Copper Sulfate Crystals'},
+  {keys:['thiosulfate','thiosulphate','rate','sodium thiosulphate','sodium thiosulfate'],key:'rate1',name:'Rate of Reaction: Thiosulfate + HCl'},
+  {keys:['hydrogen peroxide','h2o2','decomposition','manganese dioxide'],key:'h2o2',name:'Decomposition of Hydrogen Peroxide'},
+  {keys:['alcohol','ethanol','sodium metal','sodium test'],key:'alcohol',name:'Alcohol Test with Sodium'},
+  {keys:['aldehyde','tollens','tollen','silver mirror'],key:'aldehyde',name:"Aldehyde — Tollen's Test"},
+  {keys:['sodium carbonate','na2co3','estimation','double indicator'],key:'na2co3',name:'Estimation of Sodium Carbonate'},
+  {keys:['distillation','purification','distill'],key:'distill',name:'Distillation and Purification'},
+  {keys:['fehling','fehlings'],key:'fehling',name:"Fehling's Test"},
+  {keys:['baeyer','unsaturation'],key:'baeyer',name:"Baeyer's Test"},
+];
+
+function getBestVoice(){
+  const voices = window.speechSynthesis.getVoices();
+  const natural = voices.find(v => v.name.includes('Online (Natural)') && v.lang.startsWith('en'));
+  if(natural) return natural;
+  const msft = voices.find(v => v.name.includes('Microsoft') && v.lang.startsWith('en'));
+  if(msft) return msft;
+  return voices.find(v => v.lang.startsWith('en')) || null;
+}
+
+function stopAllSpeech(){
+  window.speechSynthesis.resume();
+  window.speechSynthesis.cancel();
+  agentSpeaking = false;
+  agentAbort = true;
+  _justAnsweredQuiz = false;
+  if(quizResolve){ quizResolve('(stopped)'); }
+  SESSION.active = false;
+  const stopBtn = document.getElementById('stopSessionBtn');
+  if(stopBtn) stopBtn.style.display = 'none';
+}
+
+async function speak(text, onEnd){
+  // Wait if agent is currently speaking so we don't cut it off
+  if(agentSpeaking){
+    await new Promise(r => {
+      const check = setInterval(()=>{ if(!agentSpeaking){ clearInterval(check); r(); } }, 100);
+    });
+  }
+  if(agentSpeaking) return; // aborted while waiting
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  const voice = getBestVoice();
+  if(voice) utt.voice = voice;
+  utt.rate = 0.92;
+  utt.pitch = 1.0;
+  utt.volume = 1.0;
+  if(onEnd) utt.onend = onEnd;
+  window.speechSynthesis.speak(utt);
+}
+
+function showToast(msg, duration){
+  const t = document.getElementById('voiceToast');
+  document.getElementById('voiceToastText').textContent = msg;
+  t.style.display = 'block';
+  t.style.opacity = '1';
+  if(duration){
+    setTimeout(()=>{
+      t.style.opacity = '0';
+      setTimeout(()=>t.style.display='none', 400);
+    }, duration);
+  }
+}
+function hideToast(){
+  const t = document.getElementById('voiceToast');
+  t.style.opacity = '0';
+  setTimeout(()=>t.style.display='none', 400);
+}
+
+function matchExperiment(transcript){
+  const t = transcript.toLowerCase();
+  for(const entry of VOICE_MAP){
+    for(const k of entry.keys){
+      if(t.includes(k)) return entry;
+    }
+  }
+  return null;
+}
+
+function autoRunExperiment(exp){
+  const reagents = exp.reagents;
+  let i = 0;
+
+  function runStep(){
+    if(i >= reagents.length){
+      if(SESSION.active) setTimeout(runGuidedSession, 1500);
+      return;
+    }
+    const reagent = reagents[i];
+    const btn = document.getElementById(`rbtn_${i}`);
+    if(btn && !btn.classList.contains('active')){
+      addReagent(i, reagent, btn);
+      const stepText = exp.steps[i] ? exp.steps[i] : reagent.label;
+      const obsText = reagent.obs || '';
+      speak(`Step ${i+1}. ${stepText}. ${obsText}`, ()=>{
+        i++;
+        setTimeout(runStep, 1200);
+      });
+    } else {
+      i++;
+      setTimeout(runStep, 400);
+    }
+  }
+  runStep();
+}
+
+function startVoiceCommand(){
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    showToast('⚠️ Speech recognition not supported in this browser', 3000);
+    return;
+  }
+
+  const btn = document.getElementById('voiceBtn');
+  const lbl = document.getElementById('voiceBtnLabel');
+  const mic = document.getElementById('micIcon');
+
+  btn.style.background = 'rgba(0,255,136,0.25)';
+  btn.style.borderColor = '#00ff88';
+  mic.textContent = '🔴';
+  lbl.textContent = 'Listening...';
+
+  showToast('🎙️ Listening... say an experiment name');
+
+  const recog = new SpeechRecognition();
+  recog.lang = 'en-US';
+  recog.interimResults = false;
+  recog.maxAlternatives = 5;
+
+  recog.onresult = (e)=>{
+    btn.style.background = 'rgba(0,255,136,0.08)';
+    btn.style.borderColor = 'rgba(0,255,136,0.25)';
+    mic.textContent = '🎙️';
+    lbl.textContent = 'Speak Experiment';
+
+    const said = e.results[0][0].transcript;
+    const section = matchSection(said);
+
+    if (section) {
+      SESSION.active = true;
+      SESSION.queue = section.experiments.filter(k => EXP[k]);
+      SESSION.index = 0;
+      SESSION.label = section.label;
+      if (SESSION.queue.length === 0) {
+        speak(`No animated experiments found for ${section.label} yet.`);
+        SESSION.active = false;
+        return;
+      }
+      const firstName = VOICE_MAP.find(v => v.key === SESSION.queue[0])?.name || SESSION.queue[0];
+      showToast(`▶ Starting ${section.label} session — ${SESSION.queue.length} experiments`);
+      speak(`Starting ${section.label}. ${SESSION.queue.length} experiments. Beginning with ${firstName}.`, () => {
+        hideToast();
+        openLab(firstName, SESSION.queue[0]);
+        setTimeout(() => {
+          const exp = EXP[SESSION.queue[0]];
+          if (exp) {
+            autoRunExperiment(exp);
+            setTimeout(runGuidedSession, exp.reagents.length * 4000 + 3000);
+          }
+        }, 800);
+      });
+    } else {
+      let found = null;
+      for (let a = 0; a < e.results[0].length; a++) {
+        found = matchExperiment(e.results[0][a].transcript);
+        if (found) break;
+      }
+      if (found) {
+        SESSION.active = false;
+        showToast(`✅ Opening: ${found.name}`);
+        speak(`Opening the ${found.name}. Starting the experiment now.`, () => {
+          hideToast();
+          openLab(found.name, found.key);
+          setTimeout(() => {
+            const exp = EXP[found.key];
+            if (exp) autoRunExperiment(exp);
+          }, 800);
+        });
+      } else {
+        showToast(`❌ Didn't recognise: "${said}". Try again.`, 3500);
+        speak(`Sorry, I didn't recognise that. Try saying a category like "organic chemistry" or "titration", or a specific name like "ferrous ion test".`);
+      }
+    }
+  };
+
+  recog.onerror = (e)=>{
+    btn.style.background = 'rgba(0,255,136,0.08)';
+    btn.style.borderColor = 'rgba(0,255,136,0.25)';
+    mic.textContent = '🎙️';
+    lbl.textContent = 'Speak Experiment';
+    showToast(`⚠️ Mic error: ${e.error}`, 3000);
+  };
+
+  recog.onend = ()=>{
+    btn.style.background = 'rgba(0,255,136,0.08)';
+    btn.style.borderColor = 'rgba(0,255,136,0.25)';
+    mic.textContent = '🎙️';
+    lbl.textContent = 'Speak Experiment';
+  };
+
+  recog.start();
+}
+
+function fireWelcome(){
+  const voices = window.speechSynthesis.getVoices();
+  if(voices.length === 0){
+    window.speechSynthesis.onvoiceschanged = ()=>{
+      window.speechSynthesis.onvoiceschanged = null;
+      speak("Welcome to the laboratory. What experiment would you like to do today?");
+    };
+  } else {
+    speak("Welcome to the laboratory. What experiment would you like to do today?");
+  }
+}
+
+window.addEventListener('load', ()=>{ setTimeout(fireWelcome, 800); });
+
+const eqs = [
+  'NaOH + HCl → NaCl + H₂O',
+  'Fe²⁺ + 2OH⁻ → Fe(OH)₂↓',
+  'Cu²⁺ + 4NH₃ → [Cu(NH₃)₄]²⁺',
+  'Ag⁺ + Cl⁻ → AgCl↓',
+  '2H₂O₂ → 2H₂O + O₂↑',
+  'MnO₄⁻ → Mn²⁺ + CO₂',
+  'RCHO + 2Cu²⁺ → Cu₂O↓ (Fehling\'s)',
+  'C₆H₆ + RCl → C₆H₅R (Friedel-Crafts)',
+  'Diene + dienophile → cyclohexene [4+2]',
+  'ArN₂⁺ + CuX → ArX + N₂↑ (Sandmeyer)'
+];
+
+let eqIdx=0;
+setInterval(()=>{
+  const el=document.getElementById('heroEq');
+  if(!el)return;
+  el.style.opacity='0';
+  setTimeout(()=>{eqIdx=(eqIdx+1)%eqs.length;el.textContent=eqs[eqIdx];el.style.opacity='1';},220);
+},3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiz — Amplify</title>
+  <link rel="stylesheet" href="/src/style.css" />
+  <link rel="stylesheet" href="/src/quiz.css" />
+</head>
+<body>
+  <header class="header" id="header">
+    <div class="container">
+      <nav class="nav">
+        <a href="/" class="logo">Amplify</a>
+        <div style="display:flex;gap:12px;">
+          <a href="/index.html" class="nav-link-routine">Home</a>
+          <a href="/routine.html" class="nav-link-routine">Routine</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="quiz-main">
+    <div class="quiz-bg-orb orb-1"></div>
+    <div class="quiz-bg-orb orb-2"></div>
+    <div class="container">
+
+      <div class="quiz-step" id="step-loading">
+        <div class="loading-screen glass-card">
+          <div class="loading-orb"></div>
+          <h2>Generating your quiz...</h2>
+          <p id="quizLoadingMsg">Finding NCTB standard questions</p>
+          <div class="loading-bar">
+            <div class="loading-fill" id="quizLoadingFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quiz-step hidden" id="step-quiz">
+        <div class="quiz-header glass-card">
+          <div class="quiz-meta">
+            <span id="quizSubjectLabel"></span>
+            <span id="quizTopicLabel"></span>
+          </div>
+
+          <div class="quiz-top-row">
+            <div class="quiz-progress-row">
+              <div class="quiz-progress-copy">
+                <span id="quizProgressText">Question 1 of 10</span>
+              </div>
+              <div class="quiz-progress-bar">
+                <div class="quiz-progress-fill" id="quizProgressFill"></div>
+              </div>
+            </div>
+
+            <div class="timer-pill" id="timerPill">
+              <span class="timer-label">Time left</span>
+              <span class="timer-value" id="timerText">10:00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="question-card glass-card" id="questionCard">
+          <p class="question-number" id="questionNumber">Question 1</p>
+          <h2 class="question-text" id="questionText"></h2>
+          <div class="options-grid" id="optionsGrid"></div>
+          <button class="btn btn-primary next-btn" id="nextBtn" style="display:none;" type="button">
+            Next Question
+          </button>
+        </div>
+      </div>
+
+      <div class="quiz-step hidden" id="step-result">
+        <div class="result-card glass-card">
+          <h1 id="resultHeading">Quiz Complete</h1>
+          <div class="score-display">
+            <span id="scoreText"></span>
+          </div>
+          <p id="resultMessage"></p>
+          <div class="result-actions">
+            <button class="btn btn-primary" id="btnRetry" type="button">Retry Quiz</button>
+            <button class="btn btn-outline" id="btnBackToRoutine" type="button">Back to Routine</button>
+          </div>
+          <div class="answer-review" id="answerReview"></div>
+        </div>
+      </div>
+
+      <div class="quiz-step hidden" id="step-error">
+        <div class="error-card glass-card">
+          <h2>Could not generate quiz</h2>
+          <p id="errorMsg"></p>
+          <button class="btn btn-primary" id="btnGoBack" type="button">Go Back</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script type="module" src="/src/quiz.js"></script>
+</body>
+</html>

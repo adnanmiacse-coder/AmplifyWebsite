@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Routine Planner — Amplify</title>
+  <link rel="stylesheet" href="/src/style.css" />
+  <link rel="stylesheet" href="/src/routine.css" />
+</head>
+<body>
+
+  <header class="header" id="header">
+    <div class="container">
+      <nav class="nav">
+        <a href="/" class="logo">Amplify</a>
+        <div style="display:flex;gap:12px;">
+          <a href="/index.html" class="nav-link-routine">Home</a>
+          <a href="/career.html" class="nav-link-routine">Career</a>
+          <a href="/experiments.html" class="nav-link-routine">Experiments</a>
+          <a href="/chemistry.html" class="nav-link-routine">Chemistry</a>
+          <a href="/biology-lab.html" class="nav-link-routine">Biology</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+<style>
+.nav-link-routine{color:var(--text-secondary);text-decoration:none;font-size:0.85rem;padding:6px 12px;border-radius:6px;transition:all 0.2s ease;}
+.nav-link-routine:hover{color:var(--accent);background:rgba(0,255,136,0.1);}
+</style>
+
+  <main class="routine-main">
+    <div class="container">
+
+      <!-- STEP 1: Form -->
+      <div class="routine-step" id="step-form">
+        <div class="step-header">
+          <div class="step-badge">📅 Routine Planner</div>
+          <h1>Let's build your<br /><span>exam routine</span></h1>
+          <p>Tell us about your exam and upload your syllabus — we'll do the rest.</p>
+        </div>
+
+        <form class="routine-form" id="routineForm">
+
+          <div class="form-group">
+            <label>What level are you?</label>
+            <div class="toggle-group">
+              <button type="button" class="toggle-btn active" data-value="SSC" id="btnSSC">SSC</button>
+              <button type="button" class="toggle-btn" data-value="HSC" id="btnHSC">HSC</button>
+            </div>
+            <input type="hidden" id="levelInput" value="SSC" />
+          </div>
+
+          <div class="form-group">
+            <label for="examDate">When is your exam?</label>
+            <input type="date" id="examDate" class="form-input" required />
+            <span class="days-remaining" id="daysRemaining"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="subjects">Your subjects <span class="label-hint">(comma separated)</span></label>
+            <input
+              type="text"
+              id="subjects"
+              class="form-input"
+              placeholder="e.g. Physics, Chemistry, Math, Biology"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Upload syllabus images <span class="label-hint">(optional, max 3)</span></label>
+            <div class="upload-zone" id="uploadZone">
+              <input type="file" id="syllabusUpload" accept="image/*" multiple hidden />
+              <div class="upload-placeholder" id="uploadPlaceholder">
+                <span class="upload-icon">🖼️</span>
+                <span>Click to upload or drag & drop</span>
+                <span class="upload-hint">PNG, JPG up to 5MB each</span>
+              </div>
+              <div class="upload-previews" id="uploadPreviews"></div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="studyHours">How many hours can you study per day?</label>
+            <div class="range-row">
+              <input type="range" id="studyHours" min="2" max="12" value="6" class="range-input" />
+              <span class="range-value" id="hoursValue">6 hrs</span>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full" id="generateBtn">
+            ✨ Generate My Routine
+          </button>
+
+        </form>
+      </div>
+
+      <!-- STEP 2: Loading -->
+      <div class="routine-step hidden" id="step-loading">
+        <div class="loading-screen">
+          <div class="loading-orb"></div>
+          <h2>Building your routine...</h2>
+          <p id="loadingMsg">Analyzing your syllabus and exam timeline</p>
+          <div class="loading-bar"><div class="loading-fill" id="loadingFill"></div></div>
+        </div>
+      </div>
+
+      <!-- STEP 3: Result -->
+      <div class="routine-step hidden" id="step-result">
+        <div class="result-header">
+          <div class="step-badge">✅ Your Routine is Ready</div>
+          <h1>Your personalized<br /><span>exam routine</span></h1>
+          <div class="result-meta" id="resultMeta"></div>
+          <button class="btn btn-outline" id="btnRestart">← Build Another</button>
+        </div>
+        <div class="routine-table-wrap">
+          <div id="routineOutput"></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script type="module" src="/src/routine.js"></script>
+</body>
+</html>
