@@ -77,6 +77,10 @@ app.add_middleware(CORSMiddleware,
     allow_headers=["*"],
     allow_credentials=True)
 
+@app.get("/")
+async def root():
+    return {"status": "ok"}
+
 # ══════════════════════════════════════════
 #  LANGGRAPH — Expert Discussion (deeplearn)
 # ══════════════════════════════════════════
