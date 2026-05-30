@@ -2181,28 +2181,25 @@ function showDiagram(videoUrl, topic) {
 
   setTimeout(() => {
     container.innerHTML = '';
-    if (videoUrl) {
-      const video = document.createElement('video');
-      video.src = videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`;
-      video.autoplay = true;
-      video.loop = true;
-      video.muted = true;
-      video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
-      container.appendChild(video);
-      cap.textContent = '🎬 ' + topic;
-    } else {
-      // Fallback — plain pulsing circle, no broken SVG
-      container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
-        <rect width="460" height="240" fill="#0f0c29"/>
-        <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
-          <animate attributeName="r" values="35;55;35" dur="2s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/>
-        </circle>
-        <text x="230" y="175" text-anchor="middle" fill="#a78bfa" font-size="15" font-family="Arial">${topic}</text>
-        <text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">রেন্ডার হচ্ছে…</text>
-      </svg>`;
-      cap.textContent = '';
-    }
+    const fallbackVideoUrl = `${apiBase()}/videos/3e64f732.mp4`;
+    const resolvedVideoUrl = videoUrl
+      ? videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`
+      : fallbackVideoUrl;
+
+    const video = document.createElement('video');
+    video.src = resolvedVideoUrl;
+    video.autoplay = true;
+    video.loop = true;
+    video.muted = true;
+    video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
+    video.onerror = () => {
+      if (video.src !== fallbackVideoUrl) {
+        video.src = fallbackVideoUrl;
+      }
+    };
+
+    container.appendChild(video);
+    cap.textContent = '🎬 ' + topic;
     container.classList.add('visible');
   }, 300);
 }
