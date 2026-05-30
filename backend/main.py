@@ -543,9 +543,4 @@ async def get_config():
     }
 
 
-# Serve frontend static assets built by Vite
-app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
-
-@app.get("/{full_path:path}")
-async def serve_frontend(full_path: str):
-    return FileResponse("dist/index.html")
+app.mount("/", StaticFiles(directory="../frontend", html=True), name="static")
