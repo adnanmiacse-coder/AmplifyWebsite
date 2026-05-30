@@ -1,4 +1,4 @@
-# 🎓 StyleTutor — AI-Driven Adaptive Learning Assistant
+# 🎓 Amplify — AI-Driven Adaptive Learning Assistant
 
 An intelligent, multimodal learning platform built for Bengali learners. StyleTutor combines multi-provider LLM orchestration, local Ollama inference, document-based RAG, adaptive assessments, and voice interaction — all powered by a Laravel backend for classroom and teacher management.
 
