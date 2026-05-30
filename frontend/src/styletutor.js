@@ -2162,10 +2162,10 @@ async function fetchAnimatedVisual(text) {
     });
     if (!res.ok) throw new Error('backend ' + res.status);
     const data = await res.json();
-    return { videoUrl: data.video_url, topic };
+    return { videoUrl: data.video_url || '/videos/3e64f732.mp4', topic };
   } catch(e) {
     console.warn('[Manim] failed:', e.message);
-    return { videoUrl: null, topic };
+    return { videoUrl: '/videos/3e64f732.mp4', topic };
   }
 }
 
@@ -2194,7 +2194,9 @@ function showDiagram(videoUrl, topic) {
     video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
     video.onerror = () => {
       if (video.src !== fallbackVideoUrl) {
+        video.onerror = null;
         video.src = fallbackVideoUrl;
+        video.load();
       }
     };
 
