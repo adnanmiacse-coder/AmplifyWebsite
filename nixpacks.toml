@@ -2,17 +2,12 @@
 [variables]
 PIP_NO_CACHE_DIR = "true"
 
-[phases.setup]
-cmds = [
-  "python -m pip install --upgrade pip",
-  "python -m pip install -r backend/requirements.txt"
-]
+# Let Nixpacks install phase handle pip/venv — do not run pip in setup.
 
 [phases.build]
 cmds = [
   "if [ -d frontend ]; then rm -rf backend/frontend && cp -r frontend backend/frontend; fi",
-  "if [ -d ../frontend ] && [ ! -d frontend ]; then rm -rf frontend && cp -r ../frontend frontend; fi",
-  "test -d backend/frontend || test -d frontend || (echo 'ERROR: no frontend directory found' && exit 1)"
+  "test -d backend/frontend || (echo 'ERROR: no frontend directory found' && exit 1)"
 ]
 
 [start]
