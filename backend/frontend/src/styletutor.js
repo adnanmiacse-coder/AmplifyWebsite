@@ -478,176 +478,197 @@ class GraphStore {
 
 const graph = new GraphStore();
 
-// ─────────────────────────────────────────────────────
-// CYTOSCAPE TOPIC MAP
-// ─────────────────────────────────────────────────────
-let cy = null;
-
+//I CHANGED HERE
 function renderTopicGraph() {
   const placeholder = document.getElementById('cy-placeholder');
   const container   = document.getElementById('cy');
   if (!graph.nodes || !Object.keys(graph.nodes).length) return;
   if (placeholder) placeholder.style.display = 'none';
 
-  const threshold = parseInt(document.getElementById('edge-threshold')?.value || 2);
+  // Build topic clusters from graph data
   const nodeLimit = parseInt(document.getElementById('node-limit')?.value || 35);
+  const threshold = parseInt(document.getElementById('edge-threshold')?.value || 2);
 
-  // Build node + edge lists
   const sortedNodes = Object.entries(graph.nodes)
     .sort((a, b) => b[1].freq - a[1].freq)
     .slice(0, nodeLimit);
-  const nodeIds = new Set(sortedNodes.map(([id]) => id));
-  const freqs   = sortedNodes.map(([,d]) => d.freq);
+
+  if (!sortedNodes.length) return;
+
+  // Group nodes into clusters by co-occurrence (for mind map branches)
+  const freqs = sortedNodes.map(([,d]) => d.freq);
   const maxFreq = Math.max(...freqs, 1);
-  const minFreq = Math.min(...freqs, 1);
 
-  const allEdges = Object.entries(graph.edges)
-    .filter(([key, w]) => {
-      const [a,b] = key.split('|||');
-      return w >= threshold && nodeIds.has(a) && nodeIds.has(b);
-    })
-    .map(([key, weight]) => {
-      const [a,b] = key.split('|||');
-      return { data: { id: key, source: a, target: b, weight } };
+  // Pick top 7 nodes as branch roots
+  const roots = sortedNodes.slice(0, 7);
+  // Remaining nodes assigned to nearest root via edge weight
+  const remaining = sortedNodes.slice(7);
+
+  function getChildren(rootId) {
+    const children = [];
+    for (const [nodeId] of remaining) {
+      const key1 = [rootId, nodeId].sort().join('|||');
+      const key2 = [nodeId, rootId].sort().join('|||');
+      const w = graph.edges[key1] || graph.edges[key2] || 0;
+      if (w >= threshold) children.push({ id: nodeId, weight: w });
+    }
+    return children.sort((a,b) => b.weight - a.weight).slice(0, 4);
+  }
+
+  // Detect the main topic from first chunk
+  const mainTopic = store.chunks[0]?.text?.slice(0, 40).trim() || 'বিষয়';
+
+  // Build SVG mind map
+  const W = 900, H = 600, CX = 450, CY = 300;
+  const R_CENTER = 52;
+  const BRANCH_R = 120;
+  const LEAF_R = 75;
+
+  const branchColors = [
+    '#f97316','#a78bfa','#34d399','#60a5fa','#f472b6','#fbbf24','#4ade80'
+  ];
+
+  // Position branches radially
+  const branches = roots.map(([id, data], i) => {
+    const angle = (i / roots.length) * 2 * Math.PI - Math.PI / 2;
+    const dist = 190;
+    return {
+      id, freq: data.freq,
+      x: CX + Math.cos(angle) * dist,
+      y: CY + Math.sin(angle) * dist,
+      angle,
+      color: branchColors[i % branchColors.length],
+      children: getChildren(id)
+    };
+  });
+
+  let svgContent = `
+    <style>
+      #mindmap-svg .branch-node { cursor: pointer; transition: transform 0.18s; transform-box: fill-box; transform-origin: center; }
+      #mindmap-svg .branch-node:hover { transform: scale(1.08); }
+      #mindmap-svg .leaf-node { cursor: pointer; transition: transform 0.18s; transform-box: fill-box; transform-origin: center; }
+      #mindmap-svg .leaf-node:hover { transform: scale(1.12); }
+      #mindmap-svg .branch-line { transition: opacity 0.3s; }
+      @keyframes branchIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+      @keyframes leafIn { from { opacity: 0; transform: scale(0.3); } to { opacity: 1; transform: scale(1); } }
+      #mindmap-svg .branch-node { animation: branchIn 0.35s ease forwards; }
+      #mindmap-svg .leaf-label { font-family: 'Hind Siliguri', sans-serif; font-size: 11px; font-weight: 500; fill: #e2e8f0; }
+      #mindmap-svg .branch-label { font-family: 'Hind Siliguri', sans-serif; font-size: 13px; font-weight: 700; }
+      #mindmap-svg .center-label { font-family: 'Hind Siliguri', sans-serif; font-size: 14px; font-weight: 700; fill: #fff; }
+      #mindmap-svg .leaf-group { opacity: 0; transition: opacity 0.4s; }
+      #mindmap-svg .leaf-group.visible { opacity: 1; }
+    </style>`;
+
+  // Draw curved branch lines
+  branches.forEach((b, i) => {
+    const cp1x = CX + (b.x - CX) * 0.4;
+    const cp1y = CY + (b.y - CY) * 0.4;
+    svgContent += `<path class="branch-line" d="M${CX},${CY} Q${cp1x},${cp1y} ${b.x},${b.y}" 
+      stroke="${b.color}" stroke-width="2.5" fill="none" opacity="0.7"
+      style="animation: branchIn ${0.3 + i*0.07}s ease forwards;"/>`;
+  });
+
+  // Draw leaf lines (initially hidden, shown on click)
+  branches.forEach((b) => {
+    b.children.forEach((child, ci) => {
+      const leafAngle = b.angle + (ci - (b.children.length-1)/2) * 0.45;
+      const leafDist = 100;
+      child.x = b.x + Math.cos(leafAngle) * leafDist;
+      child.y = b.y + Math.sin(leafAngle) * leafDist;
+      svgContent += `<line class="leaf-line-${b.id.replace(/[^a-zA-Z0-9]/g,'_')}" 
+        x1="${b.x}" y1="${b.y}" x2="${child.x}" y2="${child.y}"
+        stroke="${b.color}" stroke-width="1.2" fill="none" opacity="0.5"
+        style="display:none"/>`;
     });
-
-  const nodeElements = sortedNodes.map(([id, data]) => ({
-    data: {
-      id,
-      label: id,
-      freq: data.freq,
-      pages: [...data.chunks].map(ci => store.chunks[ci]?.pageNum).filter(Boolean)
-    }
-  }));
-
-  if (cy) { cy.destroy(); cy = null; }
-
-  // Start with only nodes, no edges — we'll animate them in
-  cy = cytoscape({
-    container,
-    elements: nodeElements,   // edges added after layout
-    
-    style: [
-      {
-        selector: 'node',
-        style: {
-          'background-color': (ele) => {
-            const t = (ele.data('freq') - minFreq) / (maxFreq - minFreq + 1);
-            if (t > 0.7) return '#f97316';
-            if (t > 0.4) return '#a78bfa';
-            return '#7dd3fc';
-          },
-          'border-width': 0,
-          'width':  (ele) => 28 + ((ele.data('freq') - minFreq) / (maxFreq - minFreq + 1)) * 60,
-          'height': (ele) => 28 + ((ele.data('freq') - minFreq) / (maxFreq - minFreq + 1)) * 60,
-          'label': 'data(label)',
-          'font-size': (ele) => { const t = (ele.data('freq') - minFreq) / (maxFreq - minFreq + 1); return 10 + t * 8; },
-          'font-weight': 600,
-          'font-family': 'Hind Siliguri',
-          'color': '#1a1714',
-          'text-valign': 'center',
-          'text-halign': 'center',
-          'text-wrap': 'wrap',
-          'text-max-width': '80px',
-          'opacity': 0,
-        }
-      },
-      { selector: 'node.visible', style: { 'opacity': 1 } },
-      {
-        selector: 'edge',
-        style: {
-          'width': (ele) => Math.min(0.5 + ele.data('weight') * 0.2, 3),
-          'line-color': '#d1c7bb',
-          'line-style': 'solid',
-          'curve-style': 'bezier',
-          'opacity': 0,
-        }
-      },
-      { selector: 'edge.visible', style: { 'opacity': 0.6 } },
-      { selector: 'edge.highlight', style: { 'opacity': 1, 'line-color': '#c9581a', 'width': 2.5 } },
-      { selector: 'node:selected, node.highlight', style: { 'border-width': 3, 'border-color': '#c9581a' } }
-    ],
-
-    
-    layout: {
-      name: 'cose',
-      animate: false,
-      nodeRepulsion: () => 18000,
-      idealEdgeLength: () => 120,
-      gravity: 0.15,
-      numIter: 1500,
-      fit: true,
-      padding: 48,
-    }
   });
 
-  // ── Animate nodes appearing one by one ──
-  const nodeArr = cy.nodes().toArray();
-  nodeArr.forEach((node, i) => {
-    setTimeout(() => {
-      node.style('opacity', 1);
-      node.addClass('visible');
-    }, i * 60);
+  // Draw branch nodes
+  branches.forEach((b, i) => {
+    const t = (b.freq / maxFreq);
+    const rx = 44 + t * 14;
+    const ry = 22 + t * 8;
+    const delay = 0.15 + i * 0.07;
+    svgContent += `
+      <g class="branch-node" onclick="toggleMindmapLeaves('${b.id.replace(/[^a-zA-Z0-9]/g,'_')}')"
+         style="animation-delay: ${delay}s; opacity:0">
+        <ellipse cx="${b.x}" cy="${b.y}" rx="${rx}" ry="${ry}" 
+          fill="${b.color}" opacity="0.92"/>
+        <text class="branch-label" x="${b.x}" y="${b.y}" 
+          text-anchor="middle" dominant-baseline="central"
+          fill="#1a1a1a" style="font-size:${Math.max(10, 13 - b.id.length * 0.3)}px">
+          ${b.id.length > 12 ? b.id.slice(0,11)+'…' : b.id}
+        </text>
+      </g>`;
   });
 
-  const nodeRevealDone = nodeArr.length * 60 + 100;
+  // Draw leaf nodes (grouped, toggled on branch click)
+  branches.forEach((b) => {
+    const gid = `leaves_${b.id.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    svgContent += `<g id="${gid}" class="leaf-group">`;
+    b.children.forEach((child) => {
+      if (!child.x) return;
+      svgContent += `
+        <g class="leaf-node">
+          <rect x="${child.x - 36}" y="${child.y - 14}" width="72" height="28" rx="14"
+            fill="${b.color}" opacity="0.25" stroke="${b.color}" stroke-width="1"/>
+          <text class="leaf-label" x="${child.x}" y="${child.y}" 
+            text-anchor="middle" dominant-baseline="central"
+            style="font-size:${Math.max(9, 11 - child.id.length * 0.2)}px">
+            ${child.id.length > 10 ? child.id.slice(0,9)+'…' : child.id}
+          </text>
+        </g>`;
+    });
+    svgContent += `</g>`;
+  });
 
-  // ── Then animate edges drawing in one by one ──
+  // Center node
+  svgContent += `
+    <circle cx="${CX}" cy="${CY}" r="${R_CENTER}" fill="#334155" stroke="#94a3b8" stroke-width="1.5"/>
+    <text class="center-label" x="${CX}" y="${CY - 8}" text-anchor="middle" dominant-baseline="central"
+      style="font-size:12px; fill:#e2e8f0">বিষয়মানচিত্র</text>
+    <text class="center-label" x="${CX}" y="${CY + 10}" text-anchor="middle" dominant-baseline="central"
+      style="font-size:10px; fill:#94a3b8">${store.chunks.length} অংশ</text>`;
+
+  container.innerHTML = `
+    <svg id="mindmap-svg" viewBox="0 0 ${W} ${H}" width="100%" 
+      style="background: transparent; display:block;">
+      ${svgContent}
+    </svg>`;
+
+  // Animate branches in with staggered delay
   setTimeout(() => {
-    cy.add(allEdges);
-
-    // Re-apply styles to newly added edges
-    cy.edges().style({
-      'line-color': '#39ff14',
-      'curve-style': 'bezier',
-      'opacity': 0,
+    container.querySelectorAll('.branch-node').forEach((el, i) => {
+      setTimeout(() => { el.style.opacity = '1'; }, i * 70);
     });
-
-    const edgeArr = cy.edges().toArray();
-
-    // Shuffle for a more organic feel
-    for (let i = edgeArr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [edgeArr[i], edgeArr[j]] = [edgeArr[j], edgeArr[i]];
-    }
-
-    edgeArr.forEach((edge, i) => {
-      setTimeout(() => {
-        edge.style('opacity', 0.35);
-        edge.addClass('visible');
-      }, i * 30);
-    });
-  }, nodeRevealDone);
-
-  // ── Tooltip ──
-  const tooltip = document.getElementById('cy-tooltip');
-  cy.on('mouseover', 'node', (evt) => {
-    const n     = evt.target;
-    const pages = [...new Set(n.data('pages'))].sort((a,b)=>a-b).join(', ');
-    tooltip.innerHTML =
-      `<strong style="color:#39ff14">${n.data('label')}</strong><br/>` +
-      `পৃষ্ঠা: ${pages || '—'}<br/>` +
-      `উল্লেখ: ${n.data('freq')} বার`;
-    tooltip.style.display = 'block';
-  });
-  cy.on('mousemove', 'node', (evt) => {
-    tooltip.style.left = (evt.originalEvent.clientX + 16) + 'px';
-    tooltip.style.top  = (evt.originalEvent.clientY - 12) + 'px';
-  });
-  cy.on('mouseout', 'node', () => { tooltip.style.display = 'none'; });
-
-  // ── Click to highlight neighbourhood ──
-  cy.on('tap', 'node', (evt) => {
-    cy.elements().removeClass('highlight');
-    const node = evt.target;
-    node.addClass('highlight');
-    node.connectedEdges().addClass('highlight');
-    node.connectedEdges().connectedNodes().addClass('highlight');
-  });
-  cy.on('tap', (evt) => {
-    if (evt.target === cy) cy.elements().removeClass('highlight');
-  });
+  }, 100);
 }
+
+// Toggle leaf nodes visibility on branch click
+window.toggleMindmapLeaves = function(branchId) {
+  const linesEls = document.querySelectorAll(`.leaf-line-${branchId}`);
+  const group = document.getElementById(`leaves_${branchId}`);
+  if (!group) return;
+
+  const isVisible = group.classList.contains('visible');
+  group.classList.toggle('visible', !isVisible);
+  linesEls.forEach(el => { el.style.display = isVisible ? 'none' : 'block'; });
+
+  // Animate leaves in
+  if (!isVisible) {
+    const leaves = group.querySelectorAll('.leaf-node');
+    leaves.forEach((leaf, i) => {
+      leaf.style.opacity = '0';
+      leaf.style.transform = 'scale(0.4)';
+      leaf.style.transition = `opacity 0.25s ${i*0.06}s, transform 0.25s ${i*0.06}s`;
+      leaf.style.transformBox = 'fill-box';
+      leaf.style.transformOrigin = 'center';
+      requestAnimationFrame(() => {
+        leaf.style.opacity = '1';
+        leaf.style.transform = 'scale(1)';
+      });
+    });
+  }
+};
 
 // ─────────────────────────────────────────────────────
 // CHUNKING
@@ -2946,7 +2967,7 @@ document.querySelectorAll('.qcount-btn').forEach(btn => {
 });
 
 
-  // Graph map controls
+  // I CHANGED HERE TWO
   const edgeSlider = document.getElementById('edge-threshold');
   const nodeSlider = document.getElementById('node-limit');
   if (edgeSlider) {
@@ -2962,10 +2983,9 @@ document.querySelectorAll('.qcount-btn').forEach(btn => {
     });
   }
   on('graph-relayout-btn', 'click', function() {
-    if (cy) cy.layout({ name: 'cose', animate: true, animationDuration: 600,
-      nodeRepulsion: () => 8000, idealEdgeLength: () => 80, fit: true, padding: 32 }).run();
+    if (graph.nodes && Object.keys(graph.nodes).length) renderTopicGraph();
   });
-});
+
 
 // ─────────────────────────────────────────────────────
 // ATTENTION TRACKER
