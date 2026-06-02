@@ -2155,7 +2155,7 @@ function extractKeywords(text) {
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
   try {
-    const res = await fetch(`${apiBase()}/generate`, {
+    const res = await fetch(`https://madnan4980--amplify-manim-fastapi-app.modal.run/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })

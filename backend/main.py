@@ -52,6 +52,7 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 from typing import Annotated, List, TypedDict
 import operator
+import shutil
 
 
 def parse_env_list(name: str, default=None) -> list[str]:
@@ -106,6 +107,11 @@ def get_clients() -> list[OpenAI]:
             for key in get_api_keys()
         ]
     return _clients
+
+
+def manim_available() -> bool:
+    """Return True if the `manim` executable is available on PATH."""
+    return shutil.which("manim") is not None
 
 
 app = FastAPI()
@@ -484,6 +490,15 @@ async def generate(data: Prompt):
     job_id = str(uuid.uuid4())[:8]
     scene_file = os.path.join(SCENES_DIR, f"scene_{job_id}.py")
     output_video = os.path.join(VIDEOS_DIR, f"{job_id}.mp4")
+
+    # Quick runtime check: ensure `manim` binary is available
+    if not manim_available():
+        msg = (
+            "Manim executable not found on the server PATH.\n"
+            "Install Manim Community Edition and system dependencies (ffmpeg, cairo, pango)."
+        )
+        print(f"[{job_id}] ERROR: {msg}")
+        raise HTTPException(500, msg)
 
     # Step 1: Generate code, with fallback to simpler version if syntax broken
     try:
