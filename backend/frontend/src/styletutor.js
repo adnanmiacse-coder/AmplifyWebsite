@@ -2186,14 +2186,26 @@ function showDiagram(videoUrl, topic) {
 
   setTimeout(() => {
     container.innerHTML = '';
-    const fallbackVideoUrl = 'https://amplifywebsite-production.up.railway.app/videos/3e64f732.mp4';
-    const resolvedVideoUrl = videoUrl
-      ? videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`
-      : fallbackVideoUrl;
-
+    
+    // AFTER:
     const video = document.createElement('video');
-    let triedFallback = false;
-    video.src = resolvedVideoUrl;
+    video.src = videoUrl
+      ? (videoUrl.startsWith('blob:') || videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`)
+      : '';
+    if (!videoUrl) {
+      container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
+        <rect width="460" height="240" fill="#0f0c29"/>
+        <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
+          <animate attributeName="r" values="35;55;35" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <text x="230" y="175" text-anchor="middle" fill="#a78bfa" font-size="15" font-family="Arial">${topic}</text>
+      </svg>`;
+      cap.textContent = topic;
+      container.classList.add('visible');
+      return;
+    }
+    
     video.autoplay = true;
     video.loop = true;
     video.muted = true;
