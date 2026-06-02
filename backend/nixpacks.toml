@@ -4,7 +4,22 @@ PIP_NO_CACHE_DIR = "true"
 CPATH = "/usr/include"
 
 [phases.setup]
-aptPkgs = ["ffmpeg", "libcairo2-dev", "libpango1.0-dev", "pkg-config", "build-essential", "libxcb1-dev"]
+aptPkgs = [
+  "ffmpeg",
+  "build-essential",
+  "pkg-config",
+  "python3-dev",
+  "meson",
+  "ninja-build",
+  "libcairo2",
+  "libcairo2-dev",
+  "libpango1.0-0",
+  "libpango1.0-dev",
+  "pango1.0-tools",
+  "libglib2.0-dev",
+  "libffi-dev",
+  "libxcb1-dev"
+]
 
 # Let Nixpacks install phase create /opt/venv and pip install requirements.txt.
 # Do NOT run pip in setup — nix python has no pip module yet.
