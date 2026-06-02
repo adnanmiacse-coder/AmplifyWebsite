@@ -2980,14 +2980,14 @@ async function tDetect(){
     const isDistracted = committed.id !== 'focused';
     if(isDistracted){
       if(!distractionStart) distractionStart=Date.now();
-      if(!warningCooldown && Date.now()-distractionStart>=5000) triggerDistractionWarning();
+      if(!lectureActive && !warningCooldown && Date.now()-distractionStart>=5000) triggerDistractionWarning();
     }else{
       distractionStart=null;
     }
   }else{
     sBuf=[];candId=null;candCt=0;actId=null;htCt=0;setMood(null);
     if(!distractionStart) distractionStart=Date.now();
-    if(!warningCooldown && Date.now()-distractionStart>=8000) triggerDistractionWarning();
+    if(!lectureActive && !warningCooldown && Date.now()-distractionStart>=8000) triggerDistractionWarning();
   }
   requestAnimationFrame(tDetect);
 }
