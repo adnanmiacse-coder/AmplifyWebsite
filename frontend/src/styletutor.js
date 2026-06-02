@@ -9,21 +9,9 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 function apiBase() {
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    const origin = window.location.origin;
-    const host = window.location.hostname || '';
-    const configured = _config.BACKEND_URL || window.AMPLIFY_ENV?.BACKEND_URL || '';
-    if (!configured) return origin;
-    try {
-      const parsed = new URL(String(configured), origin);
-      const isLocalHost = host === 'localhost' || host === '127.0.0.1';
-      // In production always stay same-origin to avoid CORS drift.
-      if (!isLocalHost && parsed.origin !== origin) return origin;
-      return parsed.origin.replace(/\/$/, '');
-    } catch {
-      return origin;
-    }
-  }
+  const fromConfig = _config.BACKEND_URL || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.BACKEND_URL);
+  if (fromConfig) return String(fromConfig).replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
   return '';
 }
 
@@ -715,13 +703,9 @@ async function detectPDFMode(doc) {
   const n=Math.min(3,doc.numPages); let total=0;
   for(let i=1;i<=n;i++){
     const pg=await doc.getPage(i);
-    const txt = await extractPageText(pg);
-    console.log(`[detectPDFMode] Page ${i}: extracted ${txt.length} chars`);
-    total+=txt.length;
+    total+=(await extractPageText(pg)).length;
   }
-  const avg = total/n;
-  console.log(`[detectPDFMode] Average chars per page: ${avg} (threshold: 80)`);
-  return avg<80?'image':'text';
+  return (total/n)<80?'image':'text';
 }
 
 // ─────────────────────────────────────────────────────
@@ -1416,9 +1400,9 @@ async function replayWeakSegment() {
       `রিপ্লে চলছে… (${lectureSegIdx + 1}/${total} · পৃষ্ঠা ${current?.pageNum ?? '?'})`;
 
     const _topic = extractKeywords(current?.text || '');
-    showDiagram(null, _topic, true);
+    showDiagram(null, _topic);
     fetchAnimatedVisual(current?.text || '').then(({ videoUrl, topic }) => {
-      if (!lectureAborted) showDiagram(videoUrl, topic, false);
+      if (!lectureAborted) showDiagram(videoUrl, topic);
     }).catch(() => {});
 
     await speakSegmentSentences(sentences);
@@ -1519,7 +1503,6 @@ async function loadAndIndex(file) {
 
     showBar(true,'PDF ধরন শনাক্ত হচ্ছে…');
     const mode=await detectPDFMode(pdfDoc);
-    console.log('[PDF] Detected mode:', mode);
 
     const pages=Math.min(totalPages,MAX_PAGES);
     const allChunks=[];
@@ -1531,14 +1514,12 @@ async function loadAndIndex(file) {
       const pg=await pdfDoc.getPage(i);
       let pageText='';
       if(mode==='text'){
-        console.log(`[PDF] Page ${i}: using extractPageText (mode=text)`);
         showBar(true,`পৃষ্ঠা ${i}/${pages} পড়া হচ্ছে…`);
         pageText=await extractPageText(pg);
       }else{
-        console.log(`[PDF] Page ${i}: attempting OCR via queuedOCR (mode=image)`);
         showBar(true,`পৃষ্ঠা ${i}/${pages} — ছবি থেকে লেখা পড়া হচ্ছে…`);
-        try{const b64=await pageToBase64(pg);pageText=await queuedOCR(b64,i);console.log(`[PDF] Page ${i}: OCR succeeded, got ${pageText.length} chars`);}
-        catch(e){console.warn(`[PDF] Page ${i} OCR failed:`,e.message);pageText=await extractPageText(pg);console.log(`[PDF] Page ${i}: fell back to extractPageText, got ${pageText.length} chars`);}
+        try{const b64=await pageToBase64(pg);pageText=await queuedOCR(b64,i);}
+        catch(e){console.warn(`[Page ${i}] OCR failed:`,e.message);pageText=await extractPageText(pg);}
       }
       const chunks=chunkText(pageText,i);
       for(const c of chunks) store.addChunk(c);
@@ -2171,24 +2152,26 @@ function extractKeywords(text) {
   return latin[0] || 'Biology';
 }
 
+
+// AFTER:
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
   try {
-    const res = await fetch(`${apiBase()}/generate`, {
+    const res = await fetch(`https://madnan4980--amplify-manim-fastapi-app.modal.run/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
     });
     if (!res.ok) throw new Error('backend ' + res.status);
-    const data = await res.json();
-    return { videoUrl: data.video_url, topic };
+    const blob = await res.blob();
+    const videoUrl = URL.createObjectURL(blob);
+    return { videoUrl, topic };
   } catch(e) {
     console.warn('[Manim] failed:', e.message);
     return { videoUrl: null, topic };
   }
 }
-
-function showDiagram(videoUrl, topic, loading = false) {
+function showDiagram(videoUrl, topic) {
   const stage  = document.getElementById('lecture-visual-stage');
   const container = document.getElementById('lecture-anim-container');
   const cap    = document.getElementById('lecture-caption');
@@ -2200,35 +2183,31 @@ function showDiagram(videoUrl, topic, loading = false) {
 
   setTimeout(() => {
     container.innerHTML = '';
-    if (videoUrl) {
-      const video = document.createElement('video');
-      video.src = videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`;
-      video.autoplay = true;
-      video.loop = true;
-      video.muted = true;
-      video.playsInline = true;
-      video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
-      video.onerror = () => {
-        console.warn('[Manim] video playback failed:', video.src);
-        cap.textContent = 'ভিডিও লোড হয়নি — ' + topic;
-      };
-      container.appendChild(video);
-      cap.textContent = '🎬 ' + topic;
-      video.play().catch(() => {});
-    } else {
-      // No video yet (or render failed)
-      container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
-        <rect width="460" height="240" fill="#0f0c29"/>
-        <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
-          <animate attributeName="r" values="35;55;35" dur="2s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/>
-        </circle>
-        <text x="230" y="175" text-anchor="middle" fill="#a78bfa" font-size="15" font-family="Arial">${topic}</text>
-        ${loading ? '<text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">রেন্ডার হচ্ছে…</text>' : '<text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">অ্যানিমেশন তৈরি হয়নি</text>'}
-      </svg>`;
-      cap.textContent = loading ? '' : topic;
-    }
+    const fallbackVideoUrl = 'https://amplifywebsite-production.up.railway.app/videos/3e64f732.mp4';
+    const resolvedVideoUrl = videoUrl
+      ? videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`
+      : fallbackVideoUrl;
+
+    const video = document.createElement('video');
+    let triedFallback = false;
+    video.src = resolvedVideoUrl;
+    video.autoplay = true;
+    video.loop = true;
+    video.muted = true;
+    video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
+    video.onerror = () => {
+      if (!triedFallback) {
+        triedFallback = true;
+        video.src = fallbackVideoUrl;
+        video.load();
+        video.play().catch(() => {});
+      }
+    };
+
+    container.appendChild(video);
+    cap.textContent = '🎬 ' + topic;
     container.classList.add('visible');
+    video.play().catch(() => {});
   }, 300);
 }
 
@@ -2520,9 +2499,9 @@ async function startLecture(){
 
     // Show pulse immediately, then swap in real visual when ready
     const _topic = extractKeywords(current?.text || '');
-    showDiagram(null, _topic, true);
+    showDiagram(null, _topic); // shows pulse while rendering
     fetchAnimatedVisual(current?.text || '').then(({ videoUrl, topic }) => {
-      if (!lectureAborted) showDiagram(videoUrl, topic, false);
+      if (!lectureAborted) showDiagram(videoUrl, topic);
     }).catch(() => {});
 
     // Speak all sentences in this segment (text stays hidden)
@@ -2999,14 +2978,14 @@ async function tDetect(){
     const isDistracted = committed.id !== 'focused';
     if(isDistracted){
       if(!distractionStart) distractionStart=Date.now();
-      if(!lectureActive && !warningCooldown && Date.now()-distractionStart>=5000) triggerDistractionWarning();
+      if(!warningCooldown && Date.now()-distractionStart>=5000) triggerDistractionWarning();
     }else{
       distractionStart=null;
     }
   }else{
     sBuf=[];candId=null;candCt=0;actId=null;htCt=0;setMood(null);
     if(!distractionStart) distractionStart=Date.now();
-    if(!lectureActive && !warningCooldown && Date.now()-distractionStart>=8000) triggerDistractionWarning();
+    if(!warningCooldown && Date.now()-distractionStart>=8000) triggerDistractionWarning();
   }
   requestAnimationFrame(tDetect);
 }
