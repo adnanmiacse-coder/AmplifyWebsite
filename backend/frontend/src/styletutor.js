@@ -2163,7 +2163,12 @@ async function fetchAnimatedVisual(text) {
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
     });
     if (!res.ok) throw new Error('backend ' + res.status);
+    
     const blob = await res.blob();
+    const videoUrl = URL.createObjectURL(blob);
+    console.log('[Manim] success, blob size:', blob.size, 'url:', videoUrl);
+    return { videoUrl, topic };
+
     const videoUrl = URL.createObjectURL(blob);
     return { videoUrl, topic };
   } catch(e) {
