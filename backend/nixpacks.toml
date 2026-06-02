@@ -16,9 +16,14 @@ aptPkgs = [
   "libpango-1.0-0",
   "libpangocairo-1.0-0",
   "libpango1.0-dev",
+  "libpangocairo-1.0-dev",
+  "libpangoft2-1.0-dev",
   "pango1.0-tools",
   "libglib2.0-dev",
+  "libharfbuzz-dev",
   "libffi-dev",
+  "libfontconfig1-dev",
+  "libfreetype6-dev",
   "libxcb1-dev"
 ]
 
