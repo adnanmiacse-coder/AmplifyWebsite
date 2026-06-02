@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import subprocess, json, os, uuid, re, ast
+import subprocess, json, os, uuid, re, ast, sys, shutil
 from openai import OpenAI
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -73,13 +73,68 @@ GROQ_KEYS = None
 _clients = None
 
 
+OPENROUTER_REFERER = os.getenv(
+    'OPENROUTER_REFERER',
+    'https://amplifywebsite-production.up.railway.app',
+)
+
+
 def get_api_keys() -> list[str]:
     global API_KEYS
     if API_KEYS is None:
         API_KEYS = parse_env_list('OPENROUTER_API_KEYS')
         if not API_KEYS:
-            raise RuntimeError('OPENROUTER_API_KEYS must be configured in backend/.env or Vercel environment variables.')
+            single = os.getenv('OPENROUTER_API_KEY', '').strip()
+            if single:
+                API_KEYS = [single]
+        if not API_KEYS:
+            raise RuntimeError(
+                'OPENROUTER_API_KEYS (or OPENROUTER_API_KEY) must be set in Railway environment variables.'
+            )
     return API_KEYS
+
+
+def manim_available() -> bool:
+    try:
+        result = subprocess.run(
+            [sys.executable, '-m', 'manim', '--version'],
+            capture_output=True,
+            text=True,
+            timeout=25,
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return False
+
+
+def find_generated_video(media_dir: str) -> str | None:
+    """Locate rendered MP4 — path varies by Manim version."""
+    candidates = []
+    for root, _dirs, files in os.walk(media_dir):
+        for name in files:
+            if name.endswith('.mp4'):
+                candidates.append(os.path.join(root, name))
+    if not candidates:
+        return None
+    for path in candidates:
+        if os.path.basename(path) == 'Scene.mp4':
+            return path
+    return max(candidates, key=os.path.getmtime)
+
+
+def run_manim_render(scene_file: str, media_dir: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [
+            sys.executable, '-m', 'manim', '-ql',
+            os.path.abspath(scene_file),
+            'Scene',
+            '--media_dir', os.path.abspath(media_dir),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=100,
+        cwd=BASE_DIR,
+    )
 
 
 def get_groq_keys() -> list[str]:
@@ -99,8 +154,8 @@ def get_clients() -> list[OpenAI]:
                 api_key=key,
                 base_url=OPENROUTER_BASE_URL,
                 default_headers={
-                    'HTTP-Referer': 'http://localhost:5173',
-                    'X-Title': 'Amplify'
+                    'HTTP-Referer': OPENROUTER_REFERER,
+                    'X-Title': 'Amplify',
                 }
             )
             for key in get_api_keys()
@@ -121,6 +176,15 @@ app.add_middleware(CORSMiddleware,
 @app.get("/health")
 async def root_health():
     return {"status": "ok"}
+
+
+@app.on_event("startup")
+async def startup_check():
+    print(f"[startup] Manim available: {manim_available()}")
+    try:
+        print(f"[startup] OpenRouter keys configured: {len(get_api_keys())}")
+    except RuntimeError as exc:
+        print(f"[startup] WARNING: {exc}")
 
 
 # ══════════════════════════════════════════
@@ -430,7 +494,10 @@ def generate_manim_code(prompt: str, context: str, simple: bool = False) -> str:
         },
         {
             "role": "user",
-            "content": f"Create a 3Blue1Brown style Manim animation explaining: {prompt}. Context: {context}"
+            "content": (
+                f"Create a 3Blue1Brown style Manim animation explaining: {prompt}. "
+                f"Base the visuals on this textbook/PDF excerpt (stay accurate to it):\n{context[:2000]}"
+            )
         }
     ]
     code = call_llm(messages, max_tokens=2500)
@@ -480,7 +547,19 @@ async def run_turn(req: TurnRequest):
 @app.post("/generate")
 async def generate(data: Prompt):
     import traceback
-    print(f"Using API keys: {[k[:20] + '...' for k in get_api_keys()]}")
+
+    if not manim_available():
+        raise HTTPException(
+            503,
+            'Manim is not installed on the server. Redeploy after adding manim to requirements.txt.',
+        )
+
+    try:
+        keys = get_api_keys()
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+    print(f"Using API keys: {[k[:20] + '...' for k in keys]}")
     job_id = str(uuid.uuid4())[:8]
     scene_file = os.path.join(SCENES_DIR, f"scene_{job_id}.py")
     output_video = os.path.join(VIDEOS_DIR, f"{job_id}.mp4")
@@ -524,17 +603,14 @@ async def generate(data: Prompt):
     for attempt in range(1, MAX_RETRIES + 1):
         print(f"[{job_id}] Render attempt {attempt}/{MAX_RETRIES}")
         try:
-            result = subprocess.run(
-                ["manim", "-ql", scene_file, "Scene", "--media_dir", media_dir],
-                capture_output=True, text=True, timeout=120
-            )
-            print(f"[{job_id}] Manim stdout: {result.stdout[-300:]}")
-            print(f"[{job_id}] Manim stderr: {result.stderr[-300:]}")
+            result = run_manim_render(scene_file, media_dir)
+            print(f"[{job_id}] Manim stdout: {result.stdout[-500:]}")
+            print(f"[{job_id}] Manim stderr: {result.stderr[-500:]}")
 
             if result.returncode == 0:
                 break
 
-            last_error = result.stderr
+            last_error = (result.stderr or result.stdout or 'unknown manim error')
             print(f"[{job_id}] Render attempt {attempt} failed")
 
             if attempt < MAX_RETRIES:
@@ -552,36 +628,52 @@ async def generate(data: Prompt):
                 with open(scene_file, "w", encoding="utf-8") as f:
                     f.write(code)
 
+        except FileNotFoundError:
+            raise HTTPException(503, 'Manim executable not found in server PATH')
         except subprocess.TimeoutExpired:
-            raise HTTPException(504, "Render timed out")
+            raise HTTPException(504, 'Render timed out')
 
     else:
         print(f"[{job_id}] RENDER FAILED after {MAX_RETRIES} attempts")
-        raise HTTPException(500, f"Render failed after {MAX_RETRIES} attempts: {last_error[-300:]}")
+        raise HTTPException(
+            500,
+            f"Render failed after {MAX_RETRIES} attempts: {last_error[-400:]}",
+        )
 
-    # Step 4: Find output
-    expected = os.path.join(media_dir, "videos", f"scene_{job_id}", "480p15", "Scene.mp4")
-    print(f"[{job_id}] Looking for video at: {expected}")
-    if not os.path.exists(expected):
-        for root, dirs, files in os.walk(media_dir):
+    # Step 4: Find output (path differs across Manim versions)
+    expected = os.path.join(media_dir, 'videos', f'scene_{job_id}', '480p15', 'Scene.mp4')
+    video_path = expected if os.path.exists(expected) else find_generated_video(media_dir)
+    print(f"[{job_id}] Video path: {video_path}")
+    if not video_path:
+        listing = []
+        for root, _dirs, files in os.walk(media_dir):
             for file in files:
-                print(f"[{job_id}] Found file: {os.path.join(root, file)}")
-        raise HTTPException(500, "Video file not found after render")
+                listing.append(os.path.join(root, file))
+        print(f"[{job_id}] Media dir contents: {listing}")
+        raise HTTPException(500, 'Video file not found after render')
 
     os.makedirs(VIDEOS_DIR, exist_ok=True)
-    os.rename(expected, output_video)
+    if os.path.abspath(video_path) != os.path.abspath(output_video):
+        shutil.move(video_path, output_video)
 
     return {"video_url": f"/videos/{job_id}.mp4"}
 
 
 @app.get("/api/health")
 async def health():
+    openrouter_count = 0
+    try:
+        openrouter_count = len(get_api_keys())
+    except RuntimeError:
+        pass
     return {
         "status": "ok",
         "frontend_dir": FRONTEND_DIR,
         "frontend_exists": bool(FRONTEND_DIR and os.path.isdir(FRONTEND_DIR)),
         "base_dir": BASE_DIR,
         "project_root": PROJECT_ROOT,
+        "manim_available": manim_available(),
+        "openrouter_keys": openrouter_count,
     }
 
 

@@ -2,15 +2,18 @@
 [variables]
 PIP_NO_CACHE_DIR = "true"
 
-# Let Nixpacks install phase create /opt/venv and pip install requirements.txt.
-# Do NOT run pip in setup — nix python has no pip module yet.
+[phases.setup]
+aptPkgs = ["ffmpeg", "libcairo2-dev", "libpango1.0-dev", "pkg-config", "build-essential"]
 
 [phases.build]
 cmds = [
   "if [ -d ../frontend ]; then rm -rf frontend && cp -r ../frontend frontend; fi",
   "test -d frontend || (echo 'ERROR: frontend directory missing after build' && exit 1)",
-  "ls -la frontend | head -20"
+  "python -m manim --version || (echo 'ERROR: manim not installed' && exit 1)"
 ]
+
+# Let Nixpacks install phase create /opt/venv and pip install requirements.txt.
+# Do NOT run pip in setup — nix python has no pip module yet.
 
 [start]
 cmd = "python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"

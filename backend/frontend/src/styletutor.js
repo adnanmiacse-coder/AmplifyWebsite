@@ -1391,7 +1391,7 @@ async function replayWeakSegment() {
       if (tp !== currentPage) { currentPage = tp; renderPage(currentPage); }
     }
 
-    genEl.style.display = 'none'; segEl.style.display = 'block';
+    genEl.style.display = 'none'; segEl.style.display = 'none';
 
     const sentences = splitSentences(current?.text || '');
     const pct = Math.round(((lectureSegIdx + 1) / total) * 100);
@@ -1400,9 +1400,9 @@ async function replayWeakSegment() {
       `রিপ্লে চলছে… (${lectureSegIdx + 1}/${total} · পৃষ্ঠা ${current?.pageNum ?? '?'})`;
 
     const _topic = extractKeywords(current?.text || '');
-    showDiagram(null, _topic);
+    showDiagram(null, _topic, true);
     fetchAnimatedVisual(current?.text || '').then(({ videoUrl, topic }) => {
-      if (!lectureAborted) showDiagram(videoUrl, topic);
+      if (!lectureAborted) showDiagram(videoUrl, topic, false);
     }).catch(() => {});
 
     await speakSegmentSentences(sentences);
@@ -2022,28 +2022,6 @@ function injectLectureStyles(){
       font-family: 'Hind Siliguri', sans-serif;
       letter-spacing: 0.3px;
     }
-
-    /* Typewriter text below video */
-    #lecture-segment {
-      display: block;
-      max-height: 160px;
-      overflow-y: auto;
-      font-family: 'Hind Siliguri', sans-serif;
-      font-size: 1.15rem;
-      font-weight: 400;
-      line-height: 1.8;
-      color: #e2e8f0;
-      text-align: left;
-      padding: 10px 16px 14px;
-      background: rgba(255,255,255,0.04);
-      border-top: 1px solid rgba(255,255,255,0.07);
-      border-radius: 0 0 16px 16px;
-      word-break: break-word;
-      scroll-behavior: smooth;
-    }
-    .lw-typewriter-sentence {
-      display: inline;
-    }
   `;
   document.head.appendChild(style);
 }
@@ -2176,22 +2154,35 @@ function extractKeywords(text) {
 
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120000);
   try {
     const res = await fetch(`${apiBase()}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
+      body: JSON.stringify({
+        prompt: topic,
+        context: (text || '').slice(0, 2000),
+      }),
+      signal: controller.signal,
     });
-    if (!res.ok) throw new Error('backend ' + res.status);
-    const data = await res.json();
-    return { videoUrl: data.video_url || '/videos/3e64f732.mp4', topic };
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const detail = data.detail || data.error || res.statusText;
+      throw new Error(`backend ${res.status}: ${detail}`);
+    }
+    if (!data.video_url) throw new Error('no video_url in response');
+    console.log('[Manim] video ready:', data.video_url);
+    return { videoUrl: data.video_url, topic };
   } catch(e) {
     console.warn('[Manim] failed:', e.message);
-    return { videoUrl: '/videos/3e64f732.mp4', topic };
+    return { videoUrl: null, topic };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-function showDiagram(videoUrl, topic) {
+function showDiagram(videoUrl, topic, loading = false) {
   const stage  = document.getElementById('lecture-visual-stage');
   const container = document.getElementById('lecture-anim-container');
   const cap    = document.getElementById('lecture-caption');
@@ -2209,11 +2200,16 @@ function showDiagram(videoUrl, topic) {
       video.autoplay = true;
       video.loop = true;
       video.muted = true;
+      video.playsInline = true;
       video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
+      video.onerror = () => {
+        console.warn('[Manim] video playback failed:', video.src);
+        cap.textContent = 'ভিডিও লোড হয়নি — ' + topic;
+      };
       container.appendChild(video);
       cap.textContent = '🎬 ' + topic;
+      video.play().catch(() => {});
     } else {
-      // Fallback — plain pulsing circle, no broken SVG
       container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
         <rect width="460" height="240" fill="#0f0c29"/>
         <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
@@ -2221,9 +2217,9 @@ function showDiagram(videoUrl, topic) {
           <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/>
         </circle>
         <text x="230" y="175" text-anchor="middle" fill="#a78bfa" font-size="15" font-family="Arial">${topic}</text>
-        <text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">রেন্ডার হচ্ছে…</text>
+        ${loading ? '<text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">রেন্ডার হচ্ছে…</text>' : '<text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">অ্যানিমেশন তৈরি হয়নি</text>'}
       </svg>`;
-      cap.textContent = '';
+      cap.textContent = loading ? '' : topic;
     }
     container.classList.add('visible');
   }, 300);
@@ -2434,41 +2430,18 @@ function speakWithLaser(sentence){
 
 function stopTTS(){ TTS.stop(); }
 
-async function typewriterAppend(segEl, text, speedMs = 28) {
-  // Create a new <span> for this sentence and type it character by character
-  const span = document.createElement('span');
-  span.className = 'lw-typewriter-sentence';
-  segEl.appendChild(span);
-  for (let i = 0; i < text.length; i++) {
-    if (lectureAborted) return;
-    span.textContent += text[i];
-    await sleep(speedMs);
-  }
-  // Add a space after each sentence
-  segEl.appendChild(document.createTextNode(' '));
-}
-
 async function speakSegmentSentences(sentences){
   const segEl=document.getElementById('lecture-segment');
   ensureLaser();
-
-  // Clear previous segment text and start fresh for this segment
-  segEl.innerHTML = '';
-  if (_laserEl) { _laserEl.classList.add('hidden'); }
-
   for(let i=0;i<sentences.length;i++){
     if(lectureAborted) return;
     while(lecturePaused&&!lectureAborted) await sleep(120);
     if(lectureAborted) return;
-
-    // Type the sentence AND speak it simultaneously
-    const [,] = await Promise.all([
-      typewriterAppend(segEl, sentences[i], 22),
-      speakWithLaser(sentences[i]),
-    ]);
-
+    wrapWordsForLaser(segEl,sentences[i]);
+    if(_laserEl) segEl.appendChild(_laserEl);
+    await speakWithLaser(sentences[i]);
     hideLaser();
-    if(!lectureAborted&&!lecturePaused) await sleep(180);
+    if(!lectureAborted&&!lecturePaused) await sleep(220);
   }
 }
 
@@ -2530,7 +2503,7 @@ async function startLecture(){
       if(tp!==currentPage){ currentPage=tp; renderPage(currentPage); }
     }
 
-    genEl.style.display='none'; segEl.style.display='block'; // show text below video
+    genEl.style.display='none'; segEl.style.display='none'; // text never shown
 
     const sentences = splitSentences(current?.text || '');
     const pct = Math.round(((lectureSegIdx + 1) / total) * 100);
@@ -2540,9 +2513,9 @@ async function startLecture(){
 
     // Show pulse immediately, then swap in real visual when ready
     const _topic = extractKeywords(current?.text || '');
-    showDiagram(null, _topic); // shows pulse while rendering
+    showDiagram(null, _topic, true);
     fetchAnimatedVisual(current?.text || '').then(({ videoUrl, topic }) => {
-      if (!lectureAborted) showDiagram(videoUrl, topic);
+      if (!lectureAborted) showDiagram(videoUrl, topic, false);
     }).catch(() => {});
 
     // Speak all sentences in this segment (text stays hidden)

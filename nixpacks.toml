@@ -2,6 +2,9 @@
 [variables]
 PIP_NO_CACHE_DIR = "true"
 
+[phases.setup]
+aptPkgs = ["ffmpeg", "libcairo2-dev", "libpango1.0-dev", "pkg-config", "build-essential"]
+
 # Let Nixpacks install phase handle pip/venv — do not run pip in setup.
 
 [phases.build]

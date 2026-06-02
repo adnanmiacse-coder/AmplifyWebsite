@@ -1400,9 +1400,9 @@ async function replayWeakSegment() {
       `রিপ্লে চলছে… (${lectureSegIdx + 1}/${total} · পৃষ্ঠা ${current?.pageNum ?? '?'})`;
 
     const _topic = extractKeywords(current?.text || '');
-    showDiagram(null, _topic);
+    showDiagram(null, _topic, true);
     fetchAnimatedVisual(current?.text || '').then(({ videoUrl, topic }) => {
-      if (!lectureAborted) showDiagram(videoUrl, topic);
+      if (!lectureAborted) showDiagram(videoUrl, topic, false);
     }).catch(() => {});
 
     await speakSegmentSentences(sentences);
@@ -2154,22 +2154,35 @@ function extractKeywords(text) {
 
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120000);
   try {
     const res = await fetch(`${apiBase()}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
+      body: JSON.stringify({
+        prompt: topic,
+        context: (text || '').slice(0, 2000),
+      }),
+      signal: controller.signal,
     });
-    if (!res.ok) throw new Error('backend ' + res.status);
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const detail = data.detail || data.error || res.statusText;
+      throw new Error(`backend ${res.status}: ${detail}`);
+    }
+    if (!data.video_url) throw new Error('no video_url in response');
+    console.log('[Manim] video ready:', data.video_url);
     return { videoUrl: data.video_url, topic };
   } catch(e) {
     console.warn('[Manim] failed:', e.message);
     return { videoUrl: null, topic };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-function showDiagram(videoUrl, topic) {
+function showDiagram(videoUrl, topic, loading = false) {
   const stage  = document.getElementById('lecture-visual-stage');
   const container = document.getElementById('lecture-anim-container');
   const cap    = document.getElementById('lecture-caption');
@@ -2181,31 +2194,34 @@ function showDiagram(videoUrl, topic) {
 
   setTimeout(() => {
     container.innerHTML = '';
-    const fallbackVideoUrl = 'https://amplifywebsite-production.up.railway.app/videos/3e64f732.mp4';
-    const resolvedVideoUrl = videoUrl
-      ? videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`
-      : fallbackVideoUrl;
-
-    const video = document.createElement('video');
-    let triedFallback = false;
-    video.src = resolvedVideoUrl;
-    video.autoplay = true;
-    video.loop = true;
-    video.muted = true;
-    video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
-    video.onerror = () => {
-      if (!triedFallback) {
-        triedFallback = true;
-        video.src = fallbackVideoUrl;
-        video.load();
-        video.play().catch(() => {});
-      }
-    };
-
-    container.appendChild(video);
-    cap.textContent = '🎬 ' + topic;
+    if (videoUrl) {
+      const video = document.createElement('video');
+      video.src = videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`;
+      video.autoplay = true;
+      video.loop = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
+      video.onerror = () => {
+        console.warn('[Manim] video playback failed:', video.src);
+        cap.textContent = 'ভিডিও লোড হয়নি — ' + topic;
+      };
+      container.appendChild(video);
+      cap.textContent = '🎬 ' + topic;
+      video.play().catch(() => {});
+    } else {
+      container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
+        <rect width="460" height="240" fill="#0f0c29"/>
+        <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
+          <animate attributeName="r" values="35;55;35" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <text x="230" y="175" text-anchor="middle" fill="#a78bfa" font-size="15" font-family="Arial">${topic}</text>
+        ${loading ? '<text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">রেন্ডার হচ্ছে…</text>' : '<text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">অ্যানিমেশন তৈরি হয়নি</text>'}
+      </svg>`;
+      cap.textContent = loading ? '' : topic;
+    }
     container.classList.add('visible');
-    video.play().catch(() => {});
   }, 300);
 }
 
@@ -2497,9 +2513,9 @@ async function startLecture(){
 
     // Show pulse immediately, then swap in real visual when ready
     const _topic = extractKeywords(current?.text || '');
-    showDiagram(null, _topic); // shows pulse while rendering
+    showDiagram(null, _topic, true);
     fetchAnimatedVisual(current?.text || '').then(({ videoUrl, topic }) => {
-      if (!lectureAborted) showDiagram(videoUrl, topic);
+      if (!lectureAborted) showDiagram(videoUrl, topic, false);
     }).catch(() => {});
 
     // Speak all sentences in this segment (text stays hidden)

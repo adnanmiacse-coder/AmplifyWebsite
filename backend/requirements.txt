@@ -4,3 +4,4 @@ uvicorn
 langgraph
 langchain-groq
 langchain-core
+manim
