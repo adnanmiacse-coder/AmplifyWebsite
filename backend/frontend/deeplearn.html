@@ -1757,43 +1757,43 @@ async function speak(text, expertId) {
     }
 
     // ── References: arXiv + Khan Academy ─────────
-    async function fetchArxivPapers(topic) {
-      try {
-        // Clean topic: remove file extensions, underscores, short noise
-        const cleaned = topic
-          .replace(/\.[a-z]{2,4}$/i, '')   // remove .pdf .txt etc
-          .replace(/_/g, ' ')               // underscores to spaces
-          .replace(/[^\w\s]/g, '')          // remove special chars
-          .trim();
-        if (!cleaned || cleaned.length < 3) return [];
-        const q = encodeURIComponent(cleaned);
-        // Use corsproxy.io to bypass CORS — no key needed
-        const arxivUrl = `https://export.arxiv.org/api/query?search_query=all:${q}&max_results=5&sortBy=relevance`;
-        let res = null;
-        try {
-          res = await fetch(arxivUrl);
-        } catch (e) {
-          res = null;
-        }
-        if (!res || !res.ok) {
-          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(arxivUrl)}`;
-          res = await fetch(proxyUrl);
-        }
-        if (!res.ok) return [];
-        const text = await res.text();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(text, 'application/xml');
-        const entries = Array.from(xml.querySelectorAll('entry'));
-        return entries.map(e => ({
-          title:    e.querySelector('title')?.textContent?.trim() || '',
-          abstract: e.querySelector('summary')?.textContent?.trim() || '',
-          link:     e.querySelector('id')?.textContent?.trim() || '',
-        })).filter(p => p.title);
-      } catch(err) {
-        console.warn('[arXiv]', err.message);
-        return [];
-      }
-    }
+    
+   async function fetchArxivPapers(topic) {
+  try {
+    const cleaned = topic
+      .replace(/\.[a-z]{2,4}$/i, '')
+      .replace(/_/g, ' ')
+      .replace(/[^\w\s]/g, '')
+      .trim();
+    if (!cleaned || cleaned.length < 3) return [];
+
+    const q = encodeURIComponent(cleaned);
+    const url = `https://api.openalex.org/works?search=${q}&per-page=5&sort=relevance_score:desc&filter=has_abstract:true`;
+
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    return (data.results || []).map(w => ({
+      title: w.title || '',
+      abstract: (() => {
+        const inv = w.abstract_inverted_index;
+        if (!inv) return w.primary_topic?.display_name || '';
+        const words = [];
+        for (const [word, positions] of Object.entries(inv))
+          positions.forEach(i => words[i] = word);
+        return words.join(' ').slice(0, 300);
+      })(),
+      link: w.doi ? `https://doi.org/${w.doi}` : (w.id || ''),
+    })).filter(p => p.title);
+
+  } catch(err) {
+    console.warn('[OpenAlex]', err.message);
+    return [];
+  }
+}
 
     async function fetchKhanAcademyVideos(topic) {
       try {
