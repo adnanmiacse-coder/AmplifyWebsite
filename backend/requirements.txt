@@ -1,7 +1,7 @@
+# AFTER:
 fastapi
 openai
 uvicorn
 langgraph
 langchain-groq
 langchain-core
-manim
