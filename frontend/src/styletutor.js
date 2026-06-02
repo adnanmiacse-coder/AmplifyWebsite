@@ -9,9 +9,21 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 function apiBase() {
-  const fromConfig = _config.BACKEND_URL || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.BACKEND_URL);
-  if (fromConfig) return String(fromConfig).replace(/\/$/, '');
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    const origin = window.location.origin;
+    const host = window.location.hostname || '';
+    const configured = _config.BACKEND_URL || window.AMPLIFY_ENV?.BACKEND_URL || '';
+    if (!configured) return origin;
+    try {
+      const parsed = new URL(String(configured), origin);
+      const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+      // In production always stay same-origin to avoid CORS drift.
+      if (!isLocalHost && parsed.origin !== origin) return origin;
+      return parsed.origin.replace(/\/$/, '');
+    } catch {
+      return origin;
+    }
+  }
   return '';
 }
 
@@ -2162,7 +2174,7 @@ function extractKeywords(text) {
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
   try {
-    const res = await fetch(`https://madnan4980--amplify-manim-fastapi-app.modal.run/`, {
+    const res = await fetch(`${apiBase()}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })

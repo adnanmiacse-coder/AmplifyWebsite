@@ -9,9 +9,21 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 function apiBase() {
-  const fromConfig = _config.BACKEND_URL || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.BACKEND_URL);
-  if (fromConfig) return String(fromConfig).replace(/\/$/, '');
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    const origin = window.location.origin;
+    const host = window.location.hostname || '';
+    const configured = _config.BACKEND_URL || window.AMPLIFY_ENV?.BACKEND_URL || '';
+    if (!configured) return origin;
+    try {
+      const parsed = new URL(String(configured), origin);
+      const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+      // In production always stay same-origin to avoid CORS drift.
+      if (!isLocalHost && parsed.origin !== origin) return origin;
+      return parsed.origin.replace(/\/$/, '');
+    } catch {
+      return origin;
+    }
+  }
   return '';
 }
 
@@ -703,9 +715,13 @@ async function detectPDFMode(doc) {
   const n=Math.min(3,doc.numPages); let total=0;
   for(let i=1;i<=n;i++){
     const pg=await doc.getPage(i);
-    total+=(await extractPageText(pg)).length;
+    const txt = await extractPageText(pg);
+    console.log(`[detectPDFMode] Page ${i}: extracted ${txt.length} chars`);
+    total+=txt.length;
   }
-  return (total/n)<80?'image':'text';
+  const avg = total/n;
+  console.log(`[detectPDFMode] Average chars per page: ${avg} (threshold: 80)`);
+  return avg<80?'image':'text';
 }
 
 // ─────────────────────────────────────────────────────
@@ -1503,6 +1519,7 @@ async function loadAndIndex(file) {
 
     showBar(true,'PDF ধরন শনাক্ত হচ্ছে…');
     const mode=await detectPDFMode(pdfDoc);
+    console.log('[PDF] Detected mode:', mode);
 
     const pages=Math.min(totalPages,MAX_PAGES);
     const allChunks=[];
@@ -1514,12 +1531,14 @@ async function loadAndIndex(file) {
       const pg=await pdfDoc.getPage(i);
       let pageText='';
       if(mode==='text'){
+        console.log(`[PDF] Page ${i}: using extractPageText (mode=text)`);
         showBar(true,`পৃষ্ঠা ${i}/${pages} পড়া হচ্ছে…`);
         pageText=await extractPageText(pg);
       }else{
+        console.log(`[PDF] Page ${i}: attempting OCR via queuedOCR (mode=image)`);
         showBar(true,`পৃষ্ঠা ${i}/${pages} — ছবি থেকে লেখা পড়া হচ্ছে…`);
-        try{const b64=await pageToBase64(pg);pageText=await queuedOCR(b64,i);}
-        catch(e){console.warn(`[Page ${i}] OCR failed:`,e.message);pageText=await extractPageText(pg);}
+        try{const b64=await pageToBase64(pg);pageText=await queuedOCR(b64,i);console.log(`[PDF] Page ${i}: OCR succeeded, got ${pageText.length} chars`);}
+        catch(e){console.warn(`[PDF] Page ${i} OCR failed:`,e.message);pageText=await extractPageText(pg);console.log(`[PDF] Page ${i}: fell back to extractPageText, got ${pageText.length} chars`);}
       }
       const chunks=chunkText(pageText,i);
       for(const c of chunks) store.addChunk(c);
@@ -2155,7 +2174,7 @@ function extractKeywords(text) {
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
   try {
-    const res = await fetch(`https://madnan4980--amplify-manim-fastapi-app.modal.run/`, {
+    const res = await fetch(`${apiBase()}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
@@ -2980,14 +2999,14 @@ async function tDetect(){
     const isDistracted = committed.id !== 'focused';
     if(isDistracted){
       if(!distractionStart) distractionStart=Date.now();
-      if(!warningCooldown && Date.now()-distractionStart>=5000) triggerDistractionWarning();
+      if(!lectureActive && !warningCooldown && Date.now()-distractionStart>=5000) triggerDistractionWarning();
     }else{
       distractionStart=null;
     }
   }else{
     sBuf=[];candId=null;candCt=0;actId=null;htCt=0;setMood(null);
     if(!distractionStart) distractionStart=Date.now();
-    if(!warningCooldown && Date.now()-distractionStart>=8000) triggerDistractionWarning();
+    if(!lectureActive && !warningCooldown && Date.now()-distractionStart>=8000) triggerDistractionWarning();
   }
   requestAnimationFrame(tDetect);
 }

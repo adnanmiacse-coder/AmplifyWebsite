@@ -6,8 +6,20 @@
 
 (async function initAmplifyEnv() {
   try {
-    const base = window.AMPLIFY_ENV?.BACKEND_URL || '';
-    const response = await fetch(base ? `${base.replace(/\/$/, '')}/api/config` : '/api/config', {
+    const origin = window.location?.origin || '';
+    const host = window.location?.hostname || '';
+    const configured = window.AMPLIFY_ENV?.BACKEND_URL || '';
+    let base = '';
+    if (configured) {
+      try {
+        const parsed = new URL(String(configured), origin);
+        const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+        if (isLocalHost || parsed.origin === origin) {
+          base = parsed.origin.replace(/\/$/, '');
+        }
+      } catch {}
+    }
+    const response = await fetch(base ? `${base}/api/config` : '/api/config', {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
     });

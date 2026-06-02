@@ -7,6 +7,23 @@
 let _configCache = null;
 let _configPromise = null;
 
+function resolveBackendBase(viteEnv = getViteEnv()) {
+  if (typeof window === 'undefined') return '';
+  const origin = window.location?.origin || '';
+  const host = window.location?.hostname || '';
+  const configured = window.AMPLIFY_ENV?.BACKEND_URL || viteEnv.VITE_BACKEND_URL || '';
+  if (!configured) return '';
+  try {
+    const parsed = new URL(String(configured), origin);
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+    // In production pages, do not allow cross-origin backend override.
+    if (!isLocalHost && parsed.origin !== origin) return '';
+    return parsed.origin.replace(/\/$/, '');
+  } catch {
+    return '';
+  }
+}
+
 /** Safe access to Vite env in ES modules (returns {} when not running under Vite). */
 export function getViteEnv() {
   try {
@@ -34,9 +51,7 @@ export async function loadEnvConfig() {
   // Fetch from server
   _configPromise = (async () => {
     const viteEnv = getViteEnv();
-    const BACKEND_URL = (typeof window !== 'undefined' && window.AMPLIFY_ENV?.BACKEND_URL)
-      || viteEnv.VITE_BACKEND_URL
-      || '';
+    const BACKEND_URL = resolveBackendBase(viteEnv);
     const apiUrl = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, '')}/api/config` : '/api/config';
 
     try {
