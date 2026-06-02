@@ -478,222 +478,176 @@ class GraphStore {
 
 const graph = new GraphStore();
 
+// ─────────────────────────────────────────────────────
+// CYTOSCAPE TOPIC MAP
+// ─────────────────────────────────────────────────────
+let cy = null;
+
 function renderTopicGraph() {
   const placeholder = document.getElementById('cy-placeholder');
   const container   = document.getElementById('cy');
+  if (!container) return; // Graph UI removed — skip rendering safely
   if (!graph.nodes || !Object.keys(graph.nodes).length) return;
   if (placeholder) placeholder.style.display = 'none';
 
+  const threshold = parseInt(document.getElementById('edge-threshold')?.value || 2);
   const nodeLimit = parseInt(document.getElementById('node-limit')?.value || 35);
 
-  // Pick top nodes by frequency
-  const sorted = Object.entries(graph.nodes)
+  // Build node + edge lists
+  const sortedNodes = Object.entries(graph.nodes)
     .sort((a, b) => b[1].freq - a[1].freq)
     .slice(0, nodeLimit);
+  const nodeIds = new Set(sortedNodes.map(([id]) => id));
+  const freqs   = sortedNodes.map(([,d]) => d.freq);
+  const maxFreq = Math.max(...freqs, 1);
+  const minFreq = Math.min(...freqs, 1);
 
-  // Find core topic (highest freq)
-  const core = sorted[0];
-
-  // Group remaining into branches (up to 8 branches, each with children)
-  const BRANCH_COUNT = Math.min(8, sorted.length - 1);
-  const branches = sorted.slice(1, BRANCH_COUNT + 1).map(([id, data], bi) => {
-    // Find children: nodes connected to this branch node via edges
-    const children = [];
-    for (const [key] of Object.entries(graph.edges)) {
-      const [a, b] = key.split('|||');
-      const neighbour = a === id ? b : b === id ? a : null;
-      if (neighbour && neighbour !== core[0] && !sorted.slice(1, BRANCH_COUNT + 1).find(([nid]) => nid === neighbour)) {
-        const nodeData = graph.nodes[neighbour];
-        if (nodeData) children.push({ id: neighbour, freq: nodeData.freq });
-      }
-    }
-    children.sort((a, b) => b.freq - a.freq);
-    return { id, freq: data.freq, children: children.slice(0, 4) };
-  });
-
-  buildMindMap(container, core, branches);
-}
-// ── MINDMAP STATE ──
-const _mmExpanded = new Set(); // branch ids that are expanded
-
-function buildMindMap(container, core, branches) {
-  container.innerHTML = '';
-  const W = container.clientWidth || 700;
-  const H = 500;
-  const CX = W / 2, CY = H / 2;
-  const BRANCH_R = 160, CHILD_R = 260;
-
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.setAttribute('width', '100%');
-  svg.setAttribute('height', H);
-  svg.style.fontFamily = "'Hind Siliguri', sans-serif";
-  container.appendChild(svg);
-
-  // ── Defs: glow filter ──
-  svg.innerHTML = `
-    <defs>
-      <filter id="mm-glow">
-        <feGaussianBlur stdDeviation="3" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
-      <filter id="mm-glow-strong">
-        <feGaussianBlur stdDeviation="5" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
-    </defs>`;
-
-  const linesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  linesGroup.id = 'mm-lines';
-  const nodesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  nodesGroup.id = 'mm-nodes';
-  svg.appendChild(linesGroup);
-  svg.appendChild(nodesGroup);
-
-  // ── Core node ──
-  drawNode(nodesGroup, CX, CY, core[0], '#f97316', 36, 'core', null, null, core);
-
-  // ── Branch nodes ──
-  branches.forEach((branch, bi) => {
-    const angle = (2 * Math.PI * bi) / branches.length - Math.PI / 2;
-    const bx = CX + Math.cos(angle) * BRANCH_R;
-    const by = CY + Math.sin(angle) * BRANCH_R;
-
-    // Line: core → branch
-    drawLine(linesGroup, CX, CY, bx, by, '#a78bfa', 2, false);
-
-    drawNode(nodesGroup, bx, by, branch.id, '#a78bfa', 26, 'branch', branch, angle, branches);
-
-    // ── Children (only if expanded) ──
-    if (_mmExpanded.has(branch.id)) {
-      branch.children.forEach((child, ci) => {
-        const spread = Math.PI / 4;
-        const cAngle = angle + spread * (ci - (branch.children.length - 1) / 2) * 0.6;
-        const cx2 = bx + Math.cos(cAngle) * (CHILD_R - BRANCH_R);
-        const cy2 = by + Math.sin(cAngle) * (CHILD_R - BRANCH_R);
-
-        drawLine(linesGroup, bx, by, cx2, cy2, '#7dd3fc', 1.2, true);
-        drawNode(nodesGroup, cx2, cy2, child.id, '#7dd3fc', 18, 'child', null, null, null);
-      });
-    }
-  });
-}
-
-function drawLine(g, x1, y1, x2, y2, color, width, dashed) {
-  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  line.setAttribute('x1', x1); line.setAttribute('y1', y1);
-  line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-  line.setAttribute('stroke', color);
-  line.setAttribute('stroke-width', width);
-  line.setAttribute('stroke-opacity', '0.6');
-  if (dashed) line.setAttribute('stroke-dasharray', '4 3');
-  g.appendChild(line);
-}
-
-function drawNode(g, x, y, label, color, r, type, branchData, angle, branches) {
-  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  group.setAttribute('transform', `translate(${x},${y})`);
-  group.style.cursor = type === 'branch' ? 'pointer' : 'default';
-
-  // Circle
-  const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  circle.setAttribute('r', r);
-  circle.setAttribute('fill', color);
-  circle.setAttribute('fill-opacity', type === 'core' ? '0.25' : '0.15');
-  circle.setAttribute('stroke', color);
-  circle.setAttribute('stroke-width', type === 'core' ? 2.5 : 1.5);
-  circle.setAttribute('filter', type === 'core' ? 'url(#mm-glow-strong)' : 'url(#mm-glow)');
-  group.appendChild(circle);
-
-  // Pulse ring for core
-  if (type === 'core') {
-    const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    pulse.setAttribute('r', r);
-    pulse.setAttribute('fill', 'none');
-    pulse.setAttribute('stroke', color);
-    pulse.setAttribute('stroke-width', '1.5');
-    pulse.setAttribute('stroke-opacity', '0.4');
-    pulse.innerHTML = `<animate attributeName="r" values="${r};${r+14};${r}" dur="2.5s" repeatCount="indefinite"/>
-      <animate attributeName="stroke-opacity" values="0.4;0;0.4" dur="2.5s" repeatCount="indefinite"/>`;
-    group.appendChild(pulse);
-  }
-
-  // Expand indicator for branch
-  if (type === 'branch' && branchData?.children?.length) {
-    const isExp = _mmExpanded.has(branchData.id);
-    const ind = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    ind.setAttribute('x', r - 4);
-    ind.setAttribute('y', -r + 4);
-    ind.setAttribute('font-size', '11');
-    ind.setAttribute('fill', color);
-    ind.setAttribute('text-anchor', 'middle');
-    ind.textContent = isExp ? '−' : '+';
-    group.appendChild(ind);
-  }
-
-  // Label
-  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  const lines = wrapLabel(label, type === 'core' ? 10 : type === 'branch' ? 8 : 7);
-  const lineH = type === 'core' ? 15 : 13;
-  const startY = -(lines.length - 1) * lineH / 2;
-  lines.forEach((line, i) => {
-    const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-    tspan.setAttribute('x', 0);
-    tspan.setAttribute('dy', i === 0 ? startY : lineH);
-    tspan.textContent = line;
-    text.appendChild(tspan);
-  });
-  text.setAttribute('text-anchor', 'middle');
-  text.setAttribute('dominant-baseline', 'middle');
-  text.setAttribute('fill', type === 'core' ? '#f0f4ff' : '#e2e8f0');
-  text.setAttribute('font-size', type === 'core' ? '13' : type === 'branch' ? '11' : '10');
-  text.setAttribute('font-weight', type === 'core' ? '700' : '500');
-  text.setAttribute('pointer-events', 'none');
-  group.appendChild(text);
-
-  // Click handler for branch nodes
-  if (type === 'branch' && branchData) {
-    group.addEventListener('click', () => {
-      if (_mmExpanded.has(branchData.id)) _mmExpanded.delete(branchData.id);
-      else _mmExpanded.add(branchData.id);
-      // Rebuild using stored core reference
-      const container = document.getElementById('cy');
-      const nodeLimit = parseInt(document.getElementById('node-limit')?.value || 35);
-      const sorted = Object.entries(graph.nodes)
-        .sort((a, b) => b[1].freq - a[1].freq).slice(0, nodeLimit);
-      const core = sorted[0];
-      const BRANCH_COUNT = Math.min(8, sorted.length - 1);
-      const newBranches = sorted.slice(1, BRANCH_COUNT + 1).map(([id, data]) => {
-        const children = [];
-        for (const [key] of Object.entries(graph.edges)) {
-          const [a, b] = key.split('|||');
-          const neighbour = a === id ? b : b === id ? a : null;
-          if (neighbour && neighbour !== core[0] && !sorted.slice(1, BRANCH_COUNT + 1).find(([nid]) => nid === neighbour)) {
-            const nd = graph.nodes[neighbour];
-            if (nd) children.push({ id: neighbour, freq: nd.freq });
-          }
-        }
-        children.sort((a, b) => b.freq - a.freq);
-        return { id, freq: data.freq, children: children.slice(0, 4) };
-      });
-      buildMindMap(container, core, newBranches);
+  const allEdges = Object.entries(graph.edges)
+    .filter(([key, w]) => {
+      const [a,b] = key.split('|||');
+      return w >= threshold && nodeIds.has(a) && nodeIds.has(b);
+    })
+    .map(([key, weight]) => {
+      const [a,b] = key.split('|||');
+      return { data: { id: key, source: a, target: b, weight } };
     });
-  }
 
-  g.appendChild(group);
-}
+  const nodeElements = sortedNodes.map(([id, data]) => ({
+    data: {
+      id,
+      label: id,
+      freq: data.freq,
+      pages: [...data.chunks].map(ci => store.chunks[ci]?.pageNum).filter(Boolean)
+    }
+  }));
 
-function wrapLabel(text, maxChars) {
-  if (text.length <= maxChars) return [text];
-  const words = text.split(/\s+/);
-  const lines = [];
-  let cur = '';
-  for (const w of words) {
-    if ((cur + w).length > maxChars) { if (cur) lines.push(cur.trim()); cur = w + ' '; }
-    else cur += w + ' ';
-  }
-  if (cur.trim()) lines.push(cur.trim());
-  return lines.slice(0, 3);
+  if (cy) { cy.destroy(); cy = null; }
+
+  // Start with only nodes, no edges — we'll animate them in
+  cy = cytoscape({
+    container,
+    elements: nodeElements,   // edges added after layout
+    
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'background-color': (ele) => {
+            const t = (ele.data('freq') - minFreq) / (maxFreq - minFreq + 1);
+            if (t > 0.7) return '#f97316';
+            if (t > 0.4) return '#a78bfa';
+            return '#7dd3fc';
+          },
+          'border-width': 0,
+          'width':  (ele) => 28 + ((ele.data('freq') - minFreq) / (maxFreq - minFreq + 1)) * 60,
+          'height': (ele) => 28 + ((ele.data('freq') - minFreq) / (maxFreq - minFreq + 1)) * 60,
+          'label': 'data(label)',
+          'font-size': (ele) => { const t = (ele.data('freq') - minFreq) / (maxFreq - minFreq + 1); return 10 + t * 8; },
+          'font-weight': 600,
+          'font-family': 'Hind Siliguri',
+          'color': '#1a1714',
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'text-wrap': 'wrap',
+          'text-max-width': '80px',
+          'opacity': 0,
+        }
+      },
+      { selector: 'node.visible', style: { 'opacity': 1 } },
+      {
+        selector: 'edge',
+        style: {
+          'width': (ele) => Math.min(0.5 + ele.data('weight') * 0.2, 3),
+          'line-color': '#d1c7bb',
+          'line-style': 'solid',
+          'curve-style': 'bezier',
+          'opacity': 0,
+        }
+      },
+      { selector: 'edge.visible', style: { 'opacity': 0.6 } },
+      { selector: 'edge.highlight', style: { 'opacity': 1, 'line-color': '#c9581a', 'width': 2.5 } },
+      { selector: 'node:selected, node.highlight', style: { 'border-width': 3, 'border-color': '#c9581a' } }
+    ],
+
+    
+    layout: {
+      name: 'cose',
+      animate: false,
+      nodeRepulsion: () => 18000,
+      idealEdgeLength: () => 120,
+      gravity: 0.15,
+      numIter: 1500,
+      fit: true,
+      padding: 48,
+    }
+  });
+
+  // ── Animate nodes appearing one by one ──
+  const nodeArr = cy.nodes().toArray();
+  nodeArr.forEach((node, i) => {
+    setTimeout(() => {
+      node.style('opacity', 1);
+      node.addClass('visible');
+    }, i * 60);
+  });
+
+  const nodeRevealDone = nodeArr.length * 60 + 100;
+
+  // ── Then animate edges drawing in one by one ──
+  setTimeout(() => {
+    cy.add(allEdges);
+
+    // Re-apply styles to newly added edges
+    cy.edges().style({
+      'line-color': '#39ff14',
+      'curve-style': 'bezier',
+      'opacity': 0,
+    });
+
+    const edgeArr = cy.edges().toArray();
+
+    // Shuffle for a more organic feel
+    for (let i = edgeArr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [edgeArr[i], edgeArr[j]] = [edgeArr[j], edgeArr[i]];
+    }
+
+    edgeArr.forEach((edge, i) => {
+      setTimeout(() => {
+        edge.style('opacity', 0.35);
+        edge.addClass('visible');
+      }, i * 30);
+    });
+  }, nodeRevealDone);
+
+  // ── Tooltip ──
+  const tooltip = document.getElementById('cy-tooltip');
+  cy.on('mouseover', 'node', (evt) => {
+    const n     = evt.target;
+    const pages = [...new Set(n.data('pages'))].sort((a,b)=>a-b).join(', ');
+    tooltip.innerHTML =
+      `<strong style="color:#39ff14">${n.data('label')}</strong><br/>` +
+      `পৃষ্ঠা: ${pages || '—'}<br/>` +
+      `উল্লেখ: ${n.data('freq')} বার`;
+    tooltip.style.display = 'block';
+  });
+  cy.on('mousemove', 'node', (evt) => {
+    tooltip.style.left = (evt.originalEvent.clientX + 16) + 'px';
+    tooltip.style.top  = (evt.originalEvent.clientY - 12) + 'px';
+  });
+  cy.on('mouseout', 'node', () => { tooltip.style.display = 'none'; });
+
+  // ── Click to highlight neighbourhood ──
+  cy.on('tap', 'node', (evt) => {
+    cy.elements().removeClass('highlight');
+    const node = evt.target;
+    node.addClass('highlight');
+    node.connectedEdges().addClass('highlight');
+    node.connectedEdges().connectedNodes().addClass('highlight');
+  });
+  cy.on('tap', (evt) => {
+    if (evt.target === cy) cy.elements().removeClass('highlight');
+  });
 }
 
 // ─────────────────────────────────────────────────────
@@ -1895,7 +1849,8 @@ function showHomeScreen(show) {
   document.getElementById('home-screen').style.display = show ? 'flex' : 'none';
   document.querySelector('main').style.display = show ? 'none' : 'grid';
   document.querySelector('nav').style.display = show ? 'none' : 'flex';
-  document.getElementById('graph-map-section').style.display = show ? 'none' : 'block';
+  const gsec = document.getElementById('graph-map-section');
+  if (gsec) gsec.style.display = show ? 'none' : 'block';
 }
 if (typeof window !== 'undefined') {
   window.showHomeScreen = showHomeScreen;
@@ -2008,9 +1963,7 @@ function injectLectureStyles(){
     @keyframes laserPulse{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.92;}50%{transform:translate(-50%,-50%) scale(1.28);opacity:1;}}
     #lecturePointer{position:absolute;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ff6b6b,#dc2626 60%,#7f1d1d);box-shadow:0 0 0 3px rgba(220,38,38,0.22),0 0 14px 5px rgba(220,38,38,0.45);pointer-events:none;z-index:50;animation:laserPulse 0.8s ease-in-out infinite;transition:left 0.10s ease,top 0.10s ease;}
     #lecturePointer.hidden{display:none;}
-    
-    #lecture-segment{position:relative;font-family:'Hind Siliguri',sans-serif;font-size:1.45rem;font-weight:500;line-height:1.75;color:#f0f4ff;text-align:center;padding:8px 4px 18px;min-height:90px;transition:opacity 0.2s ease;display:block;}
-
+    #lecture-segment{position:relative;font-family:'Hind Siliguri',sans-serif;font-size:1.45rem;font-weight:500;line-height:1.75;color:#f0f4ff;text-align:center;padding:8px 4px 18px;min-height:90px;}
     .lw{display:inline;border-radius:3px;transition:background 0.08s;}
     .lw.lw-lit{background:rgba(220,38,38,0.18);}
     @keyframes slideIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
@@ -2202,7 +2155,7 @@ function extractKeywords(text) {
 }
 
 
-// AFTERlol:
+// AFTERxd:
 
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
@@ -2235,14 +2188,26 @@ function showDiagram(videoUrl, topic) {
 
   setTimeout(() => {
     container.innerHTML = '';
-    const fallbackVideoUrl = 'https://amplifywebsite-production.up.railway.app/videos/3e64f732.mp4';
-    const resolvedVideoUrl = videoUrl
-      ? videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`
-      : fallbackVideoUrl;
-
+    
+    // AFTER:
     const video = document.createElement('video');
-    let triedFallback = false;
-    video.src = resolvedVideoUrl;
+    video.src = videoUrl
+      ? (videoUrl.startsWith('blob:') || videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`)
+      : '';
+    if (!videoUrl) {
+      container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
+        <rect width="460" height="240" fill="#0f0c29"/>
+        <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
+          <animate attributeName="r" values="35;55;35" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <text x="230" y="175" text-anchor="middle" fill="#a78bfa" font-size="15" font-family="Arial">${topic}</text>
+      </svg>`;
+      cap.textContent = topic;
+      container.classList.add('visible');
+      return;
+    }
+    
     video.autoplay = true;
     video.loop = true;
     video.muted = true;
@@ -2468,49 +2433,51 @@ function speakWithLaser(sentence){
 
 function stopTTS(){ TTS.stop(); }
 
+
 async function typewriteSentence(el, text) {
   el.innerHTML = '';
   el.style.opacity = '1';
+  // Don't use laser spans during typewrite — plain span for clean animation
   const span = document.createElement('span');
   span.className = 'lw';
   el.appendChild(span);
-  const chars = [...text];
+
+  const chars = [...text]; // handles multi-byte Unicode (Bangla) correctly
   for(let i = 0; i < chars.length; i++){
     if(lectureAborted) return;
     span.textContent += chars[i];
+    // Slightly faster on spaces for natural rhythm
     await sleep(/\s/.test(chars[i]) ? 18 : 28);
   }
-  // Re-wrap for laser after typewrite completes
-  _laserSpans = [];
-  el.innerHTML = '';
-  text.split(/(\s+)/).forEach(token => {
-    if(/^\s+$/.test(token)){ el.appendChild(document.createTextNode(token)); }
-    else { const sp = document.createElement('span'); sp.className='lw'; sp.textContent=token; el.appendChild(sp); _laserSpans.push(sp); }
-  });
-  if(_laserEl) el.appendChild(_laserEl);
 }
 
 async function speakSegmentSentences(sentences){
   const segEl = document.getElementById('lecture-segment');
   ensureLaser();
+
   for(let i = 0; i < sentences.length; i++){
     if(lectureAborted) return;
     while(lecturePaused && !lectureAborted) await sleep(120);
     if(lectureAborted) return;
 
+    // Clear and typewrite the sentence
+    segEl.style.display = 'block';
     await typewriteSentence(segEl, sentences[i]);
-    await speakWithLaser(sentences[i]);
-    hideLaser();
 
-    // Fade out before next sentence
+    // Speak while text is visible (typewrite completes first, then TTS plays)
+    await speakWithLaser(sentences[i]);
+
+    // Short pause, then fade out before next sentence
+    await sleep(180);
     segEl.style.opacity = '0';
-    await sleep(200);
+    await sleep(220);
     segEl.innerHTML = '';
     segEl.style.opacity = '1';
 
     if(!lectureAborted && !lecturePaused) await sleep(120);
   }
 }
+
 // ─────────────────────────────────────────────────────
 // MAIN LECTURE LOOP  — full PDF, RAG-style
 // ─────────────────────────────────────────────────────
@@ -2569,7 +2536,6 @@ async function startLecture(){
       if(tp!==currentPage){ currentPage=tp; renderPage(currentPage); }
     }
 
-    
     
     genEl.style.display='none';
     segEl.style.display='block';
@@ -2982,25 +2948,9 @@ document.querySelectorAll('.qcount-btn').forEach(btn => {
 });
 
 
-  // Graph map controls
-  const edgeSlider = document.getElementById('edge-threshold');
-  const nodeSlider = document.getElementById('node-limit');
-  if (edgeSlider) {
-    edgeSlider.addEventListener('input', function() {
-      document.getElementById('edge-threshold-val').textContent = this.value;
-      if (graph.nodes && Object.keys(graph.nodes).length) renderTopicGraph();
-    });
-  }
-  if (nodeSlider) {
-    nodeSlider.addEventListener('input', function() {
-      document.getElementById('node-limit-val').textContent = this.value;
-      if (graph.nodes && Object.keys(graph.nodes).length) renderTopicGraph();
-    });
-  }
-  on('graph-relayout-btn', 'click', function() {
-    if (cy) cy.layout({ name: 'cose', animate: true, animationDuration: 600,
-      nodeRepulsion: () => 8000, idealEdgeLength: () => 80, fit: true, padding: 32 }).run();
-  });
+  // Graph map controls removed (UI no longer present)
+
+
 });
 
 // ─────────────────────────────────────────────────────
@@ -3102,5 +3052,6 @@ async function toggleAttention(){
     await v.play();
     document.getElementById('tracker-loading').style.display='none';
     trackerOn=true; tDetect();
+ 
   }catch(e){document.getElementById('tracker-loading').textContent='ক্যামেরা চালু হয়নি';btn.classList.remove('active');}
 }

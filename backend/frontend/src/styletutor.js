@@ -486,6 +486,7 @@ let cy = null;
 function renderTopicGraph() {
   const placeholder = document.getElementById('cy-placeholder');
   const container   = document.getElementById('cy');
+  if (!container) return; // Graph UI removed — skip rendering safely
   if (!graph.nodes || !Object.keys(graph.nodes).length) return;
   if (placeholder) placeholder.style.display = 'none';
 
@@ -1848,7 +1849,8 @@ function showHomeScreen(show) {
   document.getElementById('home-screen').style.display = show ? 'flex' : 'none';
   document.querySelector('main').style.display = show ? 'none' : 'grid';
   document.querySelector('nav').style.display = show ? 'none' : 'flex';
-  document.getElementById('graph-map-section').style.display = show ? 'none' : 'block';
+  const gsec = document.getElementById('graph-map-section');
+  if (gsec) gsec.style.display = show ? 'none' : 'block';
 }
 if (typeof window !== 'undefined') {
   window.showHomeScreen = showHomeScreen;
@@ -2946,25 +2948,8 @@ document.querySelectorAll('.qcount-btn').forEach(btn => {
 });
 
 
-  // Graph map controls
-  const edgeSlider = document.getElementById('edge-threshold');
-  const nodeSlider = document.getElementById('node-limit');
-  if (edgeSlider) {
-    edgeSlider.addEventListener('input', function() {
-      document.getElementById('edge-threshold-val').textContent = this.value;
-      if (graph.nodes && Object.keys(graph.nodes).length) renderTopicGraph();
-    });
-  }
-  if (nodeSlider) {
-    nodeSlider.addEventListener('input', function() {
-      document.getElementById('node-limit-val').textContent = this.value;
-      if (graph.nodes && Object.keys(graph.nodes).length) renderTopicGraph();
-    });
-  }
-  on('graph-relayout-btn', 'click', function() {
-    if (cy) cy.layout({ name: 'cose', animate: true, animationDuration: 600,
-      nodeRepulsion: () => 8000, idealEdgeLength: () => 80, fit: true, padding: 32 }).run();
-  });
+  // Graph map controls removed (UI no longer present)
+
 });
 
 // ─────────────────────────────────────────────────────

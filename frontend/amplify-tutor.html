@@ -13,9 +13,9 @@
 
   <!-- Third-party libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script> 
-  <!-- Cytoscape for topic graph visualization -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <!-- Third-party libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script> 
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
 
   <!-- App stylesheet -->
   <link rel="stylesheet" href="src/styletutor.css" />
@@ -289,31 +289,7 @@
   </main>
 
 
-  <!-- ── TOPIC GRAPH MAP ── -->
-<section id="graph-map-section">
-  <div class="graph-map-header">
-    <div class="graph-map-title">🗺️ বিষয় সংযোগ মানচিত্র</div>
-    <div class="graph-map-subtitle">PDF-এর টপিকগুলো একে অপরের সাথে কীভাবে যুক্ত — লাইভ আপডেট হয়</div>
-    <div class="graph-map-controls">
-      <label>সর্বনিম্ন সংযোগ:
-        <input type="range" id="edge-threshold" min="1" max="10" value="2" />
-        <span id="edge-threshold-val">2</span>
-      </label>
-      <label>সর্বোচ্চ নোড:
-        <input type="range" id="node-limit" min="10" max="80" value="35" />
-        <span id="node-limit-val">35</span>
-      </label>
-      <button id="graph-relayout-btn">↺ পুনরায় সাজান</button>
-    </div>
-  </div>
-  <div id="cy-container">
-    <div id="cy-placeholder">
-      <span>📄 PDF আপলোড করলে বিষয় মানচিত্র এখানে দেখাবে</span>
-    </div>
-    <div id="cy"></div>
-  </div>
-  <div id="cy-tooltip"></div>
-</section>
+  <!-- Graph map removed -->
 
   <!-- ── ATTENTION TRACKER OVERLAY ── -->
   <div id="tracker-overlay">
