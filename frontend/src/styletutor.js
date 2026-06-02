@@ -2421,21 +2421,49 @@ function speakWithLaser(sentence){
 
 function stopTTS(){ TTS.stop(); }
 
-async function speakSegmentSentences(sentences){
-  const segEl=document.getElementById('lecture-segment');
-  ensureLaser();
-  for(let i=0;i<sentences.length;i++){
+async function typewriteSentence(el, text) {
+  el.innerHTML = '';
+  el.style.opacity = '1';
+  const span = document.createElement('span');
+  span.className = 'lw';
+  el.appendChild(span);
+  const chars = [...text];
+  for(let i = 0; i < chars.length; i++){
     if(lectureAborted) return;
-    while(lecturePaused&&!lectureAborted) await sleep(120);
-    if(lectureAborted) return;
-    wrapWordsForLaser(segEl,sentences[i]);
-    if(_laserEl) segEl.appendChild(_laserEl);
-    await speakWithLaser(sentences[i]);
-    hideLaser();
-    if(!lectureAborted&&!lecturePaused) await sleep(220);
+    span.textContent += chars[i];
+    await sleep(/\s/.test(chars[i]) ? 18 : 28);
   }
+  // Re-wrap for laser after typewrite completes
+  _laserSpans = [];
+  el.innerHTML = '';
+  text.split(/(\s+)/).forEach(token => {
+    if(/^\s+$/.test(token)){ el.appendChild(document.createTextNode(token)); }
+    else { const sp = document.createElement('span'); sp.className='lw'; sp.textContent=token; el.appendChild(sp); _laserSpans.push(sp); }
+  });
+  if(_laserEl) el.appendChild(_laserEl);
 }
 
+async function speakSegmentSentences(sentences){
+  const segEl = document.getElementById('lecture-segment');
+  ensureLaser();
+  for(let i = 0; i < sentences.length; i++){
+    if(lectureAborted) return;
+    while(lecturePaused && !lectureAborted) await sleep(120);
+    if(lectureAborted) return;
+
+    await typewriteSentence(segEl, sentences[i]);
+    await speakWithLaser(sentences[i]);
+    hideLaser();
+
+    // Fade out before next sentence
+    segEl.style.opacity = '0';
+    await sleep(200);
+    segEl.innerHTML = '';
+    segEl.style.opacity = '1';
+
+    if(!lectureAborted && !lecturePaused) await sleep(120);
+  }
+}
 // ─────────────────────────────────────────────────────
 // MAIN LECTURE LOOP  — full PDF, RAG-style
 // ─────────────────────────────────────────────────────
