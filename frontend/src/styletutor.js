@@ -1961,7 +1961,9 @@ function injectLectureStyles(){
     @keyframes laserPulse{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.92;}50%{transform:translate(-50%,-50%) scale(1.28);opacity:1;}}
     #lecturePointer{position:absolute;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ff6b6b,#dc2626 60%,#7f1d1d);box-shadow:0 0 0 3px rgba(220,38,38,0.22),0 0 14px 5px rgba(220,38,38,0.45);pointer-events:none;z-index:50;animation:laserPulse 0.8s ease-in-out infinite;transition:left 0.10s ease,top 0.10s ease;}
     #lecturePointer.hidden{display:none;}
-    #lecture-segment{position:relative;font-family:'Hind Siliguri',sans-serif;font-size:1.45rem;font-weight:500;line-height:1.75;color:#f0f4ff;text-align:center;padding:8px 4px 18px;min-height:90px;}
+    
+    #lecture-segment{position:relative;font-family:'Hind Siliguri',sans-serif;font-size:1.45rem;font-weight:500;line-height:1.75;color:#f0f4ff;text-align:center;padding:8px 4px 18px;min-height:90px;transition:opacity 0.2s ease;display:block;}
+
     .lw{display:inline;border-radius:3px;transition:background 0.08s;}
     .lw.lw-lit{background:rgba(220,38,38,0.18);}
     @keyframes slideIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
@@ -2153,7 +2155,8 @@ function extractKeywords(text) {
 }
 
 
-// AFTER:
+// AFTERlol:
+
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
   try {
@@ -2165,12 +2168,14 @@ async function fetchAnimatedVisual(text) {
     if (!res.ok) throw new Error('backend ' + res.status);
     const blob = await res.blob();
     const videoUrl = URL.createObjectURL(blob);
+    console.log('[Manim] success, blob size:', blob.size, 'url:', videoUrl);
     return { videoUrl, topic };
   } catch(e) {
     console.warn('[Manim] failed:', e.message);
     return { videoUrl: null, topic };
   }
 }
+
 function showDiagram(videoUrl, topic) {
   const stage  = document.getElementById('lecture-visual-stage');
   const container = document.getElementById('lecture-anim-container');
@@ -2489,7 +2494,12 @@ async function startLecture(){
       if(tp!==currentPage){ currentPage=tp; renderPage(currentPage); }
     }
 
-    genEl.style.display='none'; segEl.style.display='none'; // text never shown
+    
+    
+    genEl.style.display='none';
+    segEl.style.display='block';
+    segEl.style.opacity='1';
+    segEl.innerHTML='';
 
     const sentences = splitSentences(current?.text || '');
     const pct = Math.round(((lectureSegIdx + 1) / total) * 100);

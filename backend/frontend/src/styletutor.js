@@ -2431,18 +2431,48 @@ function speakWithLaser(sentence){
 
 function stopTTS(){ TTS.stop(); }
 
+
+async function typewriteSentence(el, text) {
+  el.innerHTML = '';
+  el.style.opacity = '1';
+  // Don't use laser spans during typewrite — plain span for clean animation
+  const span = document.createElement('span');
+  span.className = 'lw';
+  el.appendChild(span);
+
+  const chars = [...text]; // handles multi-byte Unicode (Bangla) correctly
+  for(let i = 0; i < chars.length; i++){
+    if(lectureAborted) return;
+    span.textContent += chars[i];
+    // Slightly faster on spaces for natural rhythm
+    await sleep(/\s/.test(chars[i]) ? 18 : 28);
+  }
+}
+
 async function speakSegmentSentences(sentences){
-  const segEl=document.getElementById('lecture-segment');
+  const segEl = document.getElementById('lecture-segment');
   ensureLaser();
-  for(let i=0;i<sentences.length;i++){
+
+  for(let i = 0; i < sentences.length; i++){
     if(lectureAborted) return;
-    while(lecturePaused&&!lectureAborted) await sleep(120);
+    while(lecturePaused && !lectureAborted) await sleep(120);
     if(lectureAborted) return;
-    wrapWordsForLaser(segEl,sentences[i]);
-    if(_laserEl) segEl.appendChild(_laserEl);
+
+    // Clear and typewrite the sentence
+    segEl.style.display = 'block';
+    await typewriteSentence(segEl, sentences[i]);
+
+    // Speak while text is visible (typewrite completes first, then TTS plays)
     await speakWithLaser(sentences[i]);
-    hideLaser();
-    if(!lectureAborted&&!lecturePaused) await sleep(220);
+
+    // Short pause, then fade out before next sentence
+    await sleep(180);
+    segEl.style.opacity = '0';
+    await sleep(220);
+    segEl.innerHTML = '';
+    segEl.style.opacity = '1';
+
+    if(!lectureAborted && !lecturePaused) await sleep(120);
   }
 }
 
@@ -2504,7 +2534,11 @@ async function startLecture(){
       if(tp!==currentPage){ currentPage=tp; renderPage(currentPage); }
     }
 
-    genEl.style.display='none'; segEl.style.display='none'; // text never shown
+    
+    genEl.style.display='none';
+    segEl.style.display='block';
+    segEl.style.opacity='1';
+    segEl.innerHTML='';
 
     const sentences = splitSentences(current?.text || '');
     const pct = Math.round(((lectureSegIdx + 1) / total) * 100);
