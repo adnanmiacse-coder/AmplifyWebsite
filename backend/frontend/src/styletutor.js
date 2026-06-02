@@ -2177,14 +2177,16 @@ function extractKeywords(text) {
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
   try {
-    const res = await fetch(`${apiBase()}/generate`, {
+    const res = await fetch(`https://yourname--amplify-manim-generate.modal.run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
     });
     if (!res.ok) throw new Error('backend ' + res.status);
-    const data = await res.json();
-    return { videoUrl: data.video_url || '/videos/3e64f732.mp4', topic };
+    
+    const blob = await res.blob();
+const videoUrl = URL.createObjectURL(blob);
+return { videoUrl, topic };
   } catch(e) {
     console.warn('[Manim] failed:', e.message);
     return { videoUrl: '/videos/3e64f732.mp4', topic };
