@@ -478,175 +478,222 @@ class GraphStore {
 
 const graph = new GraphStore();
 
-// ─────────────────────────────────────────────────────
-// CYTOSCAPE TOPIC MAP
-// ─────────────────────────────────────────────────────
-let cy = null;
-
 function renderTopicGraph() {
   const placeholder = document.getElementById('cy-placeholder');
   const container   = document.getElementById('cy');
   if (!graph.nodes || !Object.keys(graph.nodes).length) return;
   if (placeholder) placeholder.style.display = 'none';
 
-  const threshold = parseInt(document.getElementById('edge-threshold')?.value || 2);
   const nodeLimit = parseInt(document.getElementById('node-limit')?.value || 35);
 
-  // Build node + edge lists
-  const sortedNodes = Object.entries(graph.nodes)
+  // Pick top nodes by frequency
+  const sorted = Object.entries(graph.nodes)
     .sort((a, b) => b[1].freq - a[1].freq)
     .slice(0, nodeLimit);
-  const nodeIds = new Set(sortedNodes.map(([id]) => id));
-  const freqs   = sortedNodes.map(([,d]) => d.freq);
-  const maxFreq = Math.max(...freqs, 1);
-  const minFreq = Math.min(...freqs, 1);
 
-  const allEdges = Object.entries(graph.edges)
-    .filter(([key, w]) => {
-      const [a,b] = key.split('|||');
-      return w >= threshold && nodeIds.has(a) && nodeIds.has(b);
-    })
-    .map(([key, weight]) => {
-      const [a,b] = key.split('|||');
-      return { data: { id: key, source: a, target: b, weight } };
-    });
+  // Find core topic (highest freq)
+  const core = sorted[0];
 
-  const nodeElements = sortedNodes.map(([id, data]) => ({
-    data: {
-      id,
-      label: id,
-      freq: data.freq,
-      pages: [...data.chunks].map(ci => store.chunks[ci]?.pageNum).filter(Boolean)
+  // Group remaining into branches (up to 8 branches, each with children)
+  const BRANCH_COUNT = Math.min(8, sorted.length - 1);
+  const branches = sorted.slice(1, BRANCH_COUNT + 1).map(([id, data], bi) => {
+    // Find children: nodes connected to this branch node via edges
+    const children = [];
+    for (const [key] of Object.entries(graph.edges)) {
+      const [a, b] = key.split('|||');
+      const neighbour = a === id ? b : b === id ? a : null;
+      if (neighbour && neighbour !== core[0] && !sorted.slice(1, BRANCH_COUNT + 1).find(([nid]) => nid === neighbour)) {
+        const nodeData = graph.nodes[neighbour];
+        if (nodeData) children.push({ id: neighbour, freq: nodeData.freq });
+      }
     }
-  }));
+    children.sort((a, b) => b.freq - a.freq);
+    return { id, freq: data.freq, children: children.slice(0, 4) };
+  });
 
-  if (cy) { cy.destroy(); cy = null; }
+  buildMindMap(container, core, branches);
+}
+// ── MINDMAP STATE ──
+const _mmExpanded = new Set(); // branch ids that are expanded
 
-  // Start with only nodes, no edges — we'll animate them in
-  cy = cytoscape({
-    container,
-    elements: nodeElements,   // edges added after layout
-    
-    style: [
-      {
-        selector: 'node',
-        style: {
-          'background-color': (ele) => {
-            const t = (ele.data('freq') - minFreq) / (maxFreq - minFreq + 1);
-            if (t > 0.7) return '#f97316';
-            if (t > 0.4) return '#a78bfa';
-            return '#7dd3fc';
-          },
-          'border-width': 0,
-          'width':  (ele) => 28 + ((ele.data('freq') - minFreq) / (maxFreq - minFreq + 1)) * 60,
-          'height': (ele) => 28 + ((ele.data('freq') - minFreq) / (maxFreq - minFreq + 1)) * 60,
-          'label': 'data(label)',
-          'font-size': (ele) => { const t = (ele.data('freq') - minFreq) / (maxFreq - minFreq + 1); return 10 + t * 8; },
-          'font-weight': 600,
-          'font-family': 'Hind Siliguri',
-          'color': '#1a1714',
-          'text-valign': 'center',
-          'text-halign': 'center',
-          'text-wrap': 'wrap',
-          'text-max-width': '80px',
-          'opacity': 0,
+function buildMindMap(container, core, branches) {
+  container.innerHTML = '';
+  const W = container.clientWidth || 700;
+  const H = 500;
+  const CX = W / 2, CY = H / 2;
+  const BRANCH_R = 160, CHILD_R = 260;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', H);
+  svg.style.fontFamily = "'Hind Siliguri', sans-serif";
+  container.appendChild(svg);
+
+  // ── Defs: glow filter ──
+  svg.innerHTML = `
+    <defs>
+      <filter id="mm-glow">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="mm-glow-strong">
+        <feGaussianBlur stdDeviation="5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>`;
+
+  const linesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  linesGroup.id = 'mm-lines';
+  const nodesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  nodesGroup.id = 'mm-nodes';
+  svg.appendChild(linesGroup);
+  svg.appendChild(nodesGroup);
+
+  // ── Core node ──
+  drawNode(nodesGroup, CX, CY, core[0], '#f97316', 36, 'core', null, null, core);
+
+  // ── Branch nodes ──
+  branches.forEach((branch, bi) => {
+    const angle = (2 * Math.PI * bi) / branches.length - Math.PI / 2;
+    const bx = CX + Math.cos(angle) * BRANCH_R;
+    const by = CY + Math.sin(angle) * BRANCH_R;
+
+    // Line: core → branch
+    drawLine(linesGroup, CX, CY, bx, by, '#a78bfa', 2, false);
+
+    drawNode(nodesGroup, bx, by, branch.id, '#a78bfa', 26, 'branch', branch, angle, branches);
+
+    // ── Children (only if expanded) ──
+    if (_mmExpanded.has(branch.id)) {
+      branch.children.forEach((child, ci) => {
+        const spread = Math.PI / 4;
+        const cAngle = angle + spread * (ci - (branch.children.length - 1) / 2) * 0.6;
+        const cx2 = bx + Math.cos(cAngle) * (CHILD_R - BRANCH_R);
+        const cy2 = by + Math.sin(cAngle) * (CHILD_R - BRANCH_R);
+
+        drawLine(linesGroup, bx, by, cx2, cy2, '#7dd3fc', 1.2, true);
+        drawNode(nodesGroup, cx2, cy2, child.id, '#7dd3fc', 18, 'child', null, null, null);
+      });
+    }
+  });
+}
+
+function drawLine(g, x1, y1, x2, y2, color, width, dashed) {
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+  line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+  line.setAttribute('stroke', color);
+  line.setAttribute('stroke-width', width);
+  line.setAttribute('stroke-opacity', '0.6');
+  if (dashed) line.setAttribute('stroke-dasharray', '4 3');
+  g.appendChild(line);
+}
+
+function drawNode(g, x, y, label, color, r, type, branchData, angle, branches) {
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.setAttribute('transform', `translate(${x},${y})`);
+  group.style.cursor = type === 'branch' ? 'pointer' : 'default';
+
+  // Circle
+  const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  circle.setAttribute('r', r);
+  circle.setAttribute('fill', color);
+  circle.setAttribute('fill-opacity', type === 'core' ? '0.25' : '0.15');
+  circle.setAttribute('stroke', color);
+  circle.setAttribute('stroke-width', type === 'core' ? 2.5 : 1.5);
+  circle.setAttribute('filter', type === 'core' ? 'url(#mm-glow-strong)' : 'url(#mm-glow)');
+  group.appendChild(circle);
+
+  // Pulse ring for core
+  if (type === 'core') {
+    const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    pulse.setAttribute('r', r);
+    pulse.setAttribute('fill', 'none');
+    pulse.setAttribute('stroke', color);
+    pulse.setAttribute('stroke-width', '1.5');
+    pulse.setAttribute('stroke-opacity', '0.4');
+    pulse.innerHTML = `<animate attributeName="r" values="${r};${r+14};${r}" dur="2.5s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-opacity" values="0.4;0;0.4" dur="2.5s" repeatCount="indefinite"/>`;
+    group.appendChild(pulse);
+  }
+
+  // Expand indicator for branch
+  if (type === 'branch' && branchData?.children?.length) {
+    const isExp = _mmExpanded.has(branchData.id);
+    const ind = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    ind.setAttribute('x', r - 4);
+    ind.setAttribute('y', -r + 4);
+    ind.setAttribute('font-size', '11');
+    ind.setAttribute('fill', color);
+    ind.setAttribute('text-anchor', 'middle');
+    ind.textContent = isExp ? '−' : '+';
+    group.appendChild(ind);
+  }
+
+  // Label
+  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  const lines = wrapLabel(label, type === 'core' ? 10 : type === 'branch' ? 8 : 7);
+  const lineH = type === 'core' ? 15 : 13;
+  const startY = -(lines.length - 1) * lineH / 2;
+  lines.forEach((line, i) => {
+    const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+    tspan.setAttribute('x', 0);
+    tspan.setAttribute('dy', i === 0 ? startY : lineH);
+    tspan.textContent = line;
+    text.appendChild(tspan);
+  });
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('dominant-baseline', 'middle');
+  text.setAttribute('fill', type === 'core' ? '#f0f4ff' : '#e2e8f0');
+  text.setAttribute('font-size', type === 'core' ? '13' : type === 'branch' ? '11' : '10');
+  text.setAttribute('font-weight', type === 'core' ? '700' : '500');
+  text.setAttribute('pointer-events', 'none');
+  group.appendChild(text);
+
+  // Click handler for branch nodes
+  if (type === 'branch' && branchData) {
+    group.addEventListener('click', () => {
+      if (_mmExpanded.has(branchData.id)) _mmExpanded.delete(branchData.id);
+      else _mmExpanded.add(branchData.id);
+      // Rebuild using stored core reference
+      const container = document.getElementById('cy');
+      const nodeLimit = parseInt(document.getElementById('node-limit')?.value || 35);
+      const sorted = Object.entries(graph.nodes)
+        .sort((a, b) => b[1].freq - a[1].freq).slice(0, nodeLimit);
+      const core = sorted[0];
+      const BRANCH_COUNT = Math.min(8, sorted.length - 1);
+      const newBranches = sorted.slice(1, BRANCH_COUNT + 1).map(([id, data]) => {
+        const children = [];
+        for (const [key] of Object.entries(graph.edges)) {
+          const [a, b] = key.split('|||');
+          const neighbour = a === id ? b : b === id ? a : null;
+          if (neighbour && neighbour !== core[0] && !sorted.slice(1, BRANCH_COUNT + 1).find(([nid]) => nid === neighbour)) {
+            const nd = graph.nodes[neighbour];
+            if (nd) children.push({ id: neighbour, freq: nd.freq });
+          }
         }
-      },
-      { selector: 'node.visible', style: { 'opacity': 1 } },
-      {
-        selector: 'edge',
-        style: {
-          'width': (ele) => Math.min(0.5 + ele.data('weight') * 0.2, 3),
-          'line-color': '#d1c7bb',
-          'line-style': 'solid',
-          'curve-style': 'bezier',
-          'opacity': 0,
-        }
-      },
-      { selector: 'edge.visible', style: { 'opacity': 0.6 } },
-      { selector: 'edge.highlight', style: { 'opacity': 1, 'line-color': '#c9581a', 'width': 2.5 } },
-      { selector: 'node:selected, node.highlight', style: { 'border-width': 3, 'border-color': '#c9581a' } }
-    ],
-
-    
-    layout: {
-      name: 'cose',
-      animate: false,
-      nodeRepulsion: () => 18000,
-      idealEdgeLength: () => 120,
-      gravity: 0.15,
-      numIter: 1500,
-      fit: true,
-      padding: 48,
-    }
-  });
-
-  // ── Animate nodes appearing one by one ──
-  const nodeArr = cy.nodes().toArray();
-  nodeArr.forEach((node, i) => {
-    setTimeout(() => {
-      node.style('opacity', 1);
-      node.addClass('visible');
-    }, i * 60);
-  });
-
-  const nodeRevealDone = nodeArr.length * 60 + 100;
-
-  // ── Then animate edges drawing in one by one ──
-  setTimeout(() => {
-    cy.add(allEdges);
-
-    // Re-apply styles to newly added edges
-    cy.edges().style({
-      'line-color': '#39ff14',
-      'curve-style': 'bezier',
-      'opacity': 0,
+        children.sort((a, b) => b.freq - a.freq);
+        return { id, freq: data.freq, children: children.slice(0, 4) };
+      });
+      buildMindMap(container, core, newBranches);
     });
+  }
 
-    const edgeArr = cy.edges().toArray();
+  g.appendChild(group);
+}
 
-    // Shuffle for a more organic feel
-    for (let i = edgeArr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [edgeArr[i], edgeArr[j]] = [edgeArr[j], edgeArr[i]];
-    }
-
-    edgeArr.forEach((edge, i) => {
-      setTimeout(() => {
-        edge.style('opacity', 0.35);
-        edge.addClass('visible');
-      }, i * 30);
-    });
-  }, nodeRevealDone);
-
-  // ── Tooltip ──
-  const tooltip = document.getElementById('cy-tooltip');
-  cy.on('mouseover', 'node', (evt) => {
-    const n     = evt.target;
-    const pages = [...new Set(n.data('pages'))].sort((a,b)=>a-b).join(', ');
-    tooltip.innerHTML =
-      `<strong style="color:#39ff14">${n.data('label')}</strong><br/>` +
-      `পৃষ্ঠা: ${pages || '—'}<br/>` +
-      `উল্লেখ: ${n.data('freq')} বার`;
-    tooltip.style.display = 'block';
-  });
-  cy.on('mousemove', 'node', (evt) => {
-    tooltip.style.left = (evt.originalEvent.clientX + 16) + 'px';
-    tooltip.style.top  = (evt.originalEvent.clientY - 12) + 'px';
-  });
-  cy.on('mouseout', 'node', () => { tooltip.style.display = 'none'; });
-
-  // ── Click to highlight neighbourhood ──
-  cy.on('tap', 'node', (evt) => {
-    cy.elements().removeClass('highlight');
-    const node = evt.target;
-    node.addClass('highlight');
-    node.connectedEdges().addClass('highlight');
-    node.connectedEdges().connectedNodes().addClass('highlight');
-  });
-  cy.on('tap', (evt) => {
-    if (evt.target === cy) cy.elements().removeClass('highlight');
-  });
+function wrapLabel(text, maxChars) {
+  if (text.length <= maxChars) return [text];
+  const words = text.split(/\s+/);
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    if ((cur + w).length > maxChars) { if (cur) lines.push(cur.trim()); cur = w + ' '; }
+    else cur += w + ' ';
+  }
+  if (cur.trim()) lines.push(cur.trim());
+  return lines.slice(0, 3);
 }
 
 // ─────────────────────────────────────────────────────
