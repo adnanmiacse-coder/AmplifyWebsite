@@ -1391,7 +1391,7 @@ async function replayWeakSegment() {
       if (tp !== currentPage) { currentPage = tp; renderPage(currentPage); }
     }
 
-    genEl.style.display = 'none'; segEl.style.display = 'none';
+    genEl.style.display = 'none'; segEl.style.display = 'block';
 
     const sentences = splitSentences(current?.text || '');
     const pct = Math.round(((lectureSegIdx + 1) / total) * 100);
@@ -2022,6 +2022,28 @@ function injectLectureStyles(){
       font-family: 'Hind Siliguri', sans-serif;
       letter-spacing: 0.3px;
     }
+
+    /* Typewriter text below video */
+    #lecture-segment {
+      display: block;
+      max-height: 160px;
+      overflow-y: auto;
+      font-family: 'Hind Siliguri', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 400;
+      line-height: 1.8;
+      color: #e2e8f0;
+      text-align: left;
+      padding: 10px 16px 14px;
+      background: rgba(255,255,255,0.04);
+      border-top: 1px solid rgba(255,255,255,0.07);
+      border-radius: 0 0 16px 16px;
+      word-break: break-word;
+      scroll-behavior: smooth;
+    }
+    .lw-typewriter-sentence {
+      display: inline;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -2181,31 +2203,29 @@ function showDiagram(videoUrl, topic) {
 
   setTimeout(() => {
     container.innerHTML = '';
-    const fallbackVideoUrl = 'https://amplifywebsite-production.up.railway.app/videos/3e64f732.mp4';
-    const resolvedVideoUrl = videoUrl
-      ? videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`
-      : fallbackVideoUrl;
-
-    const video = document.createElement('video');
-    let triedFallback = false;
-    video.src = resolvedVideoUrl;
-    video.autoplay = true;
-    video.loop = true;
-    video.muted = true;
-    video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
-    video.onerror = () => {
-      if (!triedFallback) {
-        triedFallback = true;
-        video.src = fallbackVideoUrl;
-        video.load();
-        video.play().catch(() => {});
-      }
-    };
-
-    container.appendChild(video);
-    cap.textContent = '🎬 ' + topic;
+    if (videoUrl) {
+      const video = document.createElement('video');
+      video.src = videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`;
+      video.autoplay = true;
+      video.loop = true;
+      video.muted = true;
+      video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
+      container.appendChild(video);
+      cap.textContent = '🎬 ' + topic;
+    } else {
+      // Fallback — plain pulsing circle, no broken SVG
+      container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
+        <rect width="460" height="240" fill="#0f0c29"/>
+        <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
+          <animate attributeName="r" values="35;55;35" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <text x="230" y="175" text-anchor="middle" fill="#a78bfa" font-size="15" font-family="Arial">${topic}</text>
+        <text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">রেন্ডার হচ্ছে…</text>
+      </svg>`;
+      cap.textContent = '';
+    }
     container.classList.add('visible');
-    video.play().catch(() => {});
   }, 300);
 }
 
@@ -2414,18 +2434,41 @@ function speakWithLaser(sentence){
 
 function stopTTS(){ TTS.stop(); }
 
+async function typewriterAppend(segEl, text, speedMs = 28) {
+  // Create a new <span> for this sentence and type it character by character
+  const span = document.createElement('span');
+  span.className = 'lw-typewriter-sentence';
+  segEl.appendChild(span);
+  for (let i = 0; i < text.length; i++) {
+    if (lectureAborted) return;
+    span.textContent += text[i];
+    await sleep(speedMs);
+  }
+  // Add a space after each sentence
+  segEl.appendChild(document.createTextNode(' '));
+}
+
 async function speakSegmentSentences(sentences){
   const segEl=document.getElementById('lecture-segment');
   ensureLaser();
+
+  // Clear previous segment text and start fresh for this segment
+  segEl.innerHTML = '';
+  if (_laserEl) { _laserEl.classList.add('hidden'); }
+
   for(let i=0;i<sentences.length;i++){
     if(lectureAborted) return;
     while(lecturePaused&&!lectureAborted) await sleep(120);
     if(lectureAborted) return;
-    wrapWordsForLaser(segEl,sentences[i]);
-    if(_laserEl) segEl.appendChild(_laserEl);
-    await speakWithLaser(sentences[i]);
+
+    // Type the sentence AND speak it simultaneously
+    const [,] = await Promise.all([
+      typewriterAppend(segEl, sentences[i], 22),
+      speakWithLaser(sentences[i]),
+    ]);
+
     hideLaser();
-    if(!lectureAborted&&!lecturePaused) await sleep(220);
+    if(!lectureAborted&&!lecturePaused) await sleep(180);
   }
 }
 
@@ -2487,7 +2530,7 @@ async function startLecture(){
       if(tp!==currentPage){ currentPage=tp; renderPage(currentPage); }
     }
 
-    genEl.style.display='none'; segEl.style.display='none'; // text never shown
+    genEl.style.display='none'; segEl.style.display='block'; // show text below video
 
     const sentences = splitSentences(current?.text || '');
     const pct = Math.round(((lectureSegIdx + 1) / total) * 100);
