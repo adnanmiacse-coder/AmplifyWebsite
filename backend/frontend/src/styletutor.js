@@ -2153,7 +2153,7 @@ function extractKeywords(text) {
 }
 
 
-// AFTER:
+// AFTERxd:
 
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
