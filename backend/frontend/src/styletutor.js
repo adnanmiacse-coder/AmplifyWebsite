@@ -390,8 +390,264 @@ class VectorStore {
 }
 
 const store = new VectorStore();
+// ─────────────────────────────────────────────────────
+// GRAPH RAG — entity graph over chunks
+// ─────────────────────────────────────────────────────
+class GraphStore {
+  constructor() { this.reset(); }
 
+  reset() {
+    this.nodes = {};   // entity → { chunks: Set<chunkIdx>, freq: number }
+    this.edges = {};   // "entityA|||entityB" → co-occurrence count
+    this.chunkEntities = []; // chunkIdx → [entity, ...]
+  }
 
+  // Simple noun-phrase extractor: capitalised/repeated tokens as proxy entities
+  extractEntities(text) {
+    const tokens = text
+      .replace(/[।,!?;:()\[\]{}"'\/\\]/g, ' ')
+      .split(/\s+/)
+      .filter(t => t.length > 2);
+
+    const freq = {};
+    for (const t of tokens) freq[t] = (freq[t] || 0) + 1;
+
+    // Keep tokens that appear ≥2 times OR start with uppercase/Bangla capital run
+    return [...new Set(
+      tokens.filter(t => freq[t] >= 2 || /^[\u0980-\u09FF]{3,}$/.test(t) || /^[A-Z]/.test(t))
+    )];
+  }
+
+  buildGraph(chunks) {
+    this.reset();
+    chunks.forEach((chunk, idx) => {
+      const entities = this.extractEntities(chunk.text);
+      this.chunkEntities[idx] = entities;
+
+      for (const e of entities) {
+        if (!this.nodes[e]) this.nodes[e] = { chunks: new Set(), freq: 0 };
+        this.nodes[e].chunks.add(idx);
+        this.nodes[e].freq++;
+      }
+
+      // Co-occurrence edges (within same chunk)
+      for (let i = 0; i < entities.length; i++) {
+        for (let j = i + 1; j < entities.length; j++) {
+          const key = [entities[i], entities[j]].sort().join('|||');
+          this.edges[key] = (this.edges[key] || 0) + 1;
+        }
+      }
+    });
+  }
+
+  // Return chunk indices relevant to query via entity overlap + graph traversal
+  graphRetrieve(query, chunks, k = TOP_K) {
+    const qEntities = this.extractEntities(query);
+    if (!qEntities.length) return [];
+
+    const chunkScores = {};
+
+    // Seed: chunks that share entities with query
+    for (const qe of qEntities) {
+      if (this.nodes[qe]) {
+        for (const idx of this.nodes[qe].chunks) {
+          chunkScores[idx] = (chunkScores[idx] || 0) + 2; // direct hit weight
+        }
+      }
+    }
+
+    // Graph hop: find neighbour entities via edges, add their chunks
+    for (const qe of qEntities) {
+      for (const key of Object.keys(this.edges)) {
+        const [a, b] = key.split('|||');
+        const neighbour = a === qe ? b : b === qe ? a : null;
+        if (neighbour && this.nodes[neighbour]) {
+          for (const idx of this.nodes[neighbour].chunks) {
+            chunkScores[idx] = (chunkScores[idx] || 0) + this.edges[key] * 0.5;
+          }
+        }
+      }
+    }
+
+    return Object.entries(chunkScores)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, k)
+      .map(([i, score]) => ({ ...chunks[+i], chunkIdx: +i, score: score / 10 }));
+  }
+}
+
+const graph = new GraphStore();
+
+// ─────────────────────────────────────────────────────
+// CYTOSCAPE TOPIC MAP
+// ─────────────────────────────────────────────────────
+let cy = null;
+
+function renderTopicGraph() {
+  const placeholder = document.getElementById('cy-placeholder');
+  const container   = document.getElementById('cy');
+  if (!graph.nodes || !Object.keys(graph.nodes).length) return;
+  if (placeholder) placeholder.style.display = 'none';
+
+  const threshold = parseInt(document.getElementById('edge-threshold')?.value || 2);
+  const nodeLimit = parseInt(document.getElementById('node-limit')?.value || 35);
+
+  // Build node + edge lists
+  const sortedNodes = Object.entries(graph.nodes)
+    .sort((a, b) => b[1].freq - a[1].freq)
+    .slice(0, nodeLimit);
+  const nodeIds = new Set(sortedNodes.map(([id]) => id));
+  const freqs   = sortedNodes.map(([,d]) => d.freq);
+  const maxFreq = Math.max(...freqs, 1);
+  const minFreq = Math.min(...freqs, 1);
+
+  const allEdges = Object.entries(graph.edges)
+    .filter(([key, w]) => {
+      const [a,b] = key.split('|||');
+      return w >= threshold && nodeIds.has(a) && nodeIds.has(b);
+    })
+    .map(([key, weight]) => {
+      const [a,b] = key.split('|||');
+      return { data: { id: key, source: a, target: b, weight } };
+    });
+
+  const nodeElements = sortedNodes.map(([id, data]) => ({
+    data: {
+      id,
+      label: id,
+      freq: data.freq,
+      pages: [...data.chunks].map(ci => store.chunks[ci]?.pageNum).filter(Boolean)
+    }
+  }));
+
+  if (cy) { cy.destroy(); cy = null; }
+
+  // Start with only nodes, no edges — we'll animate them in
+  cy = cytoscape({
+    container,
+    elements: nodeElements,   // edges added after layout
+    
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'background-color': (ele) => {
+            const t = (ele.data('freq') - minFreq) / (maxFreq - minFreq + 1);
+            if (t > 0.7) return '#f97316';
+            if (t > 0.4) return '#a78bfa';
+            return '#7dd3fc';
+          },
+          'border-width': 0,
+          'width':  (ele) => 28 + ((ele.data('freq') - minFreq) / (maxFreq - minFreq + 1)) * 60,
+          'height': (ele) => 28 + ((ele.data('freq') - minFreq) / (maxFreq - minFreq + 1)) * 60,
+          'label': 'data(label)',
+          'font-size': (ele) => { const t = (ele.data('freq') - minFreq) / (maxFreq - minFreq + 1); return 10 + t * 8; },
+          'font-weight': 600,
+          'font-family': 'Hind Siliguri',
+          'color': '#1a1714',
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'text-wrap': 'wrap',
+          'text-max-width': '80px',
+          'opacity': 0,
+        }
+      },
+      { selector: 'node.visible', style: { 'opacity': 1 } },
+      {
+        selector: 'edge',
+        style: {
+          'width': (ele) => Math.min(0.5 + ele.data('weight') * 0.2, 3),
+          'line-color': '#d1c7bb',
+          'line-style': 'solid',
+          'curve-style': 'bezier',
+          'opacity': 0,
+        }
+      },
+      { selector: 'edge.visible', style: { 'opacity': 0.6 } },
+      { selector: 'edge.highlight', style: { 'opacity': 1, 'line-color': '#c9581a', 'width': 2.5 } },
+      { selector: 'node:selected, node.highlight', style: { 'border-width': 3, 'border-color': '#c9581a' } }
+    ],
+
+    
+    layout: {
+      name: 'cose',
+      animate: false,
+      nodeRepulsion: () => 18000,
+      idealEdgeLength: () => 120,
+      gravity: 0.15,
+      numIter: 1500,
+      fit: true,
+      padding: 48,
+    }
+  });
+
+  // ── Animate nodes appearing one by one ──
+  const nodeArr = cy.nodes().toArray();
+  nodeArr.forEach((node, i) => {
+    setTimeout(() => {
+      node.style('opacity', 1);
+      node.addClass('visible');
+    }, i * 60);
+  });
+
+  const nodeRevealDone = nodeArr.length * 60 + 100;
+
+  // ── Then animate edges drawing in one by one ──
+  setTimeout(() => {
+    cy.add(allEdges);
+
+    // Re-apply styles to newly added edges
+    cy.edges().style({
+      'line-color': '#39ff14',
+      'curve-style': 'bezier',
+      'opacity': 0,
+    });
+
+    const edgeArr = cy.edges().toArray();
+
+    // Shuffle for a more organic feel
+    for (let i = edgeArr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [edgeArr[i], edgeArr[j]] = [edgeArr[j], edgeArr[i]];
+    }
+
+    edgeArr.forEach((edge, i) => {
+      setTimeout(() => {
+        edge.style('opacity', 0.35);
+        edge.addClass('visible');
+      }, i * 30);
+    });
+  }, nodeRevealDone);
+
+  // ── Tooltip ──
+  const tooltip = document.getElementById('cy-tooltip');
+  cy.on('mouseover', 'node', (evt) => {
+    const n     = evt.target;
+    const pages = [...new Set(n.data('pages'))].sort((a,b)=>a-b).join(', ');
+    tooltip.innerHTML =
+      `<strong style="color:#39ff14">${n.data('label')}</strong><br/>` +
+      `পৃষ্ঠা: ${pages || '—'}<br/>` +
+      `উল্লেখ: ${n.data('freq')} বার`;
+    tooltip.style.display = 'block';
+  });
+  cy.on('mousemove', 'node', (evt) => {
+    tooltip.style.left = (evt.originalEvent.clientX + 16) + 'px';
+    tooltip.style.top  = (evt.originalEvent.clientY - 12) + 'px';
+  });
+  cy.on('mouseout', 'node', () => { tooltip.style.display = 'none'; });
+
+  // ── Click to highlight neighbourhood ──
+  cy.on('tap', 'node', (evt) => {
+    cy.elements().removeClass('highlight');
+    const node = evt.target;
+    node.addClass('highlight');
+    node.connectedEdges().addClass('highlight');
+    node.connectedEdges().connectedNodes().addClass('highlight');
+  });
+  cy.on('tap', (evt) => {
+    if (evt.target === cy) cy.elements().removeClass('highlight');
+  });
+}
 
 // ─────────────────────────────────────────────────────
 // CHUNKING
