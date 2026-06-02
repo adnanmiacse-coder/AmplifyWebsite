@@ -3,7 +3,7 @@
 PIP_NO_CACHE_DIR = "true"
 
 [phases.setup]
-aptPkgs = ["ffmpeg", "libcairo2-dev", "libpango1.0-dev", "pkg-config", "build-essential"]
+aptPkgs = ["ffmpeg", "libcairo2-dev", "libpango1.0-dev", "libxcb1-dev", "pkg-config", "build-essential"]
 
 [phases.build]
 cmds = [
