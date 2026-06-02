@@ -1,6 +1,10 @@
 # Used when Railway service root directory is set to backend/
 [variables]
 PIP_NO_CACHE_DIR = "true"
+CPATH = "/usr/include"
+
+[phases.setup]
+aptPkgs = ["ffmpeg", "libcairo2-dev", "libpango1.0-dev", "pkg-config", "build-essential", "libxcb1-dev"]
 
 # Let Nixpacks install phase create /opt/venv and pip install requirements.txt.
 # Do NOT run pip in setup — nix python has no pip module yet.
@@ -9,7 +13,8 @@ PIP_NO_CACHE_DIR = "true"
 cmds = [
   "if [ -d ../frontend ]; then rm -rf frontend && cp -r ../frontend frontend; fi",
   "test -d frontend || (echo 'ERROR: frontend directory missing after build' && exit 1)",
-  "ls -la frontend | head -20"
+  "ls -la frontend | head -20",
+  "python -m manim --version || (echo 'ERROR: manim not installed' && exit 1)"
 ]
 
 [start]

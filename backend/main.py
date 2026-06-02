@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import subprocess, json, os, uuid, re, ast
+import subprocess, json, os, uuid, re, ast, sys
 from openai import OpenAI
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -110,8 +110,17 @@ def get_clients() -> list[OpenAI]:
 
 
 def manim_available() -> bool:
-    """Return True if the `manim` executable is available on PATH."""
-    return shutil.which("manim") is not None
+    """Return True if Manim module is runnable in current Python env."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "manim", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return False
 
 
 app = FastAPI()
@@ -540,8 +549,19 @@ async def generate(data: Prompt):
         print(f"[{job_id}] Render attempt {attempt}/{MAX_RETRIES}")
         try:
             result = subprocess.run(
-                ["manim", "-ql", scene_file, "Scene", "--media_dir", media_dir],
-                capture_output=True, text=True, timeout=120
+                [
+                    sys.executable,
+                    "-m",
+                    "manim",
+                    "-ql",
+                    scene_file,
+                    "Scene",
+                    "--media_dir",
+                    media_dir,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
             print(f"[{job_id}] Manim stdout: {result.stdout[-300:]}")
             print(f"[{job_id}] Manim stderr: {result.stderr[-300:]}")
