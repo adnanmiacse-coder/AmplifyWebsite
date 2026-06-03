@@ -646,6 +646,38 @@ async def get_config():
     }
 
 
+
+# ── NEO4J PROXY ──────────────────────────────────────
+from neo4j import AsyncGraphDatabase
+
+_neo4j_driver = None
+
+def get_neo4j_driver():
+    global _neo4j_driver
+    if _neo4j_driver is None:
+        uri  = os.getenv("NEO4J_URI")
+        user = os.getenv("NEO4J_USER", "neo4j")
+        pwd  = os.getenv("NEO4J_PASS")
+        if not uri or not pwd:
+            raise HTTPException(500, "NEO4J_URI / NEO4J_PASS not set")
+        _neo4j_driver = AsyncGraphDatabase.driver(uri, auth=(user, pwd))
+    return _neo4j_driver
+
+class Neo4jRequest(BaseModel):
+    statement: str
+    parameters: dict = {}
+
+@app.post("/neo4j")
+async def neo4j_proxy(req: Neo4jRequest):
+    driver = get_neo4j_driver()
+    async with driver.session() as session:
+        result = await session.run(req.statement, req.parameters)
+        records = await result.data()
+        return {"results": [{"data": [{"row": list(r.values())} for r in records]}]}
+
+
+
+
 if FRONTEND_DIR:
     public_dir = os.path.join(FRONTEND_DIR, "public")
     models_dir = os.path.join(public_dir, "models")

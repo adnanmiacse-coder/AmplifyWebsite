@@ -88,13 +88,10 @@ let currentDocId = null;
 let currentDocFilename = '';
 
 async function neo4jRun(cypher, params = {}) {
-  const res = await fetch(`${NEO4J_HOST}/db/neo4j/tx/commit`, {
+  const res = await fetch(`${NEO4J_HOST}/neo4j`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Basic ' + btoa(`${NEO4J_USER}:${NEO4J_PASS}`)
-    },
-    body: JSON.stringify({ statements: [{ statement: cypher, parameters: params }] })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ statement: cypher, parameters: params })
   });
   if (!res.ok) {
     const err = await res.text();
@@ -102,6 +99,12 @@ async function neo4jRun(cypher, params = {}) {
   }
   return await res.json();
 }
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Neo4j HTTP ${res.status}: ${err}`);
+  }
+  return await res.json();
+
 
 async function initNeo4j() {
   if (!_neo4jEnabled) return false;
