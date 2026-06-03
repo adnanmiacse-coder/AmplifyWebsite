@@ -85,13 +85,15 @@ function updateLocalDocumentChat(docId, role, content) {
 
 // ── CURRENT DOCUMENT STATE ──
 let currentDocId = null;
-let currentDocFilename = '';
 
 async function neo4jRun(cypher, params = {}) {
-  const res = await fetch(`${NEO4J_HOST}/neo4j`, {
+  const res = await fetch(`${NEO4J_HOST}/db/neo4j/tx/commit`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ statement: cypher, parameters: params })
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Basic ' + btoa(`${NEO4J_USER}:${NEO4J_PASS}`)
+    },
+    body: JSON.stringify({ statements: [{ statement: cypher, parameters: params }] })
   });
   if (!res.ok) {
     const err = await res.text();
@@ -114,140 +116,6 @@ async function initNeo4j() {
   }
 }
 
-// ── NEO4J GRAPH RETRIEVAL (replaces JS graphRetrieve) ──
-async function neo4jGraphRetrieve(queryEntities, k = TOP_K) {
-  if (!_neo4jReady || !queryEntities.length) return [];
-  try {
-    const res = await neo4jRun(
-      `UNWIND $entities AS qe
-       MATCH (t:Topic {id: qe, doc: $doc})-[:CO_OCCURS*1..2]-(neighbor:Topic {doc: $doc})
-       WITH DISTINCT neighbor
-       MATCH (neighbor)-[:CO_OCCURS]-(t2:Topic {doc: $doc})
-       WITH neighbor, count(t2) AS connectivity
-       ORDER BY neighbor.freq DESC, connectivity DESC
-       LIMIT $k
-       RETURN neighbor.id AS id, neighbor.freq AS freq`,
-      { entities: queryEntities, doc: currentDocFilename, k }
-    );
-    const nodeIds = (res.results?.[0]?.data || []).map(r => r.row[0]);
-    // Map back to chunks
-    return store.chunks
-      .map((c, i) => ({ ...c, chunkIdx: i, score: 0 }))
-      .filter(c => {
-        const ents = graph.chunkEntities[c.chunkIdx] || [];
-        return ents.some(e => nodeIds.includes(e));
-      })
-      .slice(0, k);
-  } catch(e) {
-    console.warn('[Neo4j] graphRetrieve failed, falling back to JS:', e.message);
-    return graph.graphRetrieve(queryEntities.join(' '), store.chunks, k);
-  }
-}
-
-// ── CROSS-DOCUMENT CONCEPT LINKING ──
-async function neo4jCrossDocChunks(queryEntities, currentDoc, limit = 3) {
-  if (!_neo4jReady || !queryEntities.length) return [];
-  try {
-    const res = await neo4jRun(
-      `UNWIND $entities AS qe
-       MATCH (t:Topic {id: qe, doc: $doc})-[:SHARED_CONCEPT]-(related:Topic)
-       WHERE related.doc <> $doc
-       WITH DISTINCT related
-       MATCH (d:Document {filename: related.doc})
-       RETURN related.doc AS docName, related.id AS topicId, d.docId AS docId
-       LIMIT $limit`,
-      { entities: queryEntities, doc: currentDoc, limit }
-    );
-    return (res.results?.[0]?.data || []).map(r => ({
-      docName: r.row[0], topicId: r.row[1], docId: r.row[2]
-    }));
-  } catch(e) { return []; }
-}
-
-// ── PERSISTENT STUDENT MODEL (Spaced Repetition) ──
-async function saveStudentModel(model) {
-  if (!_neo4jReady || !currentDocId) return;
-  try {
-    await neo4jRun(
-      `MERGE (s:Student {id: 'default'})
-       SET s.overallLevel = $level,
-           s.weakConcepts = $weak,
-           s.lastSeen = $ts
-       WITH s
-       MATCH (d:Document {docId: $docId})
-       MERGE (s)-[r:STUDIED]->(d)
-       SET r.score = $score, r.lastSeen = $ts, r.questionsAsked = $qa`,
-      {
-        level: model.overallLevel,
-        weak: JSON.stringify(model.weakConcepts),
-        ts: new Date().toISOString(),
-        docId: currentDocId,
-        score: quizScore,
-        qa: model.questionsAsked
-      }
-    );
-    // Save per-concept mastery
-    for (const [concept, data] of Object.entries(model.conceptMastery)) {
-      await neo4jRun(
-        `MERGE (s:Student {id: 'default'})
-         MERGE (t:Topic {id: $concept, doc: $doc})
-         MERGE (s)-[r:ATTEMPTED]->(t)
-         SET r.score = $score, r.hintCount = $hintCount,
-             r.attempts = $attempts, r.lastSeen = $ts`,
-        {
-          concept, doc: currentDocFilename,
-          score: data.score || 0.5,
-          hintCount: data.hintCount || 0,
-          attempts: data.attempts || 0,
-          ts: new Date().toISOString()
-        }
-      );
-    }
-  } catch(e) { console.warn('[Neo4j] saveStudentModel failed:', e.message); }
-}
-
-async function loadStudentModel() {
-  if (!_neo4jReady) return null;
-  try {
-    const res = await neo4jRun(
-      `MATCH (s:Student {id: 'default'})-[r:ATTEMPTED]->(t:Topic {doc: $doc})
-       RETURN t.id AS concept, r.score AS score,
-              r.hintCount AS hintCount, r.attempts AS attempts
-       ORDER BY r.score ASC`,
-      { doc: currentDocFilename }
-    );
-    const rows = res.results?.[0]?.data || [];
-    if (!rows.length) return null;
-    const conceptMastery = {};
-    const weakConcepts = [];
-    rows.forEach(r => {
-      const [concept, score, hintCount, attempts] = r.row;
-      conceptMastery[concept] = { score, hintCount, attempts };
-      if (score < 0.4) weakConcepts.push(concept);
-    });
-    // Find concepts due for review (last seen > 7 days ago)
-    const dueForReview = rows
-      .filter(r => r.row[1] < 0.6) // score < 0.6
-      .map(r => r.row[0]);
-    return { conceptMastery, weakConcepts, dueForReview };
-  } catch(e) { return null; }
-}
-
-// ── AGGREGATE CONCEPT DIFFICULTY (Multi-student) ──
-async function getConceptDifficulty(concept) {
-  if (!_neo4jReady) return null;
-  try {
-    const res = await neo4jRun(
-      `MATCH (s:Student)-[r:ATTEMPTED]->(t:Topic {id: $concept})
-       RETURN avg(r.score) AS avgScore, count(r) AS attempts,
-              sum(r.hintCount) AS totalHints`,
-      { concept }
-    );
-    const row = res.results?.[0]?.data?.[0]?.row;
-    if (!row || row[1] < 2) return null; // need at least 2 attempts
-    return { avgScore: row[0] || 0.5, attempts: row[1], totalHints: row[2] || 0 };
-  } catch(e) { return null; }
-}
 
 const OPENROUTER_MODEL = 'openrouter/auto';
 const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
@@ -618,7 +486,6 @@ let cy = null;
 function renderTopicGraph() {
   const placeholder = document.getElementById('cy-placeholder');
   const container   = document.getElementById('cy');
-  if (!container) return; // Graph UI removed — skip rendering safely
   if (!graph.nodes || !Object.keys(graph.nodes).length) return;
   if (placeholder) placeholder.style.display = 'none';
 
@@ -1213,26 +1080,10 @@ Respond ONLY with this JSON, no markdown:
 }
 
 // ── UI: Show/hide quiz panel ──
-async function openQuiz() {
+function openQuiz() {
   quizActive = true;
   resetStudentModel();
   quizCurrentQ = 0; quizScore = 0;
-
-  // Load saved student model
-  const saved = await loadStudentModel();
-  if (saved) {
-    studentModel.conceptMastery = saved.conceptMastery;
-    studentModel.weakConcepts = [...saved.weakConcepts, ...saved.dueForReview];
-    // Show spaced repetition notice
-    if (saved.dueForReview.length) {
-      document.getElementById('quiz-setup').insertAdjacentHTML('beforeend',
-        `
-          🔁 ${saved.dueForReview.length}টি পুরনো বিষয় পর্যালোচনার সময় হয়েছে
-        
-`
-      );
-    }
-  }
 
   // Hide chat, show quiz
   document.getElementById('chat-messages').style.display = 'none';
@@ -1317,16 +1168,6 @@ function renderQuestion(data) {
   const diffBadge = document.getElementById('quiz-diff-badge');
   diffBadge.textContent = difficultyLabel(data.difficulty);
   diffBadge.className = 'quiz-difficulty-badge ' + difficultyClass(data.difficulty);
-
-  // Show community difficulty if available
-  getConceptDifficulty(data.concept).then(diff => {
-    if (!diff || diff.attempts < 2) return;
-    const hint = `
-      ⚠️ ${Math.round((1 - diff.avgScore) * 100)}% শিক্ষার্থীর কাছে কঠিন
-    `;
-    const hintEl = document.querySelector('.quiz-community-difficulty');
-    if (hintEl) hintEl.innerHTML = hint;
-  });
 
   // Question
   document.getElementById('quiz-question-text').textContent = data.question;
@@ -1424,7 +1265,6 @@ async function nextQuestion() {
 }
 
 async function finishQuiz() {
-  await saveStudentModel(studentModel);
   showQuizLoading('ফলাফল তৈরি হচ্ছে…');
 
   let diagnosis;
@@ -1485,6 +1325,10 @@ quizWeakSegIdx = Math.max(0, Math.min(quizWeakSegIdx, lectureSegments.length - 1
     replayBox.style.display = 'none';
   }
 
+
+  persistQuizResultsToNeo4j().catch(e => console.warn('[Quiz] persist failed:', e));
+  persistAttentionSessionToNeo4j().catch(() => {});
+  
   // TTS result summary
   TTS.speakAI(
     diagnosis.replayRecommended
@@ -1492,6 +1336,68 @@ quizWeakSegIdx = Math.max(0, Math.min(quizWeakSegIdx, lectureSegments.length - 1
       : `চমৎকার! তুমি ${Math.round((quizScore/quizTotalQ)*100)} শতাংশ পেয়েছ। ${diagnosis.diagnosis}`
   );
 }
+
+async function persistQuizResultsToNeo4j() {
+  if (!_neo4jReady || !currentDocId) return;
+  const entries = Object.entries(studentModel.conceptMastery || {});
+  if (!entries.length) return;
+  try {
+    for (let i = 0; i < entries.length; i += 20) {
+      const batch = entries.slice(i, i + 20).map(([concept, data]) => ({
+        id: currentDocId + '_sc_' + concept.replace(/\s+/g, '_'),
+        concept,
+        score: data.score || 0,
+        attempts: data.attempts || 0,
+        hintCount: data.hintCount || 0,
+        docId: currentDocId,
+        lastUpdated: new Date().toISOString()
+      }));
+      await neo4jRun(
+        `UNWIND $batch AS sc
+         MERGE (n:StudentConcept {id: sc.id})
+         SET n.concept = sc.concept, n.score = sc.score,
+             n.attempts = sc.attempts, n.hintCount = sc.hintCount,
+             n.docId = sc.docId, n.lastUpdated = sc.lastUpdated`,
+        { batch }
+      );
+    }
+    console.log('[Neo4j] ✓ Saved', entries.length, 'concept mastery records');
+  } catch(e) {
+    console.warn('[Neo4j] persistQuizResults failed:', e.message);
+  }
+}
+
+async function persistAttentionSessionToNeo4j() {
+  if (!_neo4jReady || !currentDocId) return;
+  const log = window._attentionLog || [];
+  if (!log.length) return;
+  const focused    = log.filter(e => e.state === 'focused').length;
+  const confused   = log.filter(e => e.state === 'confused').length;
+  const distracted = log.filter(e => e.state === 'distracted').length;
+  const noFace     = log.filter(e => e.state === 'no_face').length;
+  const duration   = Math.floor((Date.now() - (window._sessionStart || Date.now())) / 1000);
+  try {
+    await neo4jRun(
+      `CREATE (a:AttentionSession {
+         id: $id, docId: $docId, date: $date,
+         focused: $focused, confused: $confused,
+         distracted: $distracted, noFace: $noFace,
+         durationSeconds: $duration, total: $total
+       })`,
+      {
+        id: currentDocId + '_att_' + Date.now(),
+        docId: currentDocId,
+        date: new Date().toISOString(),
+        focused, confused, distracted, noFace,
+        duration, total: log.length
+      }
+    );
+    console.log('[Neo4j] ✓ Attention session saved');
+  } catch(e) {
+    console.warn('[Neo4j] attention persist failed:', e.message);
+  }
+}
+
 
 // ── Replay specific lecture segment ──
 async function replayWeakSegment() {
@@ -1551,7 +1457,7 @@ async function replayWeakSegment() {
       if (tp !== currentPage) { currentPage = tp; renderPage(currentPage); }
     }
 
-    genEl.style.display = 'none'; segEl.style.display = 'none';
+    genEl.style.display = 'none'; segEl.style.display = 'block';
 
     const sentences = splitSentences(current?.text || '');
     const pct = Math.round(((lectureSegIdx + 1) / total) * 100);
@@ -1739,7 +1645,6 @@ async function persistGraphToNeo4j(docName) {
 
   const docId = docName + '_' + Date.now();
   currentDocId = docId;
-  currentDocFilename = docName;
 
   // Clear old data for same filename
   await neo4jRun('MATCH (n {doc:$doc}) DETACH DELETE n', { doc: docName });
@@ -1803,16 +1708,6 @@ async function persistGraphToNeo4j(docName) {
       { batch, doc: docName }
     );
   }
-
-  // Link shared topics across documents
-  await neo4jRun(
-    `MATCH (t1:Topic), (t2:Topic)
-     WHERE t1.id = t2.id AND t1.doc <> t2.doc
-     AND NOT (t1)-[:SHARED_CONCEPT]-(t2)
-     MERGE (t1)-[:SHARED_CONCEPT {createdAt: $ts}]-(t2)`,
-    { ts: new Date().toISOString() }
-  );
-  console.log('[Neo4j] ✓ Cross-document links created');
 
   console.log(`[Neo4j] ✓ Saved ${nodeEntries.length} nodes, ${edgeEntries.length} edges, ${store.chunks.length} chunks`);
 }
@@ -2019,8 +1914,7 @@ function showHomeScreen(show) {
   document.getElementById('home-screen').style.display = show ? 'flex' : 'none';
   document.querySelector('main').style.display = show ? 'none' : 'grid';
   document.querySelector('nav').style.display = show ? 'none' : 'flex';
-  const gsec = document.getElementById('graph-map-section');
-  if (gsec) gsec.style.display = show ? 'none' : 'block';
+  document.getElementById('graph-map-section').style.display = show ? 'none' : 'block';
 }
 if (typeof window !== 'undefined') {
   window.showHomeScreen = showHomeScreen;
@@ -2065,10 +1959,7 @@ async function sendMessage(){
   try{
     // Graph RAG: merge TF-IDF + graph results, deduplicate by chunkIdx
     const tfidfResults = store.retrieve(text, TOP_K);
-    const qEntities = graph.extractEntities(text);
-    const graphResults = _neo4jReady
-      ? await neo4jGraphRetrieve(qEntities, TOP_K)
-      : graph.graphRetrieve(text, store.chunks, TOP_K);
+    const graphResults = graph.graphRetrieve(text, store.chunks, TOP_K);
     const seen = new Set();
     const retrieved = [...tfidfResults, ...graphResults]
       .filter(c => { if (seen.has(c.chunkIdx)) return false; seen.add(c.chunkIdx); return true; })
@@ -2079,18 +1970,12 @@ async function sendMessage(){
       ? retrieved.map((c,i)=>`[পৃষ্ঠা ${c.pageNum}]\n${c.text}`).join('\n\n---\n\n')
       : 'প্রাসঙ্গিক অংশ পাওয়া যায়নি।';
 
-    // Cross-doc hints
-    const crossDocs = await neo4jCrossDocChunks(qEntities, currentDocFilename, 3);
-    const crossHint = crossDocs.length
-      ? `\n\n[অন্য সংরক্ষিত PDF-এ এই বিষয়গুলোও আছে: ${crossDocs.map(d => `"${d.docName}" এ "${d.topicId}"`).join(', ')}]`
-      : '';
-
     // ── FIXED: natural teacher prompt, no instruction leakage ──
     const system=`তুমি Amplify-র একজন অভিজ্ঞ বাংলাদেশি শিক্ষক। তুমি শিক্ষার্থীদের ক্লাসে পড়াচ্ছ।
 
 নিচের পাঠ্য উপকরণ থেকে শিক্ষার্থীর প্রশ্নের উত্তর দাও:
 
-${context}${crossHint}
+${context}
 
 শেখানোর ধরন:
 - একজন আন্তরিক ও উৎসাহী শিক্ষকের মতো বাংলায় বোঝাও
@@ -2202,6 +2087,28 @@ function injectLectureStyles(){
       padding: 8px 12px;
       font-family: 'Hind Siliguri', sans-serif;
       letter-spacing: 0.3px;
+    }
+
+    /* Typewriter text below video */
+    #lecture-segment {
+      display: block;
+      max-height: 160px;
+      overflow-y: auto;
+      font-family: 'Hind Siliguri', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 400;
+      line-height: 1.8;
+      color: #e2e8f0;
+      text-align: left;
+      padding: 10px 16px 14px;
+      background: rgba(255,255,255,0.04);
+      border-top: 1px solid rgba(255,255,255,0.07);
+      border-radius: 0 0 16px 16px;
+      word-break: break-word;
+      scroll-behavior: smooth;
+    }
+    .lw-typewriter-sentence {
+      display: inline;
     }
   `;
   document.head.appendChild(style);
@@ -2333,25 +2240,20 @@ function extractKeywords(text) {
   return latin[0] || 'Biology';
 }
 
-
-// AFTERxd:
-
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
   try {
-    const res = await fetch(`https://madnan4980--amplify-manim-fastapi-app.modal.run/`, {
+    const res = await fetch(`${apiBase()}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
     });
     if (!res.ok) throw new Error('backend ' + res.status);
-    const blob = await res.blob();
-    const videoUrl = URL.createObjectURL(blob);
-    console.log('[Manim] success, blob size:', blob.size, 'url:', videoUrl);
-    return { videoUrl, topic };
+    const data = await res.json();
+    return { videoUrl: data.video_url || '/videos/3e64f732.mp4', topic };
   } catch(e) {
     console.warn('[Manim] failed:', e.message);
-    return { videoUrl: null, topic };
+    return { videoUrl: '/videos/3e64f732.mp4', topic };
   }
 }
 
@@ -2367,13 +2269,17 @@ function showDiagram(videoUrl, topic) {
 
   setTimeout(() => {
     container.innerHTML = '';
-    
-    // AFTER:
-    const video = document.createElement('video');
-    video.src = videoUrl
-      ? (videoUrl.startsWith('blob:') || videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`)
-      : '';
-    if (!videoUrl) {
+    if (videoUrl) {
+      const video = document.createElement('video');
+      video.src = videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`;
+      video.autoplay = true;
+      video.loop = true;
+      video.muted = true;
+      video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
+      container.appendChild(video);
+      cap.textContent = '🎬 ' + topic;
+    } else {
+      // Fallback — plain pulsing circle, no broken SVG
       container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
         <rect width="460" height="240" fill="#0f0c29"/>
         <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
@@ -2381,29 +2287,11 @@ function showDiagram(videoUrl, topic) {
           <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/>
         </circle>
         <text x="230" y="175" text-anchor="middle" fill="#a78bfa" font-size="15" font-family="Arial">${topic}</text>
+        <text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">রেন্ডার হচ্ছে…</text>
       </svg>`;
-      cap.textContent = topic;
-      container.classList.add('visible');
-      return;
+      cap.textContent = '';
     }
-    
-    video.autoplay = true;
-    video.loop = true;
-    video.muted = true;
-    video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
-    video.onerror = () => {
-      if (!triedFallback) {
-        triedFallback = true;
-        video.src = fallbackVideoUrl;
-        video.load();
-        video.play().catch(() => {});
-      }
-    };
-
-    container.appendChild(video);
-    cap.textContent = '🎬 ' + topic;
     container.classList.add('visible');
-    video.play().catch(() => {});
   }, 300);
 }
 
@@ -2452,31 +2340,22 @@ function buildLectureSegments() {
 
 /**
  * Fetch + generate teacher narration for one segment index.
- * Checks Neo4j cache first, then generates via LLM.
+ * Retries once on 429 after a back-off before giving up on the segment.
  */
 async function fetchSegmentText(idx) {
   if (idx < 0 || idx >= lectureSegments.length) return null;
 
-  // ── Check Neo4j cache first ──
-  if (_neo4jReady && currentDocId) {
-    try {
-      const cached = await neo4jRun(
-        'MATCH (seg:Segment {docId:$docId, idx:$idx}) RETURN seg.text, seg.pageNum',
-        { docId: currentDocId, idx }
-      );
-      const row = cached.results?.[0]?.data?.[0]?.row;
-      if (row?.[0]) {
-        console.log(`[Lecture] Cache hit for segment ${idx}`);
-        return { text: row[0], pageNum: row[1] };
-      }
-    } catch(e) { /* fall through to generate */ }
-  }
-
-  // ── Generate via LLM (existing logic) ──
   const seg     = lectureSegments[idx];
+  const pageNum = seg[0].pageNum;
+  // Representative page for this segment — the median chunk's page
   const midPage = seg[Math.floor(seg.length / 2)].pageNum;
+
+  // Build context: join chunk texts (no page labels — cleaner for the LLM)
   const context = seg.map(c => c.text).join('\n\n');
+
+  
   const isFirst = idx === 0;
+  const chapterHint = store.chunks[0]?.text?.slice(0, 80) || '';
 
   const system = `তুমি একজন উৎসাহী ও অভিজ্ঞ বাংলাদেশি শিক্ষক। তুমি একজন শিক্ষার্থীকে একা পড়াচ্ছ।
 
@@ -2485,7 +2364,7 @@ async function fetchSegmentText(idx) {
 শেখানোর ধরন:
 - সরাসরি শিক্ষকের গলায় কথা বলো, যেন সামনে বসে পড়াচ্ছ
 - শিক্ষার্থীকে সবসময় "তুমি" বলে সম্বোধন করো — কখনো "তোমরা" বা "শিক্ষার্থীরা" নয়
-- "দেখো", "মনে রেখো", "এখন আমরা দেখব" — এই ধরনের শব্দ ব্যবহার করো
+- "দেখো", "বোঝো", "মনে রেখো", "এখন আমরা দেখব" — এই ধরনের শব্দ ব্যবহার করো
 - কঠিন ধারণা সহজ ভাষায় ও উদাহরণ দিয়ে বোঝাও
 - একটানা গল্পের মতো করে বলো — bullet বা list নয়
 - বাংলায় কথা বলো, স্বাভাবিক ও প্রাণবন্তভাবে
@@ -2497,16 +2376,6 @@ ${isFirst ? `- শুরুতে একটি উষ্ণ সম্ভাষ�
     : `এই পাঠ্যাংশটি সরাসরি পড়িয়ে দাও, কোনো ভূমিকা ছাড়া:\n\n${context}`;
 
   const text = await groqChat([{ role: 'user', content: userMsg }], system, 420, 0.78);
-
-  // ── Save to Neo4j cache ──
-  if (_neo4jReady && currentDocId) {
-    neo4jRun(
-      `CREATE (seg:Segment {docId:$docId, idx:$idx, text:$text,
-               pageNum:$pageNum, createdAt:$ts})`,
-      { docId: currentDocId, idx, text, pageNum: midPage, ts: new Date().toISOString() }
-    ).catch(e => console.warn('[Neo4j] segment cache write failed:', e.message));
-  }
-
   return { text, pageNum: midPage };
 }
 
@@ -2631,48 +2500,41 @@ function speakWithLaser(sentence){
 
 function stopTTS(){ TTS.stop(); }
 
-
-async function typewriteSentence(el, text) {
-  el.innerHTML = '';
-  el.style.opacity = '1';
-  // Don't use laser spans during typewrite — plain span for clean animation
+async function typewriterAppend(segEl, text, speedMs = 28) {
+  // Create a new <span> for this sentence and type it character by character
   const span = document.createElement('span');
-  span.className = 'lw';
-  el.appendChild(span);
-
-  const chars = [...text]; // handles multi-byte Unicode (Bangla) correctly
-  for(let i = 0; i < chars.length; i++){
-    if(lectureAborted) return;
-    span.textContent += chars[i];
-    // Slightly faster on spaces for natural rhythm
-    await sleep(/\s/.test(chars[i]) ? 18 : 28);
+  span.className = 'lw-typewriter-sentence';
+  segEl.appendChild(span);
+  for (let i = 0; i < text.length; i++) {
+    if (lectureAborted) return;
+    span.textContent += text[i];
+    await sleep(speedMs);
   }
+  // Add a space after each sentence
+  segEl.appendChild(document.createTextNode(' '));
 }
 
 async function speakSegmentSentences(sentences){
-  const segEl = document.getElementById('lecture-segment');
+  const segEl=document.getElementById('lecture-segment');
   ensureLaser();
 
-  for(let i = 0; i < sentences.length; i++){
+  // Clear previous segment text and start fresh for this segment
+  segEl.innerHTML = '';
+  if (_laserEl) { _laserEl.classList.add('hidden'); }
+
+  for(let i=0;i<sentences.length;i++){
     if(lectureAborted) return;
-    while(lecturePaused && !lectureAborted) await sleep(120);
+    while(lecturePaused&&!lectureAborted) await sleep(120);
     if(lectureAborted) return;
 
-    // Clear and typewrite the sentence
-    segEl.style.display = 'block';
-    await typewriteSentence(segEl, sentences[i]);
+    // Type the sentence AND speak it simultaneously
+    const [,] = await Promise.all([
+      typewriterAppend(segEl, sentences[i], 22),
+      speakWithLaser(sentences[i]),
+    ]);
 
-    // Speak while text is visible (typewrite completes first, then TTS plays)
-    await speakWithLaser(sentences[i]);
-
-    // Short pause, then fade out before next sentence
-    await sleep(180);
-    segEl.style.opacity = '0';
-    await sleep(220);
-    segEl.innerHTML = '';
-    segEl.style.opacity = '1';
-
-    if(!lectureAborted && !lecturePaused) await sleep(120);
+    hideLaser();
+    if(!lectureAborted&&!lecturePaused) await sleep(180);
   }
 }
 
@@ -2734,11 +2596,7 @@ async function startLecture(){
       if(tp!==currentPage){ currentPage=tp; renderPage(currentPage); }
     }
 
-    
-    genEl.style.display='none';
-    segEl.style.display='block';
-    segEl.style.opacity='1';
-    segEl.innerHTML='';
+    genEl.style.display='none'; segEl.style.display='block'; // show text below video
 
     const sentences = splitSentences(current?.text || '');
     const pct = Math.round(((lectureSegIdx + 1) / total) * 100);
@@ -3146,8 +3004,25 @@ document.querySelectorAll('.qcount-btn').forEach(btn => {
 });
 
 
-  // Graph map controls removed (UI no longer present)
-
+  // Graph map controls
+  const edgeSlider = document.getElementById('edge-threshold');
+  const nodeSlider = document.getElementById('node-limit');
+  if (edgeSlider) {
+    edgeSlider.addEventListener('input', function() {
+      document.getElementById('edge-threshold-val').textContent = this.value;
+      if (graph.nodes && Object.keys(graph.nodes).length) renderTopicGraph();
+    });
+  }
+  if (nodeSlider) {
+    nodeSlider.addEventListener('input', function() {
+      document.getElementById('node-limit-val').textContent = this.value;
+      if (graph.nodes && Object.keys(graph.nodes).length) renderTopicGraph();
+    });
+  }
+  on('graph-relayout-btn', 'click', function() {
+    if (cy) cy.layout({ name: 'cose', animate: true, animationDuration: 600,
+      nodeRepulsion: () => 8000, idealEdgeLength: () => 80, fit: true, padding: 32 }).run();
+  });
 });
 
 // ─────────────────────────────────────────────────────
@@ -3228,8 +3103,30 @@ async function toggleAttention(){
     trackerOn=false;btn.classList.remove('active');ov.classList.remove('visible');
     const v=document.getElementById('tracker-video');
     if(v.srcObject){v.srcObject.getTracks().forEach(t=>t.stop());v.srcObject=null;}
+    // Save session to localStorage so dashboard can read it
+    const log = window._attentionLog || [];
+    if (log.length) {
+      const focused    = log.filter(e => e.state === 'focused').length;
+      const confused   = log.filter(e => e.state === 'confused').length;
+      const distracted = log.filter(e => e.state === 'distracted').length;
+      const noFace     = log.filter(e => e.state === 'no_face').length;
+      const duration   = Math.floor((Date.now() - (window._sessionStart || Date.now())) / 1000);
+      const session    = {
+        date: new Date().toISOString(),
+        focused, confused, distracted, noFace,
+        duration, total: log.length
+      };
+      try {
+        const prev = JSON.parse(localStorage.getItem('amplify_attention_sessions') || '[]');
+        prev.unshift(session);
+        localStorage.setItem('amplify_attention_sessions', JSON.stringify(prev.slice(0, 20)));
+      } catch(e) {}
+    }
+    window._attentionLog = [];
+    window._sessionStart = Date.now();
     return;
   }
+  
   btn.classList.add('active');ov.classList.add('visible');
   document.getElementById('tracker-loading').style.display='flex';
   if(!mLoaded){
