@@ -1213,7 +1213,7 @@ Respond ONLY with this JSON, no markdown:
 }
 
 // ── UI: Show/hide quiz panel ──
-function openQuiz() {
+async function openQuiz() {
   quizActive = true;
   resetStudentModel();
   quizCurrentQ = 0; quizScore = 0;
