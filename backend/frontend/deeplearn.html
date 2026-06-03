@@ -1750,21 +1750,64 @@ async function speak(text, expertId) {
           }
         }
         console.log('[Giphy] Searching:', searchTerm);
-        const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(searchTerm)}&limit=10&rating=g`;
+        
+        // Force educational context by appending terms and using stricter filtering
+        const eduQuery = `${searchTerm} science education diagram`;
+        const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(eduQuery)}&limit=20&rating=g`;
+
+        console.log('[Giphy] URL:', url);
         const res = await fetch(url);
-        if (!res.ok) return null;
+        console.log('[Giphy] Response status:', res.status, res.ok);
+        if (!res.ok) {
+          const errText = await res.text();
+          console.warn('[Giphy] Error body:', errText);
+          return null;
+        }
         const data = await res.json();
+        console.log('[Giphy] Raw response:', JSON.stringify(data).slice(0, 300));
         const results = data?.data || [];
+        console.log('[Giphy] Results count:', results.length);
         if (!results.length) return null;
-        // Pick a random one from top 10 for variety
-        const pick = results[Math.floor(Math.random() * results.length)];
+        
+        // Filter by educational/scientific keywords in title — reject cartoons/memes
+        const ALLOW = ['science','biology','cell','dna','physics','chemistry','math','education',
+          'anatomy','molecule','atom','space','brain','evolution','diagram','microscope',
+          'laboratory','experiment','nature','medical','neural','computer','data','energy',
+          'mitosis','meiosis','protein','gene','quantum','climate','earth','animal','plant'];
+        const REJECT = ['cartoon','anime','meme','funny','lol','wtf','dragon','ball','simpsons',
+          'spongebob','naruto','rick','morty','perfect','complete','simulation','gaming',
+          'movie','film','show','tv','music','dance','party','food','cat','dog','baby'];
+
+        const filtered = results.filter(g => {
+          const title = (g.title || '').toLowerCase();
+          const slug  = (g.slug  || '').toLowerCase();
+          const combined = title + ' ' + slug;
+          const hasReject = REJECT.some(w => combined.includes(w));
+          if (hasReject) return false;
+          const hasAllow  = ALLOW.some(w => combined.includes(w));
+          return hasAllow;
+        });
+
+        console.log('[Giphy] Filtered educational results:', filtered.length, '/', results.length);
+
+        // If nothing passes filter, skip — better no GIF than a wrong one
+        if (!filtered.length) {
+          console.warn('[Giphy] No educational GIFs found for:', eduQuery);
+          return null;
+        }
+
+        const pick = filtered[Math.floor(Math.random() * Math.min(filtered.length, 5))];
+        console.log('[Giphy] Selected:', pick.title);
         return pick?.images?.fixed_height_small?.url || pick?.images?.fixed_width?.url || null;
-      } catch(e) {
-        console.warn('[Giphy] Error:', e.message);
+        console.log('[Giphy] fixed_height_small url:', pick?.images?.fixed_height_small?.url);
+        console.log('[Giphy] fixed_width url:', pick?.images?.fixed_width?.url);
+        return pick?.images?.fixed_width?.url || pick?.images?.fixed_height_small?.url || null;
+      } catch (err) {
+        console.warn('[Giphy] fetchGif error:', err);
         return null;
       }
     }
-
+  
     async function addChatBubble(expertId, text) {
       const expert = EXPERTS[expertId];
       const div = document.createElement('div');
@@ -2219,10 +2262,10 @@ async function callGroq(expertId) {
   const system = `তুমি ${expert.name} — ${expert.role}। শুধু বাংলায় গবেষণামূলক ভাষায় কথা বলো।
 বর্তমান পর্যায়: ${phase.label}।
 নিয়ম:
-- ঠিক ৪টি সম্পূর্ণ বাক্য লেখো, প্রতিটি "।" দিয়ে শেষ করো
+- ঠিক ৩টি সম্পূর্ণ বাক্য লেখো, প্রতিটি "।" দিয়ে শেষ করো
 - প্রতিটি বাক্য সর্বোচ্চ ৩০ শব্দ
 
-- তথ্যসূত্র উল্লেখ না করে তথ্যের ধরন বলো যেমন "গবেষণায় প্রমাণিত", "বিশ্লেষণে দেখা গেছে"
+- তথ্যসূত্র উল্লেখ না করে তথ্যের ধরন বলো যেমন "গবেষণায় প্রমাণিত"
 - কোনো নাম-পরিচয় বা সম্বোধন ছাড়া সরাসরি শুরু করো
 - অন্য বিশেষজ্ঞের বক্তব্য থেকে সম্পূর্ণ ভিন্ন কোণ থেকে বিষয়টি বিশ্লেষণ করো`;
 
