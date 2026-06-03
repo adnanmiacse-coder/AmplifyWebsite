@@ -1577,3 +1577,296 @@ button { font-family: inherit; }
   .stage-text { font-size: 1.1rem; padding-left: 16px; }
   .stage-speaker-name { font-size: 1.4rem; }
 }
+
+
+
+    /* ── Notes Panel ─────────────────────────── */
+    .notes-panel {
+      width: 320px;
+      min-width: 260px;
+      max-width: 380px;
+      background: #fffef9;
+      border-right: 1.5px solid #e8e4d9;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      transition: width 0.3s cubic-bezier(.4,0,.2,1);
+      flex-shrink: 0;
+    }
+    .notes-panel.collapsed {
+      width: 42px;
+      min-width: 42px;
+    }
+    .notes-toggle-btn {
+      position: absolute;
+      top: 14px;
+      right: 10px;
+      z-index: 10;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #94a3b8;
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s, background 0.15s;
+    }
+    .notes-toggle-btn:hover { color: #1e2a2b; background: #f1f5f9; }
+    .notes-panel-inner {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .notes-panel.collapsed .notes-panel-inner { display: none; }
+    .notes-panel-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #ede9de;
+      flex-shrink: 0;
+    }
+    .notes-panel.collapsed .notes-panel-header { display: none; }
+    .notes-panel-title {
+      font-family: 'Hind Siliguri', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: #1e2a2b;
+      letter-spacing: .3px;
+      flex: 1;
+    }
+    .notes-collapsed-label {
+      display: none;
+      writing-mode: vertical-rl;
+      font-family: 'Hind Siliguri', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 16px 0;
+      margin: auto;
+    }
+    .notes-panel.collapsed .notes-collapsed-label { display: block; }
+    .notes-panel.collapsed .notes-toggle-btn {
+      right: unset;
+      left: 50%;
+      transform: translateX(-50%);
+      top: unset;
+      bottom: 14px;
+    }
+
+    /* Loading state */
+    .notes-skeleton {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 8px 0;
+    }
+    .notes-skeleton-line {
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #f1ede3 25%, #e8e3d5 50%, #f1ede3 75%);
+      background-size: 400px 100%;
+      animation: noteShimmer 1.5s ease infinite;
+    }
+    @keyframes noteShimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position:  400px 0; }
+    }
+
+    /* Note content */
+    .notes-content {
+      font-family: 'Hind Siliguri', sans-serif;
+      font-size: 13.5px;
+      line-height: 1.75;
+      color: #2d3748;
+    }
+    .notes-content h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e2a2b;
+      margin: 0 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e8e4d9;
+      line-height: 1.4;
+    }
+    .notes-content h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e40af;
+      margin: 18px 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .notes-content h2::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 14px;
+      background: #2563eb;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .notes-content p {
+      margin: 0 0 10px;
+      color: #374151;
+    }
+    .notes-content ul, .notes-content ol {
+      margin: 0 0 10px;
+      padding-left: 20px;
+    }
+    .notes-content li {
+      margin-bottom: 5px;
+      color: #374151;
+    }
+    .notes-content strong {
+      color: #1e2a2b;
+      font-weight: 700;
+    }
+    .notes-content .note-highlight {
+      background: #fef9c3;
+      border-left: 3px solid #ca8a04;
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin: 10px 0;
+      font-size: 13px;
+      color: #713f12;
+    }
+    .notes-divider {
+      height: 1px;
+      background: #ede9de;
+      margin: 20px 0;
+    }
+
+    /* Practice questions */
+    .notes-pq-section {
+      margin-top: 4px;
+    }
+    .notes-pq-title {
+      font-family: 'Hind Siliguri', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .notes-pq-item {
+      background: #f8f7f2;
+      border: 1.5px solid #e8e4d9;
+      border-radius: 10px;
+      padding: 10px 13px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+    }
+    .notes-pq-item:hover {
+      border-color: #2563eb;
+      background: #f0f6ff;
+    }
+    .notes-pq-item.revealed {
+      border-color: #16a34a;
+      background: #f0fdf4;
+    }
+    .notes-pq-q {
+      font-family: 'Hind Siliguri', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e2a2b;
+      line-height: 1.5;
+      margin-bottom: 4px;
+    }
+    .notes-pq-num {
+      font-size: 10px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 4px;
+    }
+    .notes-pq-answer {
+      font-family: 'Hind Siliguri', sans-serif;
+      font-size: 12.5px;
+      color: #166534;
+      line-height: 1.55;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #bbf7d0;
+      display: none;
+    }
+    .notes-pq-item.revealed .notes-pq-answer { display: block; }
+    .notes-pq-hint {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .notes-pq-item.revealed .notes-pq-hint { display: none; }
+
+    /* Regen button */
+    .notes-regen-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-family: 'Hind Siliguri', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      margin-left: auto;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .notes-regen-btn:hover {
+      border-color: #2563eb;
+      color: #2563eb;
+      background: #f0f6ff;
+    }
+    .notes-regen-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .notes-regen-btn svg {
+      transition: transform 0.4s;
+    }
+    .notes-regen-btn.spinning svg {
+      animation: noteSpin 0.8s linear infinite;
+    }
+    @keyframes noteSpin { to { transform: rotate(360deg); } }
+
+    /* Classroom layout tweak — inject notes panel before stage */
+    #classroom-screen {
+      display: grid !important;
+      grid-template-columns: auto 1fr 340px !important;
+      grid-template-rows: 1fr auto !important;
+    }
+    #classroom-screen .notes-panel {
+      grid-column: 1;
+      grid-row: 1 / 3;
+    }
+    #classroom-screen .stage-panel {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    #classroom-screen .right-panel {
+      grid-column: 3;
+      grid-row: 1;
+    }
+    #classroom-screen .bottom-bar {
+      grid-column: 1 / 4;
+      grid-row: 2;
+    }
+  

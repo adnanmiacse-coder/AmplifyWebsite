@@ -33,4 +33,17 @@ COPY nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 8888
 
-CMD ["sh", "-c", "php artisan migrate:fresh --force && php artisan config:cache && php artisan route:cache && php-fpm & nginx -g 'daemon off;'"]
+# Start both nginx and php-fpm
+CMD service nginx start && php-fpm
+
+
+
+
+
+
+eleven labs
+sk_c1fd1971ab00faaf020e7822fad74ee5304318bee6355105
+
+
+YourVoic
+yv_live_2e9a61c2dae311ba779442f161448b6181919acdfbf988f3

@@ -1133,6 +1133,7 @@ startBtn.addEventListener('click', async () => {
   loadAgentVoices();
   await initDuckDB();        // ← ADD HERE
   ensureLaser();
+  buildNotesPanel();
   await startLesson();
 });
 
@@ -1276,6 +1277,7 @@ async function startLesson() {
 
   lessonStarting = false;
   if (!turnLoopRunning) runTurnLoop();
+  if (!notesGenerated) generateNotes();
 }
 
 async function runTurnLoop() {
@@ -1737,6 +1739,7 @@ resetBtn.addEventListener('click', () => {
   chatMessages.innerHTML = '<div class="chat-welcome">ক্লাস শুরু হলে এখানে কথোপকথন দেখা যাবে</div>';
   stageMessage.classList.add('hidden'); stageIdle.classList.remove('hidden');
   hideSlide(); clearAgentSpeaking();
+  notesPanelEl?.remove(); notesPanelEl = null; notesGenerated = false; notesGenerating = false;
   if (ttsWave)  ttsWave.classList.remove('speaking');
   if (ttsLabel) ttsLabel.textContent = 'নীরব';
   pauseBtn.textContent = 'বিরতি'; raiseHandBtn.classList.remove('active');
@@ -1760,6 +1763,170 @@ function startTimer() {
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ══════════════════════════════════════════════
+//  NOTES PANEL
+// ══════════════════════════════════════════════
+
+let notesPanelEl      = null;
+let notesGenerated    = false;
+let notesGenerating   = false;
+
+function buildNotesPanel() {
+  // Insert notes panel as first child of classroom-screen
+  notesPanelEl = document.createElement('div');
+  notesPanelEl.className = 'notes-panel';
+  notesPanelEl.innerHTML = `
+    <div class="notes-collapsed-label">নোট</div>
+    <div class="notes-panel-header">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span class="notes-panel-title">লেকচার নোট</span>
+      <button class="notes-regen-btn" id="notesRegenBtn" title="নোট পুনরায় তৈরি করুন">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        পুনরায়
+      </button>
+    </div>
+    <div class="notes-panel-inner" id="notesPanelInner">
+      <div class="notes-skeleton" id="notesSkeleton">
+        ${Array.from({length: 9}, (_, i) =>
+          `<div class="notes-skeleton-line" style="width:${[92,78,85,60,88,72,95,65,80][i]}%;animation-delay:${i*0.08}s"></div>`
+        ).join('')}
+      </div>
+      <div class="notes-content hidden" id="notesContent"></div>
+      <div class="notes-divider hidden" id="notesDivider"></div>
+      <div class="notes-pq-section hidden" id="notesPqSection"></div>
+    </div>
+    <button class="notes-toggle-btn" id="notesToggleBtn" title="নোট প্যানেল লুকান/দেখান">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="notesToggleIcon">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+  `;
+  classroomScreen.insertBefore(notesPanelEl, classroomScreen.firstChild);
+
+  document.getElementById('notesToggleBtn').addEventListener('click', () => {
+    const collapsed = notesPanelEl.classList.toggle('collapsed');
+    document.getElementById('notesToggleIcon').innerHTML = collapsed
+      ? '<polyline points="9 18 15 12 9 6"/>'
+      : '<polyline points="15 18 9 12 15 6"/>';
+  });
+
+  document.getElementById('notesRegenBtn').addEventListener('click', () => {
+    if (notesGenerating) return;
+    generateNotes();
+  });
+}
+
+async function generateNotes() {
+  if (notesGenerating) return;
+  notesGenerating = true;
+
+  const skeleton    = document.getElementById('notesSkeleton');
+  const content     = document.getElementById('notesContent');
+  const divider     = document.getElementById('notesDivider');
+  const pqSection   = document.getElementById('notesPqSection');
+  const regenBtn    = document.getElementById('notesRegenBtn');
+
+  // Show loading
+  skeleton?.classList.remove('hidden');
+  content?.classList.add('hidden');
+  divider?.classList.add('hidden');
+  pqSection?.classList.add('hidden');
+  if (regenBtn) { regenBtn.disabled = true; regenBtn.classList.add('spinning'); }
+
+  const docCtx = getRelevantContext(sessionTopic, 6000);
+  const docBlock = docCtx
+    ? `নিচে আপলোড করা উপকরণ থেকে নেওয়া তথ্য:\n\n${docCtx}\n\n`
+    : '';
+
+  const prompt = `${docBlock}বিষয়: ${sessionTopic}
+
+তুমি একজন অভিজ্ঞ বাংলাদেশি শিক্ষক। উপরের উপকরণ থেকে একটি সম্পূর্ণ লেকচার নোট তৈরি করো।
+
+নিয়ম:
+- সম্পূর্ণ বাংলায় লিখবে
+- HTML ফরম্যাট ব্যবহার করো (h1, h2, p, ul, li, strong ট্যাগ)
+- গুরুত্বপূর্ণ তথ্য <div class="note-highlight">...</div> এর ভেতরে রাখো
+- শেষে একটি JSON ব্লক দাও এই ফরম্যাটে:
+
+<!--PQ_START-->
+[
+  {"q":"প্রশ্ন ১","a":"উত্তর ১"},
+  {"q":"প্রশ্ন ২","a":"উত্তর ২"},
+  {"q":"প্রশ্ন ৩","a":"উত্তর ৩"},
+  {"q":"প্রশ্ন ৪","a":"উত্তর ৪"},
+  {"q":"প্রশ্ন ৫","a":"উত্তর ৫"}
+]
+<!--PQ_END-->
+
+৫টি অনুশীলন প্রশ্ন রাখো — বিভিন্ন ধরনের (সংজ্ঞা, বিশ্লেষণ, প্রয়োগ)।`;
+
+  try {
+    const raw = await groqChat(
+      [{ role: 'user', content: prompt }],
+      'তুমি একজন বাংলাদেশি শিক্ষক যিনি সুন্দর HTML লেকচার নোট তৈরি করেন। শুধুমাত্র HTML এবং নির্দেশিত JSON আউটপুট দাও।',
+      3000, 0.5
+    );
+
+    // Split HTML and PQ JSON
+    const pqMatch  = raw.match(/<!--PQ_START-->([\s\S]*?)<!--PQ_END-->/);
+    const htmlPart = raw.replace(/<!--PQ_START-->[\s\S]*?<!--PQ_END-->/, '').trim();
+    let pqItems    = [];
+
+    if (pqMatch) {
+      try {
+        const jsonStr = pqMatch[1].replace(/```json|```/g, '').trim();
+        pqItems = JSON.parse(jsonStr);
+      } catch (e) {
+        console.warn('[Notes] PQ parse failed:', e);
+      }
+    }
+
+    // Render notes
+    if (content) {
+      content.innerHTML = htmlPart;
+      content.classList.remove('hidden');
+    }
+
+    // Render practice questions
+    if (pqSection && pqItems.length) {
+      pqSection.innerHTML = `
+        <div class="notes-pq-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          অনুশীলন প্রশ্ন
+        </div>
+        ${pqItems.map((item, idx) => `
+          <div class="notes-pq-item" data-idx="${idx}">
+            <div class="notes-pq-num">প্রশ্ন ${idx + 1}</div>
+            <div class="notes-pq-q">${escapeHtml(item.q)}</div>
+            <div class="notes-pq-hint">উত্তর দেখতে ক্লিক করুন</div>
+            <div class="notes-pq-answer">${escapeHtml(item.a)}</div>
+          </div>
+        `).join('')}
+      `;
+      // Toggle answer on click
+      pqSection.querySelectorAll('.notes-pq-item').forEach(el => {
+        el.addEventListener('click', () => el.classList.toggle('revealed'));
+      });
+      divider?.classList.remove('hidden');
+      pqSection.classList.remove('hidden');
+    }
+
+    skeleton?.classList.add('hidden');
+    notesGenerated = true;
+  } catch (e) {
+    console.error('[Notes] generation failed:', e);
+    if (content) {
+      content.innerHTML = `<p style="color:#dc2626;font-family:'Hind Siliguri',sans-serif;font-size:13px;">নোট তৈরিতে সমস্যা হয়েছে। আবার চেষ্টা করুন।</p>`;
+      content.classList.remove('hidden');
+      skeleton?.classList.add('hidden');
+    }
+  } finally {
+    notesGenerating = false;
+    if (regenBtn) { regenBtn.disabled = false; regenBtn.classList.remove('spinning'); }
+  }
+}
+
 
 // ══════════════════════════════════════════════
 //  QUIZ ENGINE — Bloom's Taxonomy + ZPD
