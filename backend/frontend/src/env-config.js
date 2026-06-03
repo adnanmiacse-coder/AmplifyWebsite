@@ -98,7 +98,7 @@ function getDefaultConfig() {
   };
 }
 
-/** Resolve Groq API keys from server config, window bootstrap, or Vite env. */
+
 export function getGroqKeys(config = {}, env = null) {
   const viteEnv = env ?? getViteEnv();
   for (const list of [
@@ -108,17 +108,22 @@ export function getGroqKeys(config = {}, env = null) {
     if (Array.isArray(list) && list.length) {
       return list.map(String).filter(Boolean);
     }
+    // Railway returns env vars as strings — parse them
+    if (typeof list === 'string' && list.trim()) {
+      return parseEnvList(list);
+    }
   }
   for (const key of [
     config.GROQ_API_KEY,
     typeof window !== 'undefined' ? window.AMPLIFY_ENV?.GROQ_KEY : '',
+    config.GROQ_API_KEY,
   ]) {
-    if (key) return [String(key)];
+    if (key && typeof key === 'string' && key.trim()) return parseEnvList(key);
   }
   return parseEnvList(viteEnv.VITE_GROQ_KEYS || viteEnv.VITE_GROQ_KEY);
 }
 
-/** Resolve OpenRouter API keys from server config, window bootstrap, or Vite env. */
+
 export function getOpenRouterKeys(config = {}, env = null) {
   const viteEnv = env ?? getViteEnv();
   for (const list of [
@@ -128,6 +133,10 @@ export function getOpenRouterKeys(config = {}, env = null) {
   ]) {
     if (Array.isArray(list) && list.length) {
       return list.map(String).filter(Boolean);
+    }
+    // Railway returns env vars as strings — parse them
+    if (typeof list === 'string' && list.trim()) {
+      return parseEnvList(list);
     }
   }
   return parseEnvList(viteEnv.VITE_OPENROUTER_KEYS || viteEnv.VITE_OPENROUTER_KEY);
