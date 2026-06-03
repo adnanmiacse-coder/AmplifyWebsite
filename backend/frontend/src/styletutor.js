@@ -85,6 +85,7 @@ function updateLocalDocumentChat(docId, role, content) {
 
 // ── CURRENT DOCUMENT STATE ──
 let currentDocId = null;
+let currentDocFilename = '';
 
 async function neo4jRun(cypher, params = {}) {
   const res = await fetch(`${NEO4J_HOST}/db/neo4j/tx/commit`, {
@@ -116,6 +117,140 @@ async function initNeo4j() {
   }
 }
 
+// ── NEO4J GRAPH RETRIEVAL (replaces JS graphRetrieve) ──
+async function neo4jGraphRetrieve(queryEntities, k = TOP_K) {
+  if (!_neo4jReady || !queryEntities.length) return [];
+  try {
+    const res = await neo4jRun(
+      `UNWIND $entities AS qe
+       MATCH (t:Topic {id: qe, doc: $doc})-[:CO_OCCURS*1..2]-(neighbor:Topic {doc: $doc})
+       WITH DISTINCT neighbor
+       MATCH (neighbor)-[:CO_OCCURS]-(t2:Topic {doc: $doc})
+       WITH neighbor, count(t2) AS connectivity
+       ORDER BY neighbor.freq DESC, connectivity DESC
+       LIMIT $k
+       RETURN neighbor.id AS id, neighbor.freq AS freq`,
+      { entities: queryEntities, doc: currentDocFilename, k }
+    );
+    const nodeIds = (res.results?.[0]?.data || []).map(r => r.row[0]);
+    // Map back to chunks
+    return store.chunks
+      .map((c, i) => ({ ...c, chunkIdx: i, score: 0 }))
+      .filter(c => {
+        const ents = graph.chunkEntities[c.chunkIdx] || [];
+        return ents.some(e => nodeIds.includes(e));
+      })
+      .slice(0, k);
+  } catch(e) {
+    console.warn('[Neo4j] graphRetrieve failed, falling back to JS:', e.message);
+    return graph.graphRetrieve(queryEntities.join(' '), store.chunks, k);
+  }
+}
+
+// ── CROSS-DOCUMENT CONCEPT LINKING ──
+async function neo4jCrossDocChunks(queryEntities, currentDoc, limit = 3) {
+  if (!_neo4jReady || !queryEntities.length) return [];
+  try {
+    const res = await neo4jRun(
+      `UNWIND $entities AS qe
+       MATCH (t:Topic {id: qe, doc: $doc})-[:SHARED_CONCEPT]-(related:Topic)
+       WHERE related.doc <> $doc
+       WITH DISTINCT related
+       MATCH (d:Document {filename: related.doc})
+       RETURN related.doc AS docName, related.id AS topicId, d.docId AS docId
+       LIMIT $limit`,
+      { entities: queryEntities, doc: currentDoc, limit }
+    );
+    return (res.results?.[0]?.data || []).map(r => ({
+      docName: r.row[0], topicId: r.row[1], docId: r.row[2]
+    }));
+  } catch(e) { return []; }
+}
+
+// ── PERSISTENT STUDENT MODEL (Spaced Repetition) ──
+async function saveStudentModel(model) {
+  if (!_neo4jReady || !currentDocId) return;
+  try {
+    await neo4jRun(
+      `MERGE (s:Student {id: 'default'})
+       SET s.overallLevel = $level,
+           s.weakConcepts = $weak,
+           s.lastSeen = $ts
+       WITH s
+       MATCH (d:Document {docId: $docId})
+       MERGE (s)-[r:STUDIED]->(d)
+       SET r.score = $score, r.lastSeen = $ts, r.questionsAsked = $qa`,
+      {
+        level: model.overallLevel,
+        weak: JSON.stringify(model.weakConcepts),
+        ts: new Date().toISOString(),
+        docId: currentDocId,
+        score: quizScore,
+        qa: model.questionsAsked
+      }
+    );
+    // Save per-concept mastery
+    for (const [concept, data] of Object.entries(model.conceptMastery)) {
+      await neo4jRun(
+        `MERGE (s:Student {id: 'default'})
+         MERGE (t:Topic {id: $concept, doc: $doc})
+         MERGE (s)-[r:ATTEMPTED]->(t)
+         SET r.score = $score, r.hintCount = $hintCount,
+             r.attempts = $attempts, r.lastSeen = $ts`,
+        {
+          concept, doc: currentDocFilename,
+          score: data.score || 0.5,
+          hintCount: data.hintCount || 0,
+          attempts: data.attempts || 0,
+          ts: new Date().toISOString()
+        }
+      );
+    }
+  } catch(e) { console.warn('[Neo4j] saveStudentModel failed:', e.message); }
+}
+
+async function loadStudentModel() {
+  if (!_neo4jReady) return null;
+  try {
+    const res = await neo4jRun(
+      `MATCH (s:Student {id: 'default'})-[r:ATTEMPTED]->(t:Topic {doc: $doc})
+       RETURN t.id AS concept, r.score AS score,
+              r.hintCount AS hintCount, r.attempts AS attempts
+       ORDER BY r.score ASC`,
+      { doc: currentDocFilename }
+    );
+    const rows = res.results?.[0]?.data || [];
+    if (!rows.length) return null;
+    const conceptMastery = {};
+    const weakConcepts = [];
+    rows.forEach(r => {
+      const [concept, score, hintCount, attempts] = r.row;
+      conceptMastery[concept] = { score, hintCount, attempts };
+      if (score < 0.4) weakConcepts.push(concept);
+    });
+    // Find concepts due for review (last seen > 7 days ago)
+    const dueForReview = rows
+      .filter(r => r.row[1] < 0.6) // score < 0.6
+      .map(r => r.row[0]);
+    return { conceptMastery, weakConcepts, dueForReview };
+  } catch(e) { return null; }
+}
+
+// ── AGGREGATE CONCEPT DIFFICULTY (Multi-student) ──
+async function getConceptDifficulty(concept) {
+  if (!_neo4jReady) return null;
+  try {
+    const res = await neo4jRun(
+      `MATCH (s:Student)-[r:ATTEMPTED]->(t:Topic {id: $concept})
+       RETURN avg(r.score) AS avgScore, count(r) AS attempts,
+              sum(r.hintCount) AS totalHints`,
+      { concept }
+    );
+    const row = res.results?.[0]?.data?.[0]?.row;
+    if (!row || row[1] < 2) return null; // need at least 2 attempts
+    return { avgScore: row[0] || 0.5, attempts: row[1], totalHints: row[2] || 0 };
+  } catch(e) { return null; }
+}
 
 const OPENROUTER_MODEL = 'openrouter/auto';
 const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
@@ -1086,6 +1221,22 @@ function openQuiz() {
   resetStudentModel();
   quizCurrentQ = 0; quizScore = 0;
 
+  // Load saved student model
+  const saved = await loadStudentModel();
+  if (saved) {
+    studentModel.conceptMastery = saved.conceptMastery;
+    studentModel.weakConcepts = [...saved.weakConcepts, ...saved.dueForReview];
+    // Show spaced repetition notice
+    if (saved.dueForReview.length) {
+      document.getElementById('quiz-setup').insertAdjacentHTML('beforeend',
+        `
+          🔁 ${saved.dueForReview.length}টি পুরনো বিষয় পর্যালোচনার সময় হয়েছে
+        
+`
+      );
+    }
+  }
+
   // Hide chat, show quiz
   document.getElementById('chat-messages').style.display = 'none';
   document.getElementById('chat-input-area') && (document.querySelector('.chat-input-area').style.display = 'none');
@@ -1169,6 +1320,16 @@ function renderQuestion(data) {
   const diffBadge = document.getElementById('quiz-diff-badge');
   diffBadge.textContent = difficultyLabel(data.difficulty);
   diffBadge.className = 'quiz-difficulty-badge ' + difficultyClass(data.difficulty);
+
+  // Show community difficulty if available
+  getConceptDifficulty(data.concept).then(diff => {
+    if (!diff || diff.attempts < 2) return;
+    const hint = `
+      ⚠️ ${Math.round((1 - diff.avgScore) * 100)}% শিক্ষার্থীর কাছে কঠিন
+    `;
+    const hintEl = document.querySelector('.quiz-community-difficulty');
+    if (hintEl) hintEl.innerHTML = hint;
+  });
 
   // Question
   document.getElementById('quiz-question-text').textContent = data.question;
@@ -1266,6 +1427,7 @@ async function nextQuestion() {
 }
 
 async function finishQuiz() {
+  await saveStudentModel(studentModel);
   showQuizLoading('ফলাফল তৈরি হচ্ছে…');
 
   let diagnosis;
@@ -1580,6 +1742,7 @@ async function persistGraphToNeo4j(docName) {
 
   const docId = docName + '_' + Date.now();
   currentDocId = docId;
+  currentDocFilename = docName;
 
   // Clear old data for same filename
   await neo4jRun('MATCH (n {doc:$doc}) DETACH DELETE n', { doc: docName });
@@ -1643,6 +1806,16 @@ async function persistGraphToNeo4j(docName) {
       { batch, doc: docName }
     );
   }
+
+  // Link shared topics across documents
+  await neo4jRun(
+    `MATCH (t1:Topic), (t2:Topic)
+     WHERE t1.id = t2.id AND t1.doc <> t2.doc
+     AND NOT (t1)-[:SHARED_CONCEPT]-(t2)
+     MERGE (t1)-[:SHARED_CONCEPT {createdAt: $ts}]-(t2)`,
+    { ts: new Date().toISOString() }
+  );
+  console.log('[Neo4j] ✓ Cross-document links created');
 
   console.log(`[Neo4j] ✓ Saved ${nodeEntries.length} nodes, ${edgeEntries.length} edges, ${store.chunks.length} chunks`);
 }
@@ -1895,7 +2068,10 @@ async function sendMessage(){
   try{
     // Graph RAG: merge TF-IDF + graph results, deduplicate by chunkIdx
     const tfidfResults = store.retrieve(text, TOP_K);
-    const graphResults = graph.graphRetrieve(text, store.chunks, TOP_K);
+    const qEntities = graph.extractEntities(text);
+    const graphResults = _neo4jReady
+      ? await neo4jGraphRetrieve(qEntities, TOP_K)
+      : graph.graphRetrieve(text, store.chunks, TOP_K);
     const seen = new Set();
     const retrieved = [...tfidfResults, ...graphResults]
       .filter(c => { if (seen.has(c.chunkIdx)) return false; seen.add(c.chunkIdx); return true; })
@@ -1906,12 +2082,18 @@ async function sendMessage(){
       ? retrieved.map((c,i)=>`[পৃষ্ঠা ${c.pageNum}]\n${c.text}`).join('\n\n---\n\n')
       : 'প্রাসঙ্গিক অংশ পাওয়া যায়নি।';
 
+    // Cross-doc hints
+    const crossDocs = await neo4jCrossDocChunks(qEntities, currentDocFilename, 3);
+    const crossHint = crossDocs.length
+      ? `\n\n[অন্য সংরক্ষিত PDF-এ এই বিষয়গুলোও আছে: ${crossDocs.map(d => `"${d.docName}" এ "${d.topicId}"`).join(', ')}]`
+      : '';
+
     // ── FIXED: natural teacher prompt, no instruction leakage ──
     const system=`তুমি Amplify-র একজন অভিজ্ঞ বাংলাদেশি শিক্ষক। তুমি শিক্ষার্থীদের ক্লাসে পড়াচ্ছ।
 
 নিচের পাঠ্য উপকরণ থেকে শিক্ষার্থীর প্রশ্নের উত্তর দাও:
 
-${context}
+${context}${crossHint}
 
 শেখানোর ধরন:
 - একজন আন্তরিক ও উৎসাহী শিক্ষকের মতো বাংলায় বোঝাও
@@ -2273,22 +2455,31 @@ function buildLectureSegments() {
 
 /**
  * Fetch + generate teacher narration for one segment index.
- * Retries once on 429 after a back-off before giving up on the segment.
+ * Checks Neo4j cache first, then generates via LLM.
  */
 async function fetchSegmentText(idx) {
   if (idx < 0 || idx >= lectureSegments.length) return null;
 
+  // ── Check Neo4j cache first ──
+  if (_neo4jReady && currentDocId) {
+    try {
+      const cached = await neo4jRun(
+        'MATCH (seg:Segment {docId:$docId, idx:$idx}) RETURN seg.text, seg.pageNum',
+        { docId: currentDocId, idx }
+      );
+      const row = cached.results?.[0]?.data?.[0]?.row;
+      if (row?.[0]) {
+        console.log(`[Lecture] Cache hit for segment ${idx}`);
+        return { text: row[0], pageNum: row[1] };
+      }
+    } catch(e) { /* fall through to generate */ }
+  }
+
+  // ── Generate via LLM (existing logic) ──
   const seg     = lectureSegments[idx];
-  const pageNum = seg[0].pageNum;
-  // Representative page for this segment — the median chunk's page
   const midPage = seg[Math.floor(seg.length / 2)].pageNum;
-
-  // Build context: join chunk texts (no page labels — cleaner for the LLM)
   const context = seg.map(c => c.text).join('\n\n');
-
-  
   const isFirst = idx === 0;
-  const chapterHint = store.chunks[0]?.text?.slice(0, 80) || '';
 
   const system = `তুমি একজন উৎসাহী ও অভিজ্ঞ বাংলাদেশি শিক্ষক। তুমি একজন শিক্ষার্থীকে একা পড়াচ্ছ।
 
@@ -2309,6 +2500,16 @@ ${isFirst ? `- শুরুতে একটি উষ্ণ সম্ভাষ�
     : `এই পাঠ্যাংশটি সরাসরি পড়িয়ে দাও, কোনো ভূমিকা ছাড়া:\n\n${context}`;
 
   const text = await groqChat([{ role: 'user', content: userMsg }], system, 420, 0.78);
+
+  // ── Save to Neo4j cache ──
+  if (_neo4jReady && currentDocId) {
+    neo4jRun(
+      `CREATE (seg:Segment {docId:$docId, idx:$idx, text:$text,
+               pageNum:$pageNum, createdAt:$ts})`,
+      { docId: currentDocId, idx, text, pageNum: midPage, ts: new Date().toISOString() }
+    ).catch(e => console.warn('[Neo4j] segment cache write failed:', e.message));
+  }
+
   return { text, pageNum: midPage };
 }
 
