@@ -1951,7 +1951,8 @@ async function speak(text, expertId) {
     }
 
     // ── Groq API call ─────────────────────────────
-    async function openRouterChat(messages, system, maxTokens=600, temp=0.8) {
+  async function openRouterChat(messages, system, maxTokens=600, temp=0.8) {
+  console.log('[openRouterChat] models:', OPENROUTER_MODELS.length, '| keys:', OPENROUTER_KEYS.length, '| base:', OPENROUTER_BASE);
   for (const model of OPENROUTER_MODELS) {
     for (let i=0; i<OPENROUTER_KEYS.length; i++) {
       try {
@@ -2013,11 +2014,15 @@ async function callGroq(expertId) {
   }
 
   // Fallback to OpenRouter
+  
+  // Fallback to OpenRouter
+  console.log('[callGroq] GROQ_KEYS count:', GROQ_KEYS.length, '| OR_KEYS count:', OPENROUTER_KEYS.length);
   if (OPENROUTER_KEYS.length > 0) {
     return openRouterChat(messages, system);
   }
 
   throw new Error('No API keys available (Groq or OpenRouter)');
+
 }
     // ── Knowledge fetch (web-simulated enrichment) ─
 async function fetchKnowledgeInsert(topic, phaseId) {
@@ -2146,6 +2151,7 @@ async function fetchKnowledgeInsert(topic, phaseId) {
         reply = await callGroq(expertId);
       } catch (err) {
         console.error('[runExpertTurn] failed:', err.message, err); // REPLACE existing console.error(err)
+        console.error('[runExpertTurn] GROQ_KEYS:', GROQ_KEYS.length, 'OR_KEYS:', OPENROUTER_KEYS.length, 'OR_BASE:', OPENROUTER_BASE);
         hideTyping(); clearExpertSpeaking();
         await sleep(1200);
         return;
