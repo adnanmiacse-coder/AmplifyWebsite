@@ -1973,6 +1973,7 @@ async function speak(text, expertId) {
 }
 
 
+
 async function callGroq(expertId) {
   const expert  = EXPERTS[expertId];
   const phase   = getCurrentPhase();
@@ -2019,7 +2020,7 @@ async function callGroq(expertId) {
   throw new Error('No API keys available (Groq or OpenRouter)');
 }
     // ── Knowledge fetch (web-simulated enrichment) ─
-    async function fetchKnowledgeInsert(topic, phaseId) {
+async function fetchKnowledgeInsert(topic, phaseId) {
       if (phaseId !== 'analysis' && phaseId !== 'debate') return null;
 
       const prompt = `বিষয়: "${topic}"
