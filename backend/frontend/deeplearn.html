@@ -1599,13 +1599,17 @@ function splitSentences(text) {
 
 async function speak(text, expertId) {
   if (!ttsEnabled) return;
+  if (!text || !text.trim()) return;
   const tts = AGENT_TTS[expertId];
   const sentences = splitSentences(text);
+  if (!sentences.length) return;
   ttsWave.classList.add('speaking');
   ttsLabel.textContent = EXPERTS[expertId].name + ' বলছেন...';
   for (const sentence of sentences) {
     if (!ttsEnabled) break;
     await new Promise(resolve => {
+      // Safety timeout — if onend never fires, resolve after 10s max
+      const timeout = setTimeout(() => resolve(), 10000);
       speechSynthesis.cancel();
       const utt = new SpeechSynthesisUtterance(sentence);
       const voice = agentVoiceMap[expertId];
@@ -1613,8 +1617,10 @@ async function speak(text, expertId) {
       else { utt.lang = 'bn-BD'; }
       utt.rate  = tts.rate;
       utt.pitch = tts.pitch;
-      utt.onend   = () => resolve();
-      utt.onerror = () => resolve();
+      utt.onend   = () => { clearTimeout(timeout); resolve(); };
+      utt.onerror = () => { clearTimeout(timeout); resolve(); };
+      // Edge sometimes silently drops utterances — add extra safety
+      setTimeout(() => { if (speechSynthesis.speaking === false) resolve(); }, 500);
       speechSynthesis.speak(utt);
     });
     await sleep(120);
