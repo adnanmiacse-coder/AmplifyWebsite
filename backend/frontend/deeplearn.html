@@ -1724,9 +1724,10 @@ async function speak(text, expertId) {
 
     const GIPHY_KEY = 'eI657U89m1QBfMVp4acJAWzqUFnN5R77';
 
+   
     async function fetchGif(text) {
       try {
-        // Use AI to extract a short English search term from the Bengali text
+        // Step 1: AI extracts keyword
         let searchTerm = sessionTopic || 'science';
         if (GROQ_KEYS.length > 0) {
           const res = await fetch(`${GROQ_BASE}/chat/completions`, {
@@ -1736,7 +1737,7 @@ async function speak(text, expertId) {
               model: 'llama-3.1-8b-instant',
               max_tokens: 10,
               temperature: 0.1,
-              messages: [{ role: 'user', content: `Extract ONE English noun or concept from this Bengali academic text for a GIF search. Output only 1-3 English words, nothing else: "${text.slice(0, 200)}"` }],
+              messages: [{ role: 'user', content: `Extract ONE English science/biology/physics concept from this Bengali text for searching scientific diagrams. Output only 1-2 English words, nothing else: "${text.slice(0, 200)}"` }],
             }),
           });
           if (res.ok) {
@@ -1749,64 +1750,95 @@ async function speak(text, expertId) {
             if (kw && kw.length > 1) searchTerm = kw;
           }
         }
-        console.log('[Giphy] Searching:', searchTerm);
-        
-        // Force educational context by appending terms and using stricter filtering
-        const eduQuery = `${searchTerm} science education diagram`;
-        const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(eduQuery)}&limit=20&rating=g`;
 
-        console.log('[Giphy] URL:', url);
+        console.log('[Giphy] Keyword:', searchTerm);
+
+        // Step 2: Search Giphy with strict educational channels
+        // Use channel-specific searches from known science accounts
+        const eduQueries = [
+          `${searchTerm} site:nasa`,
+          `${searchTerm} microscopy`,
+          `${searchTerm} scientific animation`,
+        ];
+
+        const HARD_REJECT = [
+          'dragon','ball','cell junior','anime','cartoon','naruto','manga','spongebob',
+          'simpsons','rick morty','perfect','simulation complete','gaming','meme','funny',
+          'lol','wtf','movie','film','music','dance','food','cat','dog','baby','party',
+          'dragon ball','marvel','dc comics','pokemon','fortnite','minecraft','roblox',
+          'tiktok','instagram','twitter','facebook','youtube','twitch','discord',
+        ];
+
+        const HARD_REQUIRE = [
+          'science','biology','physics','chemistry','math','education','nasa','microscop',
+          'molecule','atom','dna','cell division','mitosis','meiosis','anatomy','neuron',
+          'protein','gene','quantum','climate','evolution','laboratory','experiment',
+          'diagram','animation','medical','brain','heart','lung','blood','enzyme',
+          'photosynthesis','ecosystem','space','planet','solar','gravitational','wave',
+          'electromagnetic','nuclear','particle','electron','proton','neutron','orbital',
+          'periodic','element','compound','reaction','catalyst','energy','thermodynamic',
+        ];
+
+        // Search Giphy with educational query
+        const query = `${searchTerm} science animation educational`;
+        const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(query)}&limit=25&rating=g&lang=en`;
+        
         const res = await fetch(url);
-        console.log('[Giphy] Response status:', res.status, res.ok);
-        if (!res.ok) {
-          const errText = await res.text();
-          console.warn('[Giphy] Error body:', errText);
-          return null;
-        }
-        const data = await res.json();
-        console.log('[Giphy] Raw response:', JSON.stringify(data).slice(0, 300));
-        const results = data?.data || [];
-        console.log('[Giphy] Results count:', results.length);
-        if (!results.length) return null;
+        if (!res.ok) { console.warn('[Giphy] Bad status:', res.status); return null; }
         
-        // Filter by educational/scientific keywords in title — reject cartoons/memes
-        const ALLOW = ['science','biology','cell','dna','physics','chemistry','math','education',
-          'anatomy','molecule','atom','space','brain','evolution','diagram','microscope',
-          'laboratory','experiment','nature','medical','neural','computer','data','energy',
-          'mitosis','meiosis','protein','gene','quantum','climate','earth','animal','plant'];
-        const REJECT = ['cartoon','anime','meme','funny','lol','wtf','dragon','ball','simpsons',
-          'spongebob','naruto','rick','morty','perfect','complete','simulation','gaming',
-          'movie','film','show','tv','music','dance','party','food','cat','dog','baby'];
+        const data = await res.json();
+        const results = data?.data || [];
+        console.log('[Giphy] Raw count:', results.length);
 
+        // Step 3: Strict multi-layer filtering
         const filtered = results.filter(g => {
-          const title = (g.title || '').toLowerCase();
-          const slug  = (g.slug  || '').toLowerCase();
-          const combined = title + ' ' + slug;
-          const hasReject = REJECT.some(w => combined.includes(w));
-          if (hasReject) return false;
-          const hasAllow  = ALLOW.some(w => combined.includes(w));
-          return hasAllow;
+          const title    = (g.title    || '').toLowerCase();
+          const slug     = (g.slug     || '').toLowerCase();
+          const username = (g.username || '').toLowerCase();
+          const combined = `${title} ${slug} ${username}`;
+
+          // Hard reject — any match = discard immediately
+          const rejected = HARD_REJECT.some(w => combined.includes(w));
+          if (rejected) {
+            console.log('[Giphy] Rejected:', g.title);
+            return false;
+          }
+
+          // Hard require — must match at least one educational term
+          const approved = HARD_REQUIRE.some(w => combined.includes(w));
+          if (!approved) {
+            console.log('[Giphy] No edu match:', g.title);
+            return false;
+          }
+
+          return true;
         });
 
-        console.log('[Giphy] Filtered educational results:', filtered.length, '/', results.length);
+        console.log('[Giphy] Passed filter:', filtered.length, '/', results.length);
+        filtered.forEach(g => console.log('[Giphy] ✓', g.title));
 
-        // If nothing passes filter, skip — better no GIF than a wrong one
         if (!filtered.length) {
-          console.warn('[Giphy] No educational GIFs found for:', eduQuery);
+          console.warn('[Giphy] Nothing passed — no GIF shown');
           return null;
         }
 
-        const pick = filtered[Math.floor(Math.random() * Math.min(filtered.length, 5))];
+        const pick = filtered[Math.floor(Math.random() * Math.min(filtered.length, 3))];
         console.log('[Giphy] Selected:', pick.title);
-        return pick?.images?.fixed_height_small?.url || pick?.images?.fixed_width?.url || null;
-        console.log('[Giphy] fixed_height_small url:', pick?.images?.fixed_height_small?.url);
-        console.log('[Giphy] fixed_width url:', pick?.images?.fixed_width?.url);
-        return pick?.images?.fixed_width?.url || pick?.images?.fixed_height_small?.url || null;
-      } catch (err) {
-        console.warn('[Giphy] fetchGif error:', err);
+
+        return (
+          pick?.images?.fixed_height?.url ||
+          pick?.images?.fixed_height_small?.url ||
+          pick?.images?.fixed_width?.url ||
+          null
+        );
+
+      } catch(e) {
+        console.warn('[Giphy] Error:', e.message);
         return null;
       }
     }
+
+
   
     async function addChatBubble(expertId, text) {
       const expert = EXPERTS[expertId];
