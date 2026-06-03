@@ -677,6 +677,16 @@ async def neo4j_proxy(req: Neo4jRequest):
 
 
 
+@app.get("/neo4j/keepalive")
+async def neo4j_keepalive():
+    try:
+        driver = get_neo4j_driver()
+        async with driver.session() as session:
+            await session.run("RETURN 1")
+        return {"status": "ok"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
 
 if FRONTEND_DIR:
     public_dir = os.path.join(FRONTEND_DIR, "public")
