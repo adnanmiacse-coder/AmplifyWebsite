@@ -132,7 +132,7 @@ let agentVoiceMap      = { teacher: null, curious: null, skeptic: null, achiever
 let turnLoopRunning    = false;
 let lessonStarting     = false;
 let _turnInProgress = false;
-
+let _fromMic = false;
 
 
 // ══════════════════════════════════════════════
@@ -401,15 +401,11 @@ async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
   }
   throw new Error('All OpenRouter keys failed');
 }
-async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId = null) {
-  // Try OpenRouter first
-  try {
-    return await openRouterChat(messages, system, maxTokens, temp);
-  } catch (e) {
-    console.warn('[groqChat] OpenRouter failed, falling back to Groq:', e.message);
-  }
 
-  // Groq fallback — rotate models × keys
+
+
+async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId = null) {
+  // Try Groq first — rotate models × keys
   for (let modelIdx = 0; modelIdx < GROQ_MODELS.length; modelIdx++) {
     const model = GROQ_MODELS[modelIdx];
     for (let ki = 0; ki < groqKeys().length; ki++) {
@@ -429,15 +425,23 @@ async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId 
         const d = await res.json();
         const text = d?.choices?.[0]?.message?.content || '';
         if (!text.trim()) continue;
-        console.log(`[Groq fallback] ✓ model:${model} key:${ki + 1}`);
+        console.log(`[Groq] ✓ model:${model} key:${ki + 1}`);
         return _stripThinking(text.trim());
       } catch (e) {
-        console.warn(`[Groq fallback] model:${model} key:${ki + 1}: ${e.message}`);
+        console.warn(`[Groq] model:${model} key:${ki + 1}: ${e.message}`);
       }
     }
   }
-  throw new Error('সব OpenRouter ও Groq কী ব্যর্থ।');
+
+  // OpenRouter fallback
+  console.warn('[groqChat] All Groq keys failed, falling back to OpenRouter');
+  try {
+    return await openRouterChat(messages, system, maxTokens, temp);
+  } catch (e) {
+    throw new Error('সব Groq ও OpenRouter কী ব্যর্থ।');
+  }
 }
+
 
 /**
  * JSON variant — calls groqChat and parses JSON from response.
@@ -1565,7 +1569,9 @@ userInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitUserMe
 
 function submitUserMessage() {
   const msg = userInput.value.trim(); if (!msg) return;
-  addChatBubble('user', msg, true); userInput.value = '';
+  if (!_fromMic) addChatBubble('user', msg, true);
+  _fromMic = false;
+  userInput.value = '';
   pendingUserMessage = msg; userInterrupted = true;
   humanLog.typedMessages.push(msg); if (humanLog.typedMessages.length > 10) humanLog.typedMessages.shift();
   userInput.disabled = true; sendBtn.disabled = true;
@@ -1648,7 +1654,7 @@ function _releaseStream() { mediaStream?.getTracks().forEach(t => { try { t.stop
 function _appendTranscript(text) {
   const cleaned = text?.trim(); if (!cleaned || !userInput) return;
   userInput.value = userInput.value.trim() ? `${userInput.value.trim()} ${cleaned}` : cleaned;
-  setTimeout(() => { if (userInput.value.trim()) submitUserMessage(); }, 300);
+  setTimeout(() => { if (userInput.value.trim()) { _fromMic = true; submitUserMessage(); } }, 300);
 }
 
 async function transcribeWithWhisper(blob) {
