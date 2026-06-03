@@ -1737,7 +1737,7 @@ async function speak(text, expertId) {
               model: 'llama-3.1-8b-instant',
               max_tokens: 10,
               temperature: 0.1,
-              messages: [{ role: 'user', content: `Extract ONE English science/biology/physics concept from this Bengali text for searching scientific diagrams. Output only 1-2 English words, nothing else: "${text.slice(0, 200)}"` }],
+              messages: [{ role: 'user', content: `From this Bengali academic text, output ONLY 2-3 English words that would find a scientific animation or biology diagram on Giphy. Be very specific to the exact scientific process described. Examples: "mitosis cell division", "DNA replication", "neuron synapse firing", "photosynthesis chloroplast". Output the search phrase only, nothing else: "${text.slice(0, 200)}"` }],
             }),
           });
           if (res.ok) {
@@ -1780,7 +1780,7 @@ async function speak(text, expertId) {
         ];
 
         // Search Giphy with educational query
-        const query = `${searchTerm} science animation educational`;
+        const query = `${searchTerm} animation`;
         const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(query)}&limit=25&rating=g&lang=en`;
         
         const res = await fetch(url);
@@ -1805,13 +1805,36 @@ async function speak(text, expertId) {
           }
 
           // Hard require — must match at least one educational term
+          
+        
+          // Hard require — must match at least one educational term
           const approved = HARD_REQUIRE.some(w => combined.includes(w));
           if (!approved) {
             console.log('[Giphy] No edu match:', g.title);
             return false;
           }
 
+          // Extra: title must contain at least one real word (not empty/generic)
+          const titleWords = title.trim().split(/\s+/);
+          if (titleWords.length < 2) {
+            console.log('[Giphy] Title too short/empty:', g.title);
+            return false;
+          }
+
+          // Extra: reject vague emotional/motion words with no science context
+          const VAGUE_REJECT = ['love','cute','happy','sad','angry','moving','chase',
+            'cool','awesome','amazing','wow','omg','yes','no','ok','lol','haha',
+            'dancing','running','flying','falling','jumping','walking','eating'];
+          const isVague = VAGUE_REJECT.some(w => title.includes(w))
+            && !HARD_REQUIRE.some(w => title.includes(w));
+          if (isVague) {
+            console.log('[Giphy] Vague reject:', g.title);
+            return false;
+          }
+
           return true;
+
+
         });
 
         console.log('[Giphy] Passed filter:', filtered.length, '/', results.length);
