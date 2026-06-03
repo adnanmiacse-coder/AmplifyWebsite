@@ -1975,7 +1975,8 @@ async function speak(text, expertId) {
 async function callGroq(expertId) {
   const expert  = EXPERTS[expertId];
   const phase   = getCurrentPhase();
-  const messages = await buildMessages(expertId);
+  const messages = buildMessagesForExpert(expertId);
+  //fix here
 
   const system = `তুমি ${expert.name} — ${expert.role}। তুমি বাংলায় কথা বলো। 
 বর্তমান পর্যায়: ${phase.label}। ১৫০-২৫০ শব্দে গভীর, বিশ্লেষণমূলক উত্তর দাও। 
