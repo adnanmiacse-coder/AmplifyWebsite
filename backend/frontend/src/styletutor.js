@@ -99,12 +99,6 @@ async function neo4jRun(cypher, params = {}) {
   }
   return await res.json();
 }
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Neo4j HTTP ${res.status}: ${err}`);
-  }
-  return await res.json();
-
 
 async function initNeo4j() {
   if (!_neo4jEnabled) return false;
