@@ -1722,7 +1722,50 @@ async function speak(text, expertId) {
       if (typingBubbleEl) { typingBubbleEl.remove(); typingBubbleEl = null; }
     }
 
-    function addChatBubble(expertId, text) {
+    const GIPHY_KEY = 'eI657U89m1QBfMVp4acJAWzqUFnN5R77';
+
+    async function fetchGif(text) {
+      try {
+        // Use AI to extract a short English search term from the Bengali text
+        let searchTerm = sessionTopic || 'science';
+        if (GROQ_KEYS.length > 0) {
+          const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[0]}` },
+            body: JSON.stringify({
+              model: 'llama-3.1-8b-instant',
+              max_tokens: 10,
+              temperature: 0.1,
+              messages: [{ role: 'user', content: `Extract ONE English noun or concept from this Bengali academic text for a GIF search. Output only 1-3 English words, nothing else: "${text.slice(0, 200)}"` }],
+            }),
+          });
+          if (res.ok) {
+            const d = await res.json();
+            const kw = d?.choices?.[0]?.message?.content
+              ?.trim()
+              .replace(/[\u0980-\u09FF]/g, '')
+              .replace(/[^\w\s]/g, '')
+              .trim();
+            if (kw && kw.length > 1) searchTerm = kw;
+          }
+        }
+        console.log('[Giphy] Searching:', searchTerm);
+        const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(searchTerm)}&limit=10&rating=g`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const results = data?.data || [];
+        if (!results.length) return null;
+        // Pick a random one from top 10 for variety
+        const pick = results[Math.floor(Math.random() * results.length)];
+        return pick?.images?.fixed_height_small?.url || pick?.images?.fixed_width?.url || null;
+      } catch(e) {
+        console.warn('[Giphy] Error:', e.message);
+        return null;
+      }
+    }
+
+    async function addChatBubble(expertId, text) {
       const expert = EXPERTS[expertId];
       const div = document.createElement('div');
       div.className = `chat-bubble ${expert.bubbleClass}`;
@@ -1731,9 +1774,32 @@ async function speak(text, expertId) {
           <span class="bubble-dot" style="background:${expert.color}"></span>
           ${expert.name}
         </div>
-        <div class="bubble-text">${text}</div>`;
+        <div class="bubble-text">${text}</div>
+        <div class="bubble-gif" style="margin-top:8px;min-height:0px"></div>`;
       chatMessages.appendChild(div);
       chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      // Load GIF async — don't block the conversation
+      const gifContainer = div.querySelector('.bubble-gif');
+      fetchGif(text).then(url => {
+        if (!url) return;
+        const img = document.createElement('img');
+        img.src = url;
+        img.style.cssText = `
+          width: 100%;
+          max-width: 220px;
+          border-radius: 8px;
+          opacity: 0;
+          transition: opacity 0.4s ease;
+          display: block;
+          margin-top: 4px;
+        `;
+        img.onload = () => {
+          img.style.opacity = '1';
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        };
+        gifContainer.appendChild(img);
+      });
     }
 
     function addUserBubble(text) {
@@ -2337,7 +2403,8 @@ async function fetchKnowledgeInsert(topic, phaseId) {
                       : 'discuss';
 
       showOnStage(expertId, reply, stanceKey);
-      addChatBubble(expertId, reply);
+      
+      await addChatBubble(expertId, reply);
       await speak(reply, expertId);
       clearExpertSpeaking();
     }
