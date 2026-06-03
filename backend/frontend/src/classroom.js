@@ -1120,18 +1120,21 @@ async function toBase64(file) {
 //  START
 // ══════════════════════════════════════════════
 let _lessonStarted = false;
-startBtn.addEventListener('click', async () => {
+startBtn?.addEventListener('click', async () => {
   if (_lessonStarted) return;
-  _lessonStarted = true;  
-  const topic = topicInput.value.trim();
-  if (!topic && uploadedFiles.length === 0) { alert('অনুগ্রহ করে একটি বিষয় লিখুন অথবা ফাইল আপলোড করুন।'); return; }
+  const topic = topicInput?.value.trim();
+  if (!topic && uploadedFiles.length === 0) {
+    alert('অনুগ্রহ করে একটি বিষয় লিখুন অথবা ফাইল আপলোড করুন।');
+    return;
+  }
+  _lessonStarted = true;
   sessionTopic = topic || uploadedFiles.map(f => f.name).join(', ');
-  uploadScreen.classList.remove('active');
-  classroomScreen.classList.add('active');
-  stageTopic.textContent = sessionTopic;
+  uploadScreen?.classList.remove('active');
+  classroomScreen?.classList.add('active');
+  if (stageTopic) stageTopic.textContent = sessionTopic;
   startTimer();
   loadAgentVoices();
-  await initDuckDB();        // ← ADD HERE
+  await initDuckDB();
   ensureLaser();
   buildNotesPanel();
   await startLesson();
