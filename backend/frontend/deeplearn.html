@@ -1787,22 +1787,86 @@ async function speak(text, expertId) {
     
    async function fetchArxivPapers(topic) {
   try {
-    const cleaned = topic
-      .replace(/\.[a-z]{2,4}$/i, '')
-      .replace(/_/g, ' ')
-      .replace(/[^\w\s]/g, '')
-      .trim();
-    if (!cleaned || cleaned.length < 3) return [];
+    console.log('[OpenAlex] Extracting English keywords for:', topic);
 
-    const q = encodeURIComponent(cleaned);
-    const url = `https://api.openalex.org/works?search=${q}&per-page=5&sort=relevance_score:desc&filter=has_abstract:true`;
+    // Use Groq to extract English search keywords from the topic
+    let searchTerm = topic;
+    if (GROQ_KEYS.length > 0 || OPENROUTER_KEYS.length > 0) {
+      try {
+        const keywordPrompt = `Extract 2-4 English academic search keywords from this topic: "${topic}"
+Rules:
+- Output ONLY the English keywords, nothing else
+- No Bengali text, no explanation, no punctuation
+- Example output: cell division mitosis meiosis
+- If already English, clean and return it`;
 
-    const res = await fetch(url, {
-      headers: { 'Accept': 'application/json' }
-    });
+        let keywordRes = null;
+
+        // Try Groq first
+        if (GROQ_KEYS.length > 0) {
+          const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[0]}` },
+            body: JSON.stringify({
+              model: 'llama-3.1-8b-instant', // fast small model
+              max_tokens: 30,
+              temperature: 0.1,
+              messages: [{ role: 'user', content: keywordPrompt }],
+            }),
+          });
+          if (res.ok) {
+            const d = await res.json();
+            keywordRes = d?.choices?.[0]?.message?.content?.trim();
+          }
+        }
+
+        // Fallback to OpenRouter
+        if (!keywordRes && OPENROUTER_KEYS.length > 0) {
+          const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OPENROUTER_KEYS[0]}`,
+              'HTTP-Referer': 'http://localhost',
+              'X-Title': 'DeepLearn',
+            },
+            body: JSON.stringify({
+              model: 'google/gemma-3n-e4b-it:free',
+              max_tokens: 30,
+              temperature: 0.1,
+              messages: [{ role: 'user', content: keywordPrompt }],
+            }),
+          });
+          if (res.ok) {
+            const d = await res.json();
+            keywordRes = d?.choices?.[0]?.message?.content?.trim();
+          }
+        }
+
+        if (keywordRes) {
+          // Sanitize — remove any non-ASCII Bengali that slipped through
+          const cleaned = keywordRes.replace(/[\u0980-\u09FF]/g, '').replace(/[^\w\s]/g, '').trim();
+          if (cleaned.length > 2) {
+            searchTerm = cleaned;
+            console.log('[OpenAlex] AI extracted keywords:', searchTerm);
+          }
+        }
+      } catch(e) {
+        console.warn('[OpenAlex] Keyword extraction failed, using raw topic:', e.message);
+      }
+    }
+
+    console.log('[OpenAlex] Searching:', searchTerm);
+    const q = encodeURIComponent(searchTerm);
+    const url = `https://api.openalex.org/works?search=${q}&per-page=6&sort=relevance_score:desc&filter=has_abstract:true`;
+
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    console.log('[OpenAlex] Status:', res.status);
     if (!res.ok) return [];
 
     const data = await res.json();
+    console.log('[OpenAlex] Found:', data.results?.length || 0, 'papers');
+
     return (data.results || []).map(w => ({
       title: w.title || '',
       abstract: (() => {
@@ -1814,52 +1878,122 @@ async function speak(text, expertId) {
         return words.join(' ').slice(0, 300);
       })(),
       link: w.doi ? `https://doi.org/${w.doi}` : (w.id || ''),
+      year: w.publication_year || '',
+      citations: w.cited_by_count || 0,
     })).filter(p => p.title);
 
   } catch(err) {
-    console.warn('[OpenAlex]', err.message);
+    console.warn('[OpenAlex] Error:', err.message);
     return [];
   }
 }
 
     async function fetchKhanAcademyVideos(topic) {
+  try {
+    console.log('[Khan] Extracting English keywords for:', topic);
+
+    // Use AI to extract English search keywords
+    let searchTerm = topic;
+    if (GROQ_KEYS.length > 0 || OPENROUTER_KEYS.length > 0) {
       try {
-        const cleaned = topic
-          .replace(/\.[a-z]{2,4}$/i, '')
-          .replace(/_/g, ' ')
-          .replace(/[^\w\s]/g, '')
-          .trim();
-        const q = encodeURIComponent((cleaned || topic) + ' khan academy');
-        // Use YouTube Data API with Khan Academy channel filter
-        // Falls back to a direct YouTube search URL if no API key
-        const YOUTUBE_API_KEY = ''; // Optional: add your YouTube Data API v3 key here for better results
-        if (YOUTUBE_API_KEY) {
-          const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${q}&type=video&channelId=UC4a-Gbdw7vOaccHmFo40b9g&maxResults=4&key=${YOUTUBE_API_KEY}`;
-          const res = await fetch(url);
-          if (!res.ok) throw new Error('YT API error');
-          const data = await res.json();
-          return (data.items || []).map(item => ({
-            title:     item.snippet.title,
-            thumb:     item.snippet.thumbnails?.medium?.url || '',
-            videoId:   item.id.videoId,
-            link:      `https://www.youtube.com/watch?v=${item.id.videoId}`,
-          }));
-        } else {
-          // No API key: use oEmbed-friendly approach — just build search links
-          // We'll generate 3 static search links the user can click
-          const topics = [topic, topic + ' explained', topic + ' introduction'];
-          return topics.map(t => ({
-            title:   t.charAt(0).toUpperCase() + t.slice(1) + ' — Khan Academy',
-            thumb:   '',
-            videoId: '',
-            link:    `https://www.youtube.com/results?search_query=${encodeURIComponent(t + ' khan academy')}`,
-          }));
+        const keywordPrompt = `Extract 3-5 English keywords for a YouTube/Khan Academy search from this topic: "${topic}"
+Rules:
+- Output ONLY English keywords suitable for educational video search
+- No Bengali text, no explanation, no punctuation except spaces
+- Make it specific enough to find educational videos
+- Example input: "কোষ বিভাজন মাইটোসিস"
+- Example output: cell division mitosis biology
+- Example input: "জলবায়ু পরিবর্তনের প্রভাব"  
+- Example output: climate change effects environment`;
+
+        let keywordRes = null;
+
+        // Try Groq first
+        if (GROQ_KEYS.length > 0) {
+          const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[0]}` },
+            body: JSON.stringify({
+              model: 'llama-3.1-8b-instant',
+              max_tokens: 30,
+              temperature: 0.1,
+              messages: [{ role: 'user', content: keywordPrompt }],
+            }),
+          });
+          if (res.ok) {
+            const d = await res.json();
+            keywordRes = d?.choices?.[0]?.message?.content?.trim();
+          }
         }
-      } catch(err) {
-        console.warn('[Khan/YT]', err.message);
-        return [];
+
+        // Fallback to OpenRouter
+        if (!keywordRes && OPENROUTER_KEYS.length > 0) {
+          const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OPENROUTER_KEYS[0]}`,
+              'HTTP-Referer': 'http://localhost',
+              'X-Title': 'DeepLearn',
+            },
+            body: JSON.stringify({
+              model: 'google/gemma-3n-e4b-it:free',
+              max_tokens: 30,
+              temperature: 0.1,
+              messages: [{ role: 'user', content: keywordPrompt }],
+            }),
+          });
+          if (res.ok) {
+            const d = await res.json();
+            keywordRes = d?.choices?.[0]?.message?.content?.trim();
+          }
+        }
+
+        if (keywordRes) {
+          const cleaned = keywordRes
+            .replace(/[\u0980-\u09FF]/g, '')
+            .replace(/[^\w\s]/g, '')
+            .trim();
+          if (cleaned.length > 2) {
+            searchTerm = cleaned;
+            console.log('[Khan] AI extracted keywords:', searchTerm);
+          }
+        }
+      } catch(e) {
+        console.warn('[Khan] Keyword extraction failed:', e.message);
       }
     }
+
+    console.log('[Khan] Searching YouTube for:', searchTerm);
+
+    // Generate 4 varied search queries from the extracted keywords
+    const queries = [
+      `${searchTerm} khan academy`,
+      `${searchTerm} explained`,
+      `${searchTerm} lecture`,
+      `${searchTerm} tutorial`,
+    ];
+
+    const videos = queries.map((q, i) => ({
+      title: [
+        `${searchTerm} — Khan Academy`,
+        `${searchTerm} Explained`,
+        `${searchTerm} Lecture`,
+        `${searchTerm} Tutorial`,
+      ][i],
+      thumb: '',
+      videoId: '',
+      link: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+    }));
+
+    console.log('[Khan] Generated', videos.length, 'search links for:', searchTerm);
+    return videos;
+
+  } catch(err) {
+    console.warn('[Khan] Error:', err.message);
+    return [];
+  }
+}
 
     function renderRefsPanel(refs) {
       refsLoading.style.display = 'none';
@@ -2016,13 +2150,15 @@ async function callGroq(expertId) {
     return callGroq(expertId);
   }
 
-  const system = `তুমি ${expert.name} — ${expert.role}। শুধু বাংলায় কথা বলো।
+  const system = `তুমি ${expert.name} — ${expert.role}। শুধু বাংলায় গবেষণামূলক ভাষায় কথা বলো।
 বর্তমান পর্যায়: ${phase.label}।
 নিয়ম:
-- ঠিক ৩টি সম্পূর্ণ বাক্য লেখো, প্রতিটি বাক্য "।" দিয়ে শেষ করো
-- প্রতিটি বাক্য সর্বোচ্চ ৩০ শব্দ
-- কোনো নাম-পরিচয়, ভূমিকা বা সম্বোধন ছাড়া সরাসরি শুরু করো
-- অন্য বিশেষজ্ঞের বক্তব্য থেকে ভিন্ন তথ্য দাও`;
+- ঠিক ৪টি সম্পূর্ণ বাক্য লেখো, প্রতিটি "।" দিয়ে শেষ করো
+- প্রতিটি বাক্য সর্বোচ্চ ৩৫ শব্দ
+- ভাষা হবে একাডেমিক ও গবেষণাপত্রের মতো — পরিভাষা, প্রক্রিয়া, প্রমাণ ও তাত্ত্বিক কাঠামো ব্যবহার করো
+- তথ্যসূত্র উল্লেখ না করে তথ্যের ধরন বলো যেমন "গবেষণায় প্রমাণিত", "পরীক্ষামূলক তথ্য অনুযায়ী", "তাত্ত্বিক বিশ্লেষণে দেখা গেছে"
+- কোনো নাম-পরিচয় বা সম্বোধন ছাড়া সরাসরি শুরু করো
+- অন্য বিশেষজ্ঞের বক্তব্য থেকে সম্পূর্ণ ভিন্ন কোণ থেকে বিষয়টি বিশ্লেষণ করো`;
 
   // Try Groq only if keys exist
   if (GROQ_KEYS.length > 0) {
