@@ -2918,7 +2918,14 @@ function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrol
 // ─────────────────────────────────────────────────────
 // EVENT WIRING
 // ─────────────────────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', async function(){
+  function on(id,evt,fn){
+    const el=document.getElementById(id);
+    if(el) el.addEventListener(evt,fn);
+    else console.warn('[Amplify] Missing element: #'+id);
+  }
+
   _config = await loadEnvConfig();
   refreshNeo4jConfig();
   if (!groqKeys().length) {
@@ -2927,6 +2934,7 @@ document.addEventListener('DOMContentLoaded', async function(){
   showHomeScreen(true);
   if (_neo4jEnabled) await initNeo4j();
   await loadSavedDocuments();
+
   document.getElementById('home-new-btn').onclick = () => {
     showHomeScreen(false);
     document.getElementById('upload-zone').style.display = 'block';
@@ -2935,11 +2943,6 @@ document.addEventListener('DOMContentLoaded', async function(){
     document.getElementById('file-input').click();
   };
   on('home-back-btn', 'click', () => showHomeScreen(true));
-  function on(id,evt,fn){
-    const el=document.getElementById(id);
-    if(el) el.addEventListener(evt,fn);
-    else console.warn('[Amplify] Missing element: #'+id);
-  }
   on('upload-zone','click',function(){document.getElementById('file-input').click();});
   on('file-input','change',function(e){if(e.target.files[0]) loadAndIndex(e.target.files[0]);});
   on('upload-zone','dragover',function(e){e.preventDefault();this.classList.add('drag-over');});
@@ -2954,57 +2957,52 @@ document.addEventListener('DOMContentLoaded', async function(){
   on('lecture-btn','click',startLecture);
   on('pause-btn','click',pauseLecture);
   on('stop-lecture-btn','click',stopLecture);
-  // voice-qa-btn event removed - button doesn't exist in current HTML
   on('modal-close-btn','click',closeModal);
   on('chunk-modal','click',function(e){if(e.target===this) closeModal();});
   on('attention-btn','click',toggleAttention);
   on('quiz-btn', 'click', openQuiz);
 
-on('quiz-start-btn', 'click', async function() {
-  showQuizLoading('প্রথম প্রশ্ন তৈরি হচ্ছে…');
-  try {
-    const chunk = getQuizChunkForModel();
-    const qData = await generateQuestion(chunk);
-    renderQuestion(qData);
-  } catch(e) {
-    console.error('[Quiz] start error:', e);
-    document.getElementById('quiz-loading-text').textContent = '❌ ত্রুটি: ' + e.message;
-  }
-});
-
-on('quiz-hint-btn', 'click', function() {
-  if (!quizCurrentData || quizAnswered) return;
-  quizHintUsed = true;
-  document.getElementById('quiz-hint-text').textContent = '💡 ' + quizCurrentData.hint;
-  document.getElementById('quiz-hint-text').style.display = 'block';
-  document.getElementById('quiz-hint-btn').disabled = true;
-  // Count hint usage in student model
-  const concept = quizCurrentData.concept;
-  if (concept) {
-    if (!studentModel.conceptMastery[concept]) studentModel.conceptMastery[concept] = { score: 0.5, hintCount: 0, attempts: 0 };
-    studentModel.conceptMastery[concept].hintCount++;
-    if (studentModel.conceptMastery[concept].hintCount >= 2 && !studentModel.weakConcepts.includes(concept)) {
-      studentModel.weakConcepts.push(concept);
+  on('quiz-start-btn', 'click', async function() {
+    showQuizLoading('প্রথম প্রশ্ন তৈরি হচ্ছে…');
+    try {
+      const chunk = getQuizChunkForModel();
+      const qData = await generateQuestion(chunk);
+      renderQuestion(qData);
+    } catch(e) {
+      console.error('[Quiz] start error:', e);
+      document.getElementById('quiz-loading-text').textContent = '❌ ত্রুটি: ' + e.message;
     }
-  }
-});
-
-on('quiz-next-btn', 'click', nextQuestion);
-on('quiz-retry-btn', 'click', openQuiz);
-on('quiz-close-btn', 'click', closeQuiz);
-on('quiz-replay-btn', 'click', replayWeakSegment);
-
-// Question count selector
-document.querySelectorAll('.qcount-btn').forEach(btn => {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('.qcount-btn').forEach(b => b.classList.remove('active'));
-    this.classList.add('active');
-    quizTotalQ = parseInt(this.dataset.count);
   });
-});
 
+  on('quiz-hint-btn', 'click', function() {
+    if (!quizCurrentData || quizAnswered) return;
+    quizHintUsed = true;
+    document.getElementById('quiz-hint-text').textContent = '💡 ' + quizCurrentData.hint;
+    document.getElementById('quiz-hint-text').style.display = 'block';
+    document.getElementById('quiz-hint-btn').disabled = true;
+    const concept = quizCurrentData.concept;
+    if (concept) {
+      if (!studentModel.conceptMastery[concept]) studentModel.conceptMastery[concept] = { score: 0.5, hintCount: 0, attempts: 0 };
+      studentModel.conceptMastery[concept].hintCount++;
+      if (studentModel.conceptMastery[concept].hintCount >= 2 && !studentModel.weakConcepts.includes(concept)) {
+        studentModel.weakConcepts.push(concept);
+      }
+    }
+  });
 
-  // Graph map controls
+  on('quiz-next-btn', 'click', nextQuestion);
+  on('quiz-retry-btn', 'click', openQuiz);
+  on('quiz-close-btn', 'click', closeQuiz);
+  on('quiz-replay-btn', 'click', replayWeakSegment);
+
+  document.querySelectorAll('.qcount-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.qcount-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      quizTotalQ = parseInt(this.dataset.count);
+    });
+  });
+
   const edgeSlider = document.getElementById('edge-threshold');
   const nodeSlider = document.getElementById('node-limit');
   if (edgeSlider) {
