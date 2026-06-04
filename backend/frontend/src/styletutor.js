@@ -486,6 +486,7 @@ let cy = null;
 function renderTopicGraph() {
   const placeholder = document.getElementById('cy-placeholder');
   const container   = document.getElementById('cy');
+  if (!container) return;
   if (!graph.nodes || !Object.keys(graph.nodes).length) return;
   if (placeholder) placeholder.style.display = 'none';
 
@@ -1103,22 +1104,21 @@ function openQuiz() {
 
 async function sendSessionSummaryToN8n() {
   const payload = {
-  body: {
-    studentName: 'শিক্ষার্থী',
-    quizScore: quizScore,
-    totalQuestions: quizTotalQ,
-    conceptMastery: quizState.conceptMastery,
-    weakConcepts: quizState.weakConcepts,
-    correctStreak: quizState.correctStreak,
-    wrongStreak: quizState.wrongStreak,
-    currentDifficulty: quizState.currentDifficulty,
-    attentionLog: window._attentionLog || [],
-    distractionCount: (window._attentionLog || []).filter(e => e.state === 'confused').length,
-    focusedCount: (window._attentionLog || []).filter(e => e.state === 'focused').length,
-    sessionDurationSeconds: Math.floor((Date.now() - (window._sessionStart || Date.now())) / 1000)
-  }
-};
-
+    body: {
+      studentName: 'শিক্ষার্থী',
+      quizScore: quizScore,
+      totalQuestions: quizTotalQ,
+      conceptMastery: studentModel.conceptMastery,
+      weakConcepts: studentModel.weakConcepts,
+      correctStreak: studentModel.correctStreak,
+      wrongStreak: studentModel.wrongStreak,
+      currentDifficulty: studentModel.overallLevel,
+      attentionLog: window._attentionLog || [],
+      distractionCount: (window._attentionLog || []).filter(e => e.state === 'distracted').length,
+      focusedCount: (window._attentionLog || []).filter(e => e.state === 'focused').length,
+      sessionDurationSeconds: Math.floor((Date.now() - (window._sessionStart || Date.now())) / 1000)
+    }
+  };
   try {
     const response = await fetch('http://localhost:5678/webhook/session-summary', {
       method: 'POST',
@@ -1914,10 +1914,8 @@ function showHomeScreen(show) {
   document.getElementById('home-screen').style.display = show ? 'flex' : 'none';
   document.querySelector('main').style.display = show ? 'none' : 'grid';
   document.querySelector('nav').style.display = show ? 'none' : 'flex';
-  document.getElementById('graph-map-section').style.display = show ? 'none' : 'block';
-}
-if (typeof window !== 'undefined') {
-  window.showHomeScreen = showHomeScreen;
+  const gsec = document.getElementById('graph-map-section');
+  if (gsec) gsec.style.display = show ? 'none' : 'block';
 }
 function yieldToBrowser(){return new Promise(r=>setTimeout(r,0));}
 
