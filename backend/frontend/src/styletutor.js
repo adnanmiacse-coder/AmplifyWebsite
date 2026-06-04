@@ -1000,10 +1000,23 @@ Respond ONLY with this exact JSON, no markdown:
 {"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","hint":"...","concept":"...","difficulty":"${level}"}`;
 
   const raw = await groqChat([{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No explanation. No markdown backticks.', 500, 0.4);
+    'Respond only with valid JSON. No explanation. No markdown backticks.', 800, 0.4);
 
-  const clean = raw.replace(/```json|```/g, '').trim();
+console.log('[Quiz] generateQuestion raw response:', raw);
+
+// Extract JSON object robustly — handles leading/trailing text
+const jsonMatch = raw.match(/\{[\s\S]*\}/);
+if (!jsonMatch) throw new Error('No JSON object found in response: ' + raw.slice(0, 200));
+
+const clean = jsonMatch[0];
+console.log('[Quiz] generateQuestion clean JSON:', clean);
+
+try {
   return JSON.parse(clean);
+} catch(e) {
+  console.error('[Quiz] JSON parse failed:', e.message, '\nRaw:', raw.slice(0, 400));
+  throw new Error('JSON parse failed: ' + e.message);
+}
 }
 
 // ── Call 2: Assess answer, update student model ──
@@ -1036,10 +1049,12 @@ Respond ONLY with this exact JSON, no markdown:
 {"updatedModel":{...},"feedback":"বাংলায় এক লাইন ফিডব্যাক","isCorrect":${isCorrect}}`;
 
   const raw = await groqChat([{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No markdown. No explanation.', 600, 0.25);
+    'Respond only with valid JSON. No markdown. No explanation.', 900, 0.25);
 
-  const clean = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+console.log('[Quiz] assessAnswer raw:', raw);
+const jsonMatch = raw.match(/\{[\s\S]*\}/);
+if (!jsonMatch) throw new Error('No JSON in assessAnswer: ' + raw.slice(0, 200));
+return JSON.parse(jsonMatch[0]);
 }
 
 // ── Call 3: Final diagnosis ──
@@ -1074,10 +1089,12 @@ Respond ONLY with this JSON, no markdown:
 {"diagnosis":"বাংলায় সারসংক্ষেপ...","resultEmoji":"🎉","replayRecommended":false,"replayMessage":"বাংলায় রিপ্লে বার্তা (only if recommended)"}`;
 
   const raw = await groqChat([{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No markdown.', 500, 0.5);
+    'Respond only with valid JSON. No markdown.', 800, 0.5);
 
-  const clean = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+console.log('[Quiz] generateDiagnosis raw:', raw);
+const jsonMatch = raw.match(/\{[\s\S]*\}/);
+if (!jsonMatch) throw new Error('No JSON in diagnosis: ' + raw.slice(0, 200));
+return JSON.parse(jsonMatch[0]);
 }
 
 // ── UI: Show/hide quiz panel ──
