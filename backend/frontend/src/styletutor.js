@@ -755,7 +755,9 @@ async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
       if (!res.ok) throw new Error(`OpenRouter key ${i+1}: ${res.status}`);
       const d = await res.json();
       console.log(`[OpenRouter] key ${i+1} success`);
-      return d.choices[0].message.content;
+      const content = d.choices[0]?.message?.content;
+if (!content) throw new Error(`OpenRouter key ${i+1}: empty response`);
+return content;
     } catch(e) {
       console.warn(`[OpenRouter] key ${i+1} error: ${e.message} — trying next`);
       continue;  // continue on ALL errors, not just 429
@@ -785,8 +787,9 @@ async function groqChat(messages, system, maxTokens=400, temperature=0.72, groqF
     console.warn('[Chat] All Groq failed, falling back to OpenRouter');
     try {
       const result = await openRouterChat(messages, system, maxTokens, temperature);
-      console.log('[Chat] OpenRouter fallback success');
-      return result;
+if (!result) throw new Error('OpenRouter returned empty content');
+console.log('[Chat] OpenRouter success');
+return result;
     } catch(e) {
       console.warn('[Chat] OpenRouter fallback also failed:', e.message);
     }
@@ -796,8 +799,9 @@ async function groqChat(messages, system, maxTokens=400, temperature=0.72, groqF
   // Default behaviour — OpenRouter first, Groq fallback
   try {
     const result = await openRouterChat(messages, system, maxTokens, temperature);
-    console.log('[Chat] OpenRouter success');
-    return result;
+if (!result) throw new Error('OpenRouter fallback returned empty content');
+console.log('[Chat] OpenRouter fallback success');
+return result;
   } catch(e) {
     console.warn('[Chat] OpenRouter failed, falling back to Groq:', e.message);
   }
@@ -913,27 +917,30 @@ Create ONE multiple-choice question. Rules:
 Respond ONLY with this exact JSON, no markdown:
 {"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","hint":"...","concept":"...","difficulty":"${level}"}`;
 
-  const raw = await groqChat([{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No explanation. No markdown backticks.', 800, 0.4, true);
+  const raw = await groqChat(
+    [{ role: 'user', content: prompt }],
+    'Respond only with valid JSON. No explanation. No markdown backticks.',
+    800, 0.4,
+    true  // groqFirst
+  );
 
-console.log('[Quiz] generateQuestion raw response:', raw);
+  console.log('[Quiz] generateQuestion raw:', raw);
 
-// Extract JSON object robustly — handles leading/trailing text
-const jsonMatch = raw.match(/\{[\s\S]*\}/);
-if (!jsonMatch) throw new Error('No JSON object found in response: ' + raw.slice(0, 200));
+  // Strip markdown fences and find JSON object
+  const cleaned = raw.replace(/```json|```/gi, '').trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('No JSON found in response: ' + raw.slice(0, 200));
 
-const clean = jsonMatch[0];
-console.log('[Quiz] generateQuestion clean JSON:', clean);
-
-try {
-  return JSON.parse(clean);
-} catch(e) {
-  console.error('[Quiz] JSON parse failed:', e.message, '\nRaw:', raw.slice(0, 400));
-  throw new Error('JSON parse failed: ' + e.message);
-}
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch(e) {
+    console.error('[Quiz] JSON parse failed:', e.message, '\nRaw:', raw.slice(0, 400));
+    throw new Error('JSON parse failed: ' + e.message);
+  }
 }
 
 // ── Call 2: Assess answer, update student model ──
+
 async function assessAnswer(questionData, chosenOption, hintUsed) {
   const isCorrect = chosenOption.startsWith(questionData.answer + '.');
 
@@ -962,25 +969,30 @@ Rules for updating:
 Respond ONLY with this exact JSON, no markdown:
 {"updatedModel":{...},"feedback":"বাংলায় এক লাইন ফিডব্যাক","isCorrect":${isCorrect}}`;
 
-  const raw = await groqChat([{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No markdown. No explanation.', 900, 0.25, true);
+  const raw = await groqChat(
+    [{ role: 'user', content: prompt }],
+    'Respond only with valid JSON. No markdown. No explanation.',
+    900, 0.25,
+    true  // groqFirst
+  );
 
-console.log('[Quiz] assessAnswer raw:', raw);
-const jsonMatch = raw.match(/\{[\s\S]*\}/);
-if (!jsonMatch) throw new Error('No JSON in assessAnswer: ' + raw.slice(0, 200));
-return JSON.parse(jsonMatch[0]);
+  console.log('[Quiz] assessAnswer raw:', raw);
+  const cleaned = raw.replace(/```json|```/gi, '').trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('No JSON in assessAnswer: ' + raw.slice(0, 200));
+  return JSON.parse(jsonMatch[0]);
 }
-
 // ── Call 3: Final diagnosis ──
 async function generateDiagnosis() {
   sendSessionSummaryToN8n().then(summary => {
-  if (summary) {
-    const diagEl = document.getElementById('quiz-result-diagnosis');
-    if (diagEl) {
-      diagEl.innerHTML += '<br><br><b>📋 সেশন সারসংক্ষেপ:</b><br>' + summary;
+    if (summary) {
+      const diagEl = document.getElementById('quiz-result-diagnosis');
+      if (diagEl) {
+        diagEl.innerHTML += '<br><br><b>📋 সেশন সারসংক্ষেপ:</b><br>' + summary;
+      }
     }
-  }
-});
+  });
+
   const prompt = `You are a Bangladeshi teacher analyzing a student's quiz performance.
 
 Student model after quiz:
@@ -1002,13 +1014,18 @@ Also determine:
 Respond ONLY with this JSON, no markdown:
 {"diagnosis":"বাংলায় সারসংক্ষেপ...","resultEmoji":"🎉","replayRecommended":false,"replayMessage":"বাংলায় রিপ্লে বার্তা (only if recommended)"}`;
 
-  const raw = await groqChat([{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No markdown.', 800, 0.5, true);
+  const raw = await groqChat(
+    [{ role: 'user', content: prompt }],
+    'Respond only with valid JSON. No markdown.',
+    800, 0.5,
+    true  // groqFirst
+  );
 
-console.log('[Quiz] generateDiagnosis raw:', raw);
-const jsonMatch = raw.match(/\{[\s\S]*\}/);
-if (!jsonMatch) throw new Error('No JSON in diagnosis: ' + raw.slice(0, 200));
-return JSON.parse(jsonMatch[0]);
+  console.log('[Quiz] generateDiagnosis raw:', raw);
+  const cleaned = raw.replace(/```json|```/gi, '').trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('No JSON in diagnosis: ' + raw.slice(0, 200));
+  return JSON.parse(jsonMatch[0]);
 }
 
 // ── UI: Show/hide quiz panel ──
