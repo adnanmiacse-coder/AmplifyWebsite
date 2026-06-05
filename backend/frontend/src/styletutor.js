@@ -1068,7 +1068,7 @@ async function sendSessionSummaryToN8n() {
     }
   };
   try {
-    const response = await fetch('http://localhost:5678/webhook/session-summary', {
+    const response = await fetch('https://n8n-production-ec70.up.railway.app/webhook/session-summary', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1076,7 +1076,7 @@ async function sendSessionSummaryToN8n() {
     const data = await response.json();
     return data.summary;
   } catch (e) {
-    console.error('n8n summary failed:', e);
+    console.error('n8n  failed:', e);
     return null;
   }
 }
