@@ -2254,14 +2254,14 @@ function extractKeywords(text) {
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
   try {
-    const res = await fetch(`${apiBase()}/generate`, {
+    const res = await fetch(`${apiBase()}/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
     });
     if (!res.ok) {
       const errBody = await res.text().catch(() => '(unreadable)');
-      console.error('[Manim] URL hit:', `${apiBase()}/generate`);
+      console.error('[Manim] URL hit:', `${apiBase()}/`);
       console.error('[Manim] Status:', res.status);
       console.error('[Manim] Response body:', errBody);
       throw new Error('backend ' + res.status);
@@ -2273,6 +2273,8 @@ async function fetchAnimatedVisual(text) {
     return { videoUrl: '/videos/3e64f732.mp4', topic };
   }
 }
+
+
 
 function showDiagram(videoUrl, topic) {
   const stage  = document.getElementById('lecture-visual-stage');
