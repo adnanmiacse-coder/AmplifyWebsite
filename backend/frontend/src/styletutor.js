@@ -1169,6 +1169,21 @@ async function handleOptionClick(chosenOpt, btnEl) {
   try {
     const assessment = await assessAnswer(quizCurrentData, chosenOpt, quizHintUsed);
     if (assessment.updatedModel) studentModel = assessment.updatedModel;
+// Fix concept mastery format and clamp scores
+if (studentModel.conceptMastery) {
+  Object.keys(studentModel.conceptMastery).forEach(concept => {
+    const val = studentModel.conceptMastery[concept];
+    if (typeof val === 'number') {
+      studentModel.conceptMastery[concept] = {
+        score: Math.max(0.05, Math.min(1, val)),
+        attempts: studentModel.questionsAsked || 1,
+        hintCount: 0
+      };
+    } else if (val && typeof val === 'object') {
+      val.score = Math.max(0.05, Math.min(1, val.score || 0));
+    }
+  });
+}
     studentModel.questionsAsked = quizCurrentQ + 1;
 
     const fbEl = document.getElementById('quiz-feedback');
