@@ -1277,6 +1277,22 @@ quizWeakSegIdx = Math.max(0, Math.min(quizWeakSegIdx, lectureSegments.length - 1
   persistQuizResultsToNeo4j().catch(e => console.warn('[Quiz] persist failed:', e));
   persistAttentionSessionToNeo4j().catch(() => {});
   
+
+
+  // Save concept mastery to localStorage for dashboard
+  try {
+    const docs = JSON.parse(localStorage.getItem('amplify_tutor_documents') || '[]');
+    if (docs.length && currentDocId) {
+      const doc = docs.find(d => d.docId === currentDocId);
+      if (doc) {
+        doc.conceptMastery = studentModel.conceptMastery;
+        localStorage.setItem('amplify_tutor_documents', JSON.stringify(docs));
+      }
+    }
+  } catch(e) { console.warn('Could not save concept mastery:', e); }
+
+ 
+
   // TTS result summary
   TTS.speakAI(
     diagnosis.replayRecommended
@@ -1309,7 +1325,7 @@ async function persistQuizResultsToNeo4j() {
         { batch }
       );
     }
-    console.log('[Neo4j] ✓ Saved', entries.length, 'concept mastery records');
+    console.log('[Neo4j]  Saved', entries.length, 'concept mastery records');
   } catch(e) {
     console.warn('[Neo4j] persistQuizResults failed:', e.message);
   }
