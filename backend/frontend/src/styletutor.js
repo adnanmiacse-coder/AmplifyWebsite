@@ -1619,6 +1619,10 @@ async function loadAndIndex(file) {
     setProgress(90);
     await yieldToBrowser();
     store.build();
+
+    console.log('[Encoding Check] First chunk sample:', store.chunks[0]?.text?.slice(0, 100));
+    console.log('[Encoding Check] this has Bangali Unicode:', /[\u0980-\u09FF]/.test(store.chunks[0]?.text || ''));
+
     graph.buildGraph(store.chunks);
     renderTopicGraph();
     // Persist to Neo4j in background (non-blocking)
