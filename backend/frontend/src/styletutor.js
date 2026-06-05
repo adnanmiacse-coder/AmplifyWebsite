@@ -1001,11 +1001,13 @@ ${JSON.stringify(studentModel, null, 2)}
 Total questions: ${quizTotalQ}
 Final score: ${quizScore}/${quizTotalQ}
 
-Write a short diagnostic summary in Bengali (3-4 sentences):
-- What they understand well
-- What needs more work  
-- Whether they should replay the lecture or can move forward
-- Be encouraging but honest
+Write a short diagnostic summary in Bengali (3-4 sentences) directly addressing the student as "তুমি":
+- Speak directly to the student, never say "শিক্ষার্থী" or "তারা" or "তাদের"
+- Use "তুমি" and "তোমার" throughout
+- What they understand well (say "তুমি ভালো বুঝেছ...")
+- What needs more work (say "তোমার আরও কাজ করতে হবে...")
+- Whether they should replay or move forward
+- Be warm, encouraging and personal like a caring teacher talking directly to a student
 
 Also determine:
 - resultEmoji: 🎉 if score >= 80%, 🤔 if 50-79%, 😟 if < 50%
