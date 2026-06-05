@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="bn">
 <head>
@@ -40,14 +38,12 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .nav-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;background:rgba(196,77,255,0.1);border:1px solid rgba(196,77,255,0.25);color:var(--expert1-color);}
 .pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--expert1-color);animation:modePulse 1.8s ease-in-out infinite;}
 @keyframes modePulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.45;transform:scale(0.65);}}
-
-/* SOURCE BADGE */
 .source-badge{display:inline-flex;align-items:center;gap:4px;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:0.05em;}
 .source-neo4j{background:rgba(0,183,255,0.12);border:1px solid rgba(0,183,255,0.3);color:var(--accent);}
 .source-local{background:rgba(196,77,255,0.12);border:1px solid rgba(196,77,255,0.3);color:var(--expert1-color);}
 
 /* MAIN */
-.main{flex:1;padding:28px 32px 48px;display:flex;flex-direction:column;gap:24px;max-width:1280px;width:100%;margin:0 auto;}
+.main{flex:1;padding:28px 32px 48px;display:flex;flex-direction:column;gap:24px;max-width:1440px;width:100%;margin:0 auto;}
 .section-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;}
 .section-title{font-size:0.68rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;}
 .section-action{font-size:0.72rem;color:var(--text-muted);cursor:pointer;text-decoration:none;transition:color 0.2s;}
@@ -70,9 +66,149 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .metric-label{font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;}
 .metric-value{font-family:var(--font-display);font-size:2rem;color:var(--text);line-height:1.1;margin-bottom:4px;}
 .metric-sub{font-size:0.72rem;color:var(--text-muted);}
+.metric-card:nth-child(1){animation-delay:0s;}.metric-card:nth-child(2){animation-delay:0.07s;}.metric-card:nth-child(3){animation-delay:0.14s;}.metric-card:nth-child(4){animation-delay:0.21s;}
 
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+/* BRAIN + DASHBOARD LAYOUT */
+.brain-dashboard-grid{display:grid;grid-template-columns:1fr 480px;gap:20px;align-items:start;}
+
+/* ═══ SECOND BRAIN PANEL ═══ */
+.brain-panel{
+  background:linear-gradient(135deg,rgba(6,23,38,0.98),rgba(10,15,30,0.99));
+  border:1px solid rgba(0,183,255,0.18);
+  border-radius:18px;
+  overflow:hidden;
+  position:relative;
+  box-shadow:0 0 60px rgba(0,183,255,0.04),inset 0 1px 0 rgba(0,183,255,0.1);
+  animation:fadeUp 0.6s ease both;
+}
+.brain-panel-header{
+  padding:16px 22px 14px;
+  border-bottom:1px solid rgba(0,183,255,0.08);
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(0,183,255,0.03);
+}
+.brain-panel-title{display:flex;align-items:center;gap:10px;}
+.brain-panel-title-text{
+  font-size:0.72rem;font-weight:700;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:0.1em;
+}
+.brain-neural-indicator{
+  display:flex;align-items:center;gap:5px;
+  font-size:0.62rem;color:var(--accent);font-weight:700;
+  letter-spacing:0.08em;text-transform:uppercase;
+}
+.neural-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 8px var(--accent);
+  animation:neuralPulse 2s ease-in-out infinite;
+}
+@keyframes neuralPulse{0%,100%{opacity:1;box-shadow:0 0 8px var(--accent);}50%{opacity:0.4;box-shadow:0 0 3px var(--accent);}}
+
+.brain-canvas-container{
+  position:relative;
+  height:420px;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+#brainCanvas{
+  width:100%;height:100%;
+  display:block;
+  cursor:crosshair;
+}
+
+/* scanline overlay */
+.brain-canvas-container::before{
+  content:'';
+  position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,183,255,0.015) 3px,rgba(0,183,255,0.015) 4px);
+  pointer-events:none;z-index:2;
+}
+/* corner brackets */
+.brain-canvas-container::after{
+  content:'';
+  position:absolute;inset:12px;
+  border:1px solid rgba(0,183,255,0.08);
+  border-radius:8px;pointer-events:none;z-index:2;
+}
+.corner{position:absolute;width:14px;height:14px;z-index:3;pointer-events:none;}
+.corner-tl{top:12px;left:12px;border-top:2px solid var(--accent);border-left:2px solid var(--accent);}
+.corner-tr{top:12px;right:12px;border-top:2px solid var(--accent);border-right:2px solid var(--accent);}
+.corner-bl{bottom:12px;left:12px;border-bottom:2px solid var(--accent);border-left:2px solid var(--accent);}
+.corner-br{bottom:12px;right:12px;border-bottom:2px solid var(--accent);border-right:2px solid var(--accent);}
+
+/* BRAIN TOOLTIP */
+.brain-tooltip{
+  position:absolute;
+  background:rgba(2,11,22,0.97);
+  border:1px solid rgba(0,183,255,0.4);
+  border-radius:12px;
+  padding:14px 16px;
+  min-width:220px;max-width:280px;
+  pointer-events:none;
+  z-index:20;
+  opacity:0;
+  transform:translateY(6px) scale(0.97);
+  transition:opacity 0.18s ease,transform 0.18s ease;
+  box-shadow:0 8px 32px rgba(0,0,0,0.6),0 0 0 1px rgba(0,183,255,0.08);
+}
+.brain-tooltip.visible{opacity:1;transform:translateY(0) scale(1);}
+.bt-zone-name{
+  font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;
+  color:var(--accent);margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.bt-zone-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.bt-metric-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.bt-metric-key{font-size:0.72rem;color:var(--text-muted);}
+.bt-metric-val{font-size:0.8rem;font-weight:700;color:var(--text);}
+.bt-bar-track{height:4px;background:rgba(255,255,255,0.07);border-radius:2px;margin-top:2px;margin-bottom:8px;overflow:hidden;}
+.bt-bar-fill{height:100%;border-radius:2px;transition:width 0.6s ease;}
+.bt-divider{height:1px;background:rgba(0,183,255,0.08);margin:8px 0;}
+
+/* brain legend */
+.brain-legend{
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  padding:12px 22px;
+  border-top:1px solid rgba(0,183,255,0.07);
+  flex-wrap:wrap;
+}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:0.62rem;color:var(--text-muted);letter-spacing:0.03em;}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* brain loading */
+.brain-loading{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;z-index:10;
+  background:rgba(2,11,22,0.95);
+  transition:opacity 0.4s;
+}
+.brain-loading.hidden{opacity:0;pointer-events:none;}
+.brain-load-ring{
+  width:44px;height:44px;border-radius:50%;
+  border:2px solid rgba(0,183,255,0.15);
+  border-top-color:var(--expert1-color);
+  animation:spin 1s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.brain-load-text{font-size:0.75rem;color:var(--text-muted);letter-spacing:0.05em;}
+.brain-load-sub{font-size:0.65rem;color:rgba(0,183,255,0.5);letter-spacing:0.08em;}
+
+/* brain error */
+.brain-error{
+  position:absolute;inset:0;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;z-index:10;background:rgba(2,11,22,0.97);text-align:center;padding:24px;
+}
+.brain-error.show{display:flex;}
+.brain-error-icon{font-size:2.5rem;opacity:0.5;}
+.brain-error-title{font-family:var(--font-display);font-size:1rem;color:var(--text);}
+.brain-error-msg{font-size:0.78rem;color:var(--text-muted);line-height:1.7;}
+.brain-error-path{font-size:0.7rem;color:var(--accent);background:rgba(0,183,255,0.06);border:1px solid var(--border);padding:6px 12px;border-radius:6px;font-family:monospace;}
+
+/* RIGHT PANEL STACK */
+.right-panel-stack{display:flex;flex-direction:column;gap:16px;}
 
 /* PANEL */
 .panel{background:var(--bg-alt);border:1px solid var(--border-soft);border-radius:var(--radius);overflow:hidden;animation:fadeUp 0.5s ease both;}
@@ -81,6 +217,10 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .panel-title-icon{font-size:14px;}
 .panel-count{font-size:0.7rem;padding:1px 8px;border-radius:20px;background:var(--border-soft);color:var(--text-muted);}
 .panel-body{padding:14px 18px;display:flex;flex-direction:column;gap:0;}
+
+/* BELOW BRAIN: full-width sections */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
 
 /* CONCEPT BARS */
 .concept-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border-soft);animation:fadeUp 0.4s ease both;}
@@ -99,7 +239,6 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .badge{display:inline-flex;align-items:center;gap:3px;font-size:0.62rem;font-weight:700;padding:1px 6px;border-radius:20px;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;}
 .badge-weak{background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.2);}
 .badge-due{background:rgba(245,158,11,0.15);color:#fcd34d;border:1px solid rgba(245,158,11,0.2);}
-.badge-ok{background:rgba(0,229,176,0.12);color:#00e5b0;border:1px solid rgba(0,229,176,0.2);}
 .badge-cross{background:rgba(196,77,255,0.12);color:#d8b4fe;border:1px solid rgba(196,77,255,0.2);}
 
 /* REVIEW */
@@ -116,7 +255,6 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .due-later{background:rgba(0,229,176,0.08);color:#00a37e;border:1px solid rgba(0,229,176,0.12);}
 .review-start-btn{width:100%;margin-top:14px;padding:11px 20px;background:linear-gradient(135deg,rgba(196,77,255,0.15),rgba(0,183,255,0.15));border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font-body);font-size:0.88rem;font-weight:600;color:var(--text);cursor:pointer;transition:border-color 0.2s,box-shadow 0.2s,transform 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;}
 .review-start-btn:hover{border-color:var(--accent);box-shadow:0 0 20px rgba(0,183,255,0.15);transform:translateY(-1px);}
-.review-start-btn:active{transform:scale(0.98);}
 
 /* HEATMAP */
 .heatmap-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-bottom:10px;}
@@ -128,21 +266,19 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .heat-3{background:rgba(0,183,255,0.8);box-shadow:0 0 6px rgba(0,183,255,0.4);}
 .heat-legend{display:flex;align-items:center;gap:6px;font-size:0.65rem;color:var(--text-muted);margin-top:6px;}
 .heat-legend-cell{width:11px;height:11px;border-radius:2px;}
-
-/* STREAK */
 .streak-dots{display:flex;gap:5px;margin-top:10px;}
 .streak-dot{width:11px;height:11px;border-radius:50%;transition:background 0.3s;}
 .streak-on{background:var(--accent);box-shadow:0 0 5px rgba(0,183,255,0.5);}
 .streak-off{background:rgba(255,255,255,0.07);}
 
 /* CROSS DOC */
-.cross-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border-soft);animation:fadeUp 0.4s ease both;}
+.cross-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border-soft);}
 .cross-row:last-child{border-bottom:none;}
 .cross-concept{font-size:0.85rem;color:var(--text);}
 .cross-docs{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
 .cross-doc-chip{font-size:0.65rem;padding:2px 8px;border-radius:20px;background:rgba(196,77,255,0.1);border:1px solid rgba(196,77,255,0.2);color:#d8b4fe;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;}
 
-/* TOPIC GRAPH */
+/* TOPIC */
 .topic-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-soft);}
 .topic-row:last-child{border-bottom:none;}
 .topic-name{font-size:0.82rem;color:var(--text);flex:1;}
@@ -152,7 +288,7 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .topic-pages{font-size:0.65rem;color:var(--text-muted);background:var(--border-soft);padding:1px 6px;border-radius:20px;white-space:nowrap;}
 
 /* DOCS */
-.doc-row{display:flex;align-items:center;gap:13px;padding:11px 0;border-bottom:1px solid var(--border-soft);cursor:pointer;transition:opacity 0.2s;animation:fadeUp 0.4s ease both;}
+.doc-row{display:flex;align-items:center;gap:13px;padding:11px 0;border-bottom:1px solid var(--border-soft);cursor:pointer;transition:opacity 0.2s;}
 .doc-row:last-child{border-bottom:none;}
 .doc-row:hover{opacity:0.82;}
 .doc-icon{width:38px;height:38px;border-radius:var(--radius-sm);background:rgba(0,183,255,0.1);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
@@ -175,38 +311,7 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .skill-pip.filled.medium{background:var(--accent);}
 .skill-pip.filled.strong{background:#00e5b0;}
 
-/* EMPTY / LOADING */
-.empty-state{text-align:center;padding:24px 16px;font-size:0.82rem;color:var(--text-muted);border:1px dashed var(--border);border-radius:var(--radius-sm);font-style:italic;line-height:1.8;}
-.skeleton{background:linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 75%);background-size:400px 100%;animation:shimmer 1.4s ease infinite;border-radius:4px;}
-@keyframes shimmer{0%{background-position:-400px 0;}100%{background-position:400px 0;}}
-.skeleton-line{height:12px;margin-bottom:10px;}
-
-/* TOAST */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 20px;font-size:0.85rem;color:var(--text);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);z-index:999;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-lg);}
-.toast.show{transform:translateX(-50%) translateY(0);}
-.toast-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);}
-
-/* TOOLTIP */
-.tooltip{position:absolute;bottom:120%;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border);border-radius:5px;padding:4px 8px;font-size:0.65rem;color:var(--text);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;}
-.heat-cell:hover .tooltip{opacity:1;}
-
-/* LOADING OVERLAY */
-#loading-overlay{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity 0.5s;}
-#loading-overlay.done{opacity:0;pointer-events:none;}
-.loading-ring{width:48px;height:48px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--expert1-color);animation:spin 1s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.loading-text{font-size:0.82rem;color:var(--text-muted);}
-.loading-source{font-size:0.7rem;color:var(--expert1-color);margin-top:-8px;}
-
-@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
-.metric-card:nth-child(1){animation-delay:0s;}.metric-card:nth-child(2){animation-delay:0.07s;}.metric-card:nth-child(3){animation-delay:0.14s;}.metric-card:nth-child(4){animation-delay:0.21s;}
-
-::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-@media(max-width:900px){.metrics-row{grid-template-columns:repeat(2,1fr);}.two-col,.three-col{grid-template-columns:1fr;}.main{padding:20px 16px 40px;}.nav{padding:12px 16px;}}
-
-
-
-/* ATTENTION PANEL */
+/* ATTENTION */
 .attention-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
 .att-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:var(--radius-sm);padding:12px 14px;text-align:center;}
 .att-emoji{font-size:22px;margin-bottom:4px;}
@@ -228,6 +333,25 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .att-focus-high{background:rgba(0,229,176,0.12);color:#00e5b0;border:1px solid rgba(0,229,176,0.2);}
 .att-focus-mid{background:rgba(251,191,36,0.12);color:#fcd34d;border:1px solid rgba(251,191,36,0.2);}
 .att-focus-low{background:rgba(248,113,113,0.12);color:#f87171;border:1px solid rgba(248,113,113,0.2);}
+
+/* MISC */
+.empty-state{text-align:center;padding:24px 16px;font-size:0.82rem;color:var(--text-muted);border:1px dashed var(--border);border-radius:var(--radius-sm);font-style:italic;line-height:1.8;}
+.skeleton{background:linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 75%);background-size:400px 100%;animation:shimmer 1.4s ease infinite;border-radius:4px;}
+@keyframes shimmer{0%{background-position:-400px 0;}100%{background-position:400px 0;}}
+.skeleton-line{height:12px;margin-bottom:10px;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 20px;font-size:0.85rem;color:var(--text);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);z-index:999;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-lg);}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);}
+.tooltip{position:absolute;bottom:120%;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border);border-radius:5px;padding:4px 8px;font-size:0.65rem;color:var(--text);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;}
+.heat-cell:hover .tooltip{opacity:1;}
+#loading-overlay{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity 0.5s;}
+#loading-overlay.done{opacity:0;pointer-events:none;}
+.loading-ring{width:48px;height:48px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--expert1-color);animation:spin 1s linear infinite;}
+.loading-text{font-size:0.82rem;color:var(--text-muted);}
+.loading-source{font-size:0.7rem;color:var(--expert1-color);margin-top:-8px;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+@media(max-width:1100px){.brain-dashboard-grid{grid-template-columns:1fr;}.metrics-row{grid-template-columns:repeat(2,1fr);}.two-col,.three-col{grid-template-columns:1fr;}.main{padding:20px 16px 40px;}.nav{padding:12px 16px;}}
 </style>
 </head>
 <body>
@@ -270,32 +394,110 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
       <div class="metrics-row" id="metrics-row"></div>
     </section>
 
-    <!-- CONCEPT MASTERY + SPACED REPETITION -->
-    <div class="two-col">
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title"><span class="panel-title-icon">🧠</span>ধারণা দখল</div>
-          <span class="panel-count" id="concept-count">—</span>
+    <!-- BRAIN + RIGHT PANELS -->
+    <div class="brain-dashboard-grid">
+
+      <!-- ═══ SECOND BRAIN ═══ -->
+      <div class="brain-panel">
+        <div class="brain-panel-header">
+          <div class="brain-panel-title">
+            <span style="font-size:16px;">🧠</span>
+            <span class="brain-panel-title-text">Second Brain — Neural Map</span>
+          </div>
+          <div class="brain-neural-indicator">
+            <div class="neural-dot"></div>
+            <span id="brain-status-text">Initializing…</span>
+          </div>
         </div>
-        <div class="panel-body" id="concept-body"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line" style="width:80%"></div><div class="skeleton skeleton-line" style="width:90%"></div></div>
+
+        <div class="brain-canvas-container">
+          <div class="corner corner-tl"></div>
+          <div class="corner corner-tr"></div>
+          <div class="corner corner-bl"></div>
+          <div class="corner corner-br"></div>
+
+          <canvas id="brainCanvas"></canvas>
+
+          <!-- loading -->
+          <div class="brain-loading" id="brainLoading">
+            <div class="brain-load-ring"></div>
+            <div class="brain-load-text">Neural map loading…</div>
+            <div class="brain-load-sub">SYNCING STUDENT DATA</div>
+          </div>
+
+          <!-- error -->
+          <div class="brain-error" id="brainError">
+            <div class="brain-error-icon">🧠</div>
+            <div class="brain-error-title">Brain model not found</div>
+            <div class="brain-error-msg">Place <code>brain_hologram.glb</code> in your <code>/dist/models/</code> folder. Running in demo mode with procedural visualization.</div>
+            <div class="brain-error-path">/dist/models/brain_hologram.glb</div>
+          </div>
+
+          <!-- hover tooltip -->
+          <div class="brain-tooltip" id="brainTooltip">
+            <div class="bt-zone-name" id="bt-zone-name">
+              <div class="bt-zone-dot" id="bt-zone-dot"></div>
+              <span id="bt-zone-label">Zone</span>
+            </div>
+            <div id="bt-metrics-body"></div>
+          </div>
+        </div>
+
+        <div class="brain-legend" id="brain-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#C44DFF;box-shadow:0 0 6px #C44DFF55;"></div>মনোযোগ</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#00B7FF;box-shadow:0 0 6px #00B7FF55;"></div>বিষয় জ্ঞান</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#00e5b0;box-shadow:0 0 6px #00e5b055;"></div>দক্ষতা</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;box-shadow:0 0 6px #f59e0b55;"></div>পর্যালোচনা</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f87171;box-shadow:0 0 6px #f8717155;"></div>দুর্বল</div>
+        </div>
       </div>
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title"><span class="panel-title-icon">📅</span>পর্যালোচনার সময়সূচি</div>
-          <span class="panel-count" id="review-count">—</span>
+
+      <!-- RIGHT PANELS -->
+      <div class="right-panel-stack">
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="panel-title-icon">🧠</span>ধারণা দখল</div>
+            <span class="panel-count" id="concept-count">—</span>
+          </div>
+          <div class="panel-body" id="concept-body">
+            <div class="skeleton skeleton-line"></div>
+            <div class="skeleton skeleton-line" style="width:80%"></div>
+            <div class="skeleton skeleton-line" style="width:90%"></div>
+          </div>
         </div>
-        <div class="panel-body" id="review-body"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line" style="width:75%"></div></div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="panel-title-icon">📅</span>পর্যালোচনার সময়সূচি</div>
+            <span class="panel-count" id="review-count">—</span>
+          </div>
+          <div class="panel-body" id="review-body">
+            <div class="skeleton skeleton-line"></div>
+            <div class="skeleton skeleton-line" style="width:75%"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title"><span class="panel-title-icon">🎯</span>দক্ষতার স্তর</div>
+          </div>
+          <div class="panel-body" id="skill-body">
+            <div class="skeleton skeleton-line"></div>
+          </div>
+        </div>
+
       </div>
     </div>
 
-    <!-- TOPIC GRAPH + ACTIVITY + CROSS-DOC -->
+    <!-- BELOW: topic + activity + cross-doc -->
     <div class="three-col">
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title"><span class="panel-title-icon">🕸️</span>শীর্ষ বিষয়সমূহ</div>
           <span class="panel-count" id="topic-count">—</span>
         </div>
-        <div class="panel-body" id="topic-body"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line" style="width:70%"></div></div>
+        <div class="panel-body" id="topic-body"><div class="skeleton skeleton-line"></div></div>
       </div>
       <div class="panel">
         <div class="panel-header">
@@ -318,20 +520,11 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
         <div class="panel-header">
           <div class="panel-title"><span class="panel-title-icon">🔗</span>একাধিক নথিতে ধারণা</div>
         </div>
-        <div class="panel-body" id="cross-body"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line" style="width:65%"></div></div>
+        <div class="panel-body" id="cross-body"><div class="skeleton skeleton-line"></div></div>
       </div>
     </div>
 
-    <!-- SKILL LEVELS -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title"><span class="panel-title-icon">🎯</span>দক্ষতার স্তর</div>
-      </div>
-      <div class="panel-body" id="skill-body"><div class="skeleton skeleton-line"></div></div>
-    </div>
-
-
-    <!-- ATTENTION TRACKING -->
+    <!-- ATTENTION -->
     <div class="panel" id="attention-panel">
       <div class="panel-header">
         <div class="panel-title"><span class="panel-title-icon">👁️</span>মনোযোগ বিশ্লেষণ</div>
@@ -343,711 +536,686 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
       </div>
     </div>
 
-
     <!-- DOCUMENTS -->
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title"><span class="panel-title-icon">📚</span>পড়া নথিসমূহ</div>
         <span class="panel-count" id="doc-count">—</span>
       </div>
-      <div class="panel-body" id="doc-body"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line" style="width:85%"></div></div>
+      <div class="panel-body" id="doc-body"><div class="skeleton skeleton-line"></div></div>
     </div>
 
   </main>
 </div>
 
+<!-- Three.js r128 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// ════════════════════════════════════════════════════
-// CONFIG — reads from same env as main app
-// ════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// CONFIG & KEYS
+// ═══════════════════════════════════════════════════════════
 const LS_DOCS_KEY = 'amplify_tutor_documents';
-
-// Read Neo4j config from window.AMPLIFY_ENV (injected by main app/Railway)
-// or fall back to localStorage cache written by main app
 function getNeo4jConfig() {
   const env = window.AMPLIFY_ENV || {};
-  // Main app caches these when it boots so dashboard can read them
   const cached = JSON.parse(localStorage.getItem('amplify_neo4j_cfg') || '{}');
-  return {
-    host: (env.NEO4J_HOST || cached.host || '').replace(/\/$/, ''),
-    user: env.NEO4J_USER || cached.user || 'neo4j',
-    pass: env.NEO4J_PASS || cached.pass || '',
-  };
+  return { host:(env.NEO4J_HOST||cached.host||'').replace(/\/$/,''), user:env.NEO4J_USER||cached.user||'neo4j', pass:env.NEO4J_PASS||cached.pass||'' };
 }
-
-let _neo4jEnabled = false;
-let _cfg = {};
-
-function checkNeo4j() {
-  _cfg = getNeo4jConfig();
-  _neo4jEnabled = Boolean(_cfg.host && _cfg.pass);
-  return _neo4jEnabled;
+let _neo4jEnabled=false,_cfg={};
+function checkNeo4j(){ _cfg=getNeo4jConfig(); _neo4jEnabled=Boolean(_cfg.host&&_cfg.pass); return _neo4jEnabled; }
+async function neo4jRun(cypher,params={}){
+  const res=await fetch(`${_cfg.host}/db/neo4j/tx/commit`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+btoa(`${_cfg.user}:${_cfg.pass}`)},body:JSON.stringify({statements:[{statement:cypher,parameters:params}]})});
+  if(!res.ok)throw new Error(`Neo4j ${res.status}`);
+  const d=await res.json(); if(d.errors&&d.errors.length)throw new Error(d.errors[0].message); return d;
 }
+function neo4jRows(result,idx=0){return(result.results?.[idx]?.data||[]).map(r=>r.row);}
 
-// ── Neo4j HTTP query ──
-async function neo4jRun(cypher, params = {}) {
-  const res = await fetch(`${_cfg.host}/db/neo4j/tx/commit`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Basic ' + btoa(`${_cfg.user}:${_cfg.pass}`)
-    },
-    body: JSON.stringify({ statements: [{ statement: cypher, parameters: params }] })
-  });
-  if (!res.ok) throw new Error(`Neo4j ${res.status}`);
-  const d = await res.json();
-  if (d.errors && d.errors.length) throw new Error(d.errors[0].message);
-  return d;
+// ═══════════════════════════════════════════════════════════
+// DATA FETCHING
+// ═══════════════════════════════════════════════════════════
+async function fetchDocuments(){if(_neo4jEnabled){const r=await neo4jRun('MATCH (d:Document) RETURN d ORDER BY d.date DESC');return neo4jRows(r).map(row=>row[0]);}return loadLocal();}
+async function fetchTopicNodes(){
+  if(_neo4jEnabled){const r=await neo4jRun('MATCH (t:Topic) RETURN t.id AS id,t.freq AS freq,t.pages AS pages,t.docId AS docId ORDER BY t.freq DESC LIMIT 30');return neo4jRows(r).map(([id,freq,pages,docId])=>({id,freq,pages:pages||[],docId}));}
+  const docs=loadLocal();const map={};
+  docs.forEach(doc=>{(doc.graphNodes||[]).forEach(n=>{if(!map[n.id])map[n.id]={id:n.id,freq:0,pages:[],docs:new Set()};map[n.id].freq+=n.freq;map[n.id].docs.add(doc.filename||doc.docId);});});
+  return Object.values(map).sort((a,b)=>b.freq-a.freq).slice(0,30);
 }
-
-function neo4jRows(result, idx = 0) {
-  return (result.results?.[idx]?.data || []).map(r => r.row);
-}
-
-// ════════════════════════════════════════════════════
-// DATA FETCHING — Neo4j first, localStorage fallback
-// ════════════════════════════════════════════════════
-
-async function fetchDocuments() {
-  if (_neo4jEnabled) {
-    const r = await neo4jRun('MATCH (d:Document) RETURN d ORDER BY d.date DESC');
-    return neo4jRows(r).map(row => row[0]);
+async function fetchConceptMastery(){
+  if(_neo4jEnabled){
+    try{const r=await neo4jRun('MATCH (sc:StudentConcept) RETURN sc.concept AS concept,sc.score AS score,sc.attempts AS attempts,sc.hintCount AS hintCount,sc.docId AS docId ORDER BY sc.score ASC');const rows=neo4jRows(r);if(rows.length)return rows.map(([concept,score,attempts,hintCount,docId])=>({concept,score:score||0,attempts:attempts||0,hintCount:hintCount||0,docId}));}catch(e){}
+    try{const r=await neo4jRun('MATCH (d:Document) WHERE d.conceptMastery IS NOT NULL RETURN d.conceptMastery AS cm,d.docId AS docId');const map={};neo4jRows(r).forEach(([cm,docId])=>{const parsed=typeof cm==='string'?JSON.parse(cm):cm;if(parsed&&typeof parsed==='object'){Object.entries(parsed).forEach(([concept,data])=>{if(!map[concept])map[concept]={concept,totalScore:0,attempts:0,hintCount:0,docs:new Set()};map[concept].totalScore+=data.score||0;map[concept].attempts+=data.attempts||0;map[concept].hintCount+=data.hintCount||0;map[concept].docs.add(docId);});}});return Object.values(map).map(d=>({concept:d.concept,score:Math.min(1,d.totalScore/Math.max(1,d.docs.size)),attempts:d.attempts,hintCount:d.hintCount})).sort((a,b)=>a.score-b.score);}catch(e){}
   }
-  return loadLocal();
+  return aggregateConceptsFromDocs(loadLocal());
 }
-
-async function fetchTopicNodes() {
-  // Returns top topics by frequency, with their page lists
-  if (_neo4jEnabled) {
-    const r = await neo4jRun(
-      'MATCH (t:Topic) RETURN t.id AS id, t.freq AS freq, t.pages AS pages, t.docId AS docId ORDER BY t.freq DESC LIMIT 30'
-    );
-    return neo4jRows(r).map(([id, freq, pages, docId]) => ({ id, freq, pages: pages || [], docId }));
-  }
-  // Reconstruct from localStorage graphNodes
-  const docs = loadLocal();
-  const map = {};
-  docs.forEach(doc => {
-    (doc.graphNodes || []).forEach(n => {
-      if (!map[n.id]) map[n.id] = { id: n.id, freq: 0, pages: [], docs: new Set() };
-      map[n.id].freq += n.freq;
-      map[n.id].docs.add(doc.filename || doc.docId);
-    });
-  });
-  return Object.values(map).sort((a, b) => b.freq - a.freq).slice(0, 30);
-}
-
-async function fetchConceptMastery() {
-  // Concept mastery stored as :StudentConcept nodes or embedded in :Document
-  if (_neo4jEnabled) {
-    // Try dedicated StudentConcept nodes first (written by finishQuiz)
-    try {
-      const r = await neo4jRun(
-        `MATCH (sc:StudentConcept)
-         RETURN sc.concept AS concept, sc.score AS score,
-                sc.attempts AS attempts, sc.hintCount AS hintCount,
-                sc.docId AS docId, sc.lastUpdated AS lastUpdated
-         ORDER BY sc.score ASC`
-      );
-      const rows = neo4jRows(r);
-      if (rows.length) {
-        return rows.map(([concept, score, attempts, hintCount, docId, lastUpdated]) => ({
-          concept, score: score || 0, attempts: attempts || 0,
-          hintCount: hintCount || 0, docId, lastUpdated
-        }));
-      }
-    } catch(e) { /* fall through to Document.conceptMastery */ }
-
-    // Fallback: read conceptMastery embedded in Document nodes
-    try {
-      const r = await neo4jRun(
-        'MATCH (d:Document) WHERE d.conceptMastery IS NOT NULL RETURN d.conceptMastery AS cm, d.docId AS docId'
-      );
-      const map = {};
-      neo4jRows(r).forEach(([cm, docId]) => {
-        const parsed = typeof cm === 'string' ? JSON.parse(cm) : cm;
-        if (parsed && typeof parsed === 'object') {
-          Object.entries(parsed).forEach(([concept, data]) => {
-            if (!map[concept]) map[concept] = { concept, totalScore: 0, attempts: 0, hintCount: 0, docs: new Set() };
-            map[concept].totalScore += data.score || 0;
-            map[concept].attempts   += data.attempts || 0;
-            map[concept].hintCount  += data.hintCount || 0;
-            map[concept].docs.add(docId);
-          });
-        }
-      });
-      return Object.values(map).map(d => ({
-        concept: d.concept,
-        score: Math.min(1, d.totalScore / Math.max(1, d.docs.size)),
-        attempts: d.attempts,
-        hintCount: d.hintCount,
-      })).sort((a, b) => a.score - b.score);
-    } catch(e) { /* fall through */ }
-  }
-
-  // localStorage fallback
-  const docs = loadLocal();
-  return aggregateConceptsFromDocs(docs);
-}
-
-async function fetchMessages() {
-  // Used for activity heatmap
-  if (_neo4jEnabled) {
-    const r = await neo4jRun(
-      'MATCH (m:Message) RETURN m.timestamp AS ts, m.role AS role ORDER BY m.timestamp DESC LIMIT 500'
-    );
-    return neo4jRows(r).map(([ts, role]) => ({ ts, role }));
-  }
-  // Reconstruct from localStorage chat histories
-  const docs = loadLocal();
-  const msgs = [];
-  docs.forEach(doc => {
-    const ts = parseInt((doc.docId || '').split('_').pop()) || new Date(doc.date).getTime();
-    (doc.chatHistory || []).forEach(m => msgs.push({ ts, role: m.role }));
-  });
+async function fetchMessages(){
+  if(_neo4jEnabled){const r=await neo4jRun('MATCH (m:Message) RETURN m.timestamp AS ts,m.role AS role ORDER BY m.timestamp DESC LIMIT 500');return neo4jRows(r).map(([ts,role])=>({ts,role}));}
+  const docs=loadLocal();const msgs=[];
+  docs.forEach(doc=>{const ts=parseInt((doc.docId||'').split('_').pop())||new Date(doc.date).getTime();(doc.chatHistory||[]).forEach(m=>msgs.push({ts,role:m.role}));});
   return msgs;
 }
-
-async function fetchAttentionSessions() {
-  // Try to read from Neo4j AttentionSession nodes first
-  if (_neo4jEnabled) {
-    try {
-      const r = await neo4jRun(
-        `MATCH (a:AttentionSession)
-         RETURN a.date AS date, a.focused AS focused, a.confused AS confused,
-                a.distracted AS distracted, a.noFace AS noFace,
-                a.durationSeconds AS duration, a.total AS total, a.docId AS docId
-         ORDER BY a.date DESC LIMIT 10`
-      );
-      const rows = neo4jRows(r);
-      if (rows.length) {
-        return rows.map(([date, focused, confused, distracted, noFace, duration, total, docId]) => ({
-          date, focused: focused||0, confused: confused||0,
-          distracted: distracted||0, noFace: noFace||0,
-          duration: duration||0, total: total||1, docId
-        }));
-      }
-    } catch(e) {
-      console.warn('[Dashboard] attention fetch failed:', e.message);
-    }
-  }
-
-  // Try reading live session data from the main app's window (same-origin iframe/tab)
-  try {
-    const log = window._attentionLog || (window.opener && window.opener._attentionLog) || [];
-    if (log.length) {
-      const focused    = log.filter(e => e.state === 'focused').length;
-      const confused   = log.filter(e => e.state === 'confused').length;
-      const distracted = log.filter(e => e.state === 'distracted').length;
-      const noFace     = log.filter(e => e.state === 'no_face').length;
-      const duration   = Math.floor((Date.now() - (window._sessionStart || window.opener?._sessionStart || Date.now())) / 1000);
-      return [{
-        date: new Date().toISOString(),
-        focused, confused, distracted, noFace,
-        duration, total: log.length, live: true
-      }];
-    }
-  } catch(e) {}
-
-  // Check localStorage for any persisted session summary
-  try {
-    const saved = JSON.parse(localStorage.getItem('amplify_attention_sessions') || '[]');
-    if (Array.isArray(saved) && saved.length) return saved.slice(0, 10);
-  } catch(e) {}
-
-  return null; // null = feature never used
+async function fetchAttentionSessions(){
+  if(_neo4jEnabled){try{const r=await neo4jRun('MATCH (a:AttentionSession) RETURN a.date AS date,a.focused AS focused,a.confused AS confused,a.distracted AS distracted,a.noFace AS noFace,a.durationSeconds AS duration,a.total AS total,a.docId AS docId ORDER BY a.date DESC LIMIT 10');const rows=neo4jRows(r);if(rows.length)return rows.map(([date,focused,confused,distracted,noFace,duration,total,docId])=>({date,focused:focused||0,confused:confused||0,distracted:distracted||0,noFace:noFace||0,duration:duration||0,total:total||1,docId}));}catch(e){}}
+  try{const log=window._attentionLog||(window.opener&&window.opener._attentionLog)||[];if(log.length){const focused=log.filter(e=>e.state==='focused').length,confused=log.filter(e=>e.state==='confused').length,distracted=log.filter(e=>e.state==='distracted').length,noFace=log.filter(e=>e.state==='no_face').length,duration=Math.floor((Date.now()-(window._sessionStart||Date.now()))/1000);return[{date:new Date().toISOString(),focused,confused,distracted,noFace,duration,total:log.length,live:true}];}}catch(e){}
+  try{const saved=JSON.parse(localStorage.getItem('amplify_attention_sessions')||'[]');if(Array.isArray(saved)&&saved.length)return saved.slice(0,10);}catch(e){}
+  return null;
 }
-
-async function fetchCoOccurrenceLinks() {
-  // Cross-doc: find Topic nodes with the same id appearing in different documents
-  if (_neo4jEnabled) {
-    try {
-      const r = await neo4jRun(
-        `MATCH (t:Topic)
-         WITH t.id AS concept, collect(DISTINCT t.docId) AS docIds
-         WHERE size(docIds) > 1
-         RETURN concept, docIds
-         ORDER BY size(docIds) DESC LIMIT 20`
-      );
-      // Returns [[concept, [docId, docId, ...]], ...]
-      return neo4jRows(r).map(([concept, docIds]) => ({
-        a: concept, b: concept, w: docIds.length,
-        docA: docIds[0], docB: docIds[1], allDocIds: docIds
-      }));
-    } catch(e) {
-      console.warn('[Dashboard] cross-doc query failed:', e.message);
-      return [];
-    }
-  }
-  return [];
+async function fetchCoOccurrenceLinks(){
+  if(_neo4jEnabled){try{const r=await neo4jRun('MATCH (t:Topic) WITH t.id AS concept,collect(DISTINCT t.docId) AS docIds WHERE size(docIds)>1 RETURN concept,docIds ORDER BY size(docIds) DESC LIMIT 20');return neo4jRows(r).map(([concept,docIds])=>({a:concept,b:concept,w:docIds.length,docA:docIds[0],docB:docIds[1],allDocIds:docIds}));}catch(e){return[];}}
+  return[];
 }
+function loadLocal(){try{const raw=localStorage.getItem(LS_DOCS_KEY);const parsed=raw?JSON.parse(raw):[];return Array.isArray(parsed)?parsed:[];}catch{return[];}}
+function aggregateConceptsFromDocs(docs){const map={};docs.forEach(doc=>{const mastery=doc.conceptMastery||{};Object.entries(mastery).forEach(([concept,data])=>{if(!map[concept])map[concept]={concept,totalScore:0,attempts:0,hintCount:0,count:0};map[concept].totalScore+=data.score||0;map[concept].attempts+=data.attempts||0;map[concept].hintCount+=data.hintCount||0;map[concept].count++;});});return Object.values(map).map(d=>({concept:d.concept,score:Math.min(1,d.totalScore/Math.max(1,d.count)),attempts:d.attempts,hintCount:d.hintCount})).sort((a,b)=>a.score-b.score);}
 
-// ════════════════════════════════════════════════════
-// LOCAL STORAGE HELPERS
-// ════════════════════════════════════════════════════
-function loadLocal() {
-  try {
-    const raw = localStorage.getItem(LS_DOCS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
-}
-
-function aggregateConceptsFromDocs(docs) {
-  const map = {};
-  docs.forEach(doc => {
-    const mastery = doc.conceptMastery || {};
-    Object.entries(mastery).forEach(([concept, data]) => {
-      if (!map[concept]) map[concept] = { concept, totalScore: 0, attempts: 0, hintCount: 0, count: 0 };
-      map[concept].totalScore += data.score || 0;
-      map[concept].attempts   += data.attempts || 0;
-      map[concept].hintCount  += data.hintCount || 0;
-      map[concept].count++;
-    });
-  });
-  return Object.values(map).map(d => ({
-    concept: d.concept,
-    score: Math.min(1, d.totalScore / Math.max(1, d.count)),
-    attempts: d.attempts,
-    hintCount: d.hintCount,
-  })).sort((a, b) => a.score - b.score);
-}
-
-// ════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // SPACED REPETITION
-// ════════════════════════════════════════════════════
-function computeNextReview(score, attempts, hintCount) {
-  // Returns the timestamp of the LAST review + interval.
-  // Since we don't store the actual last-reviewed timestamp,
-  // we approximate: assume last quiz was (attempts * 1 day) ago.
-  let days;
-  if (score >= 0.85)      days = 14;
-  else if (score >= 0.70) days = 7;
-  else if (score >= 0.50) days = 3;
-  else if (score >= 0.35) days = 1;
-  else                    days = 0;
-  days = Math.max(0, days - (hintCount || 0));
-  // Estimate: last reviewed (attempts) days ago, so next review = now + days - attempts
-  const daysSinceReview = Math.min(attempts || 0, days);
-  return Date.now() + (days - daysSinceReview) * 86400000;
-}
+// ═══════════════════════════════════════════════════════════
+function computeNextReview(score,attempts,hintCount){let days;if(score>=0.85)days=14;else if(score>=0.70)days=7;else if(score>=0.50)days=3;else if(score>=0.35)days=1;else days=0;days=Math.max(0,days-(hintCount||0));const daysSinceReview=Math.min(attempts||0,days);return Date.now()+(days-daysSinceReview)*86400000;}
+function reviewDueLabel(ts){const diff=ts-Date.now();const days=Math.floor(diff/86400000);if(diff<=0)return{label:'মেয়াদ উত্তীর্ণ',cls:'due-overdue'};if(days===0)return{label:'আজ',cls:'due-today'};if(days===1)return{label:'আগামীকাল',cls:'due-tomorrow'};return{label:`${days} দিনে`,cls:'due-later'};}
 
-function reviewDueLabel(ts) {
-  const diff = ts - Date.now();
-  const days = Math.floor(diff / 86400000);
-  if (diff <= 0)  return { label: 'মেয়াদ উত্তীর্ণ', cls: 'due-overdue' };
-  if (days === 0) return { label: 'আজ',        cls: 'due-today' };
-  if (days === 1) return { label: 'আগামীকাল',  cls: 'due-tomorrow' };
-  return { label: `${days} দিনে`, cls: 'due-later' };
-}
+// ═══════════════════════════════════════════════════════════
+// ACTIVITY / STREAK
+// ═══════════════════════════════════════════════════════════
+function buildActivityFromMessages(messages){const dayMap={};messages.forEach(({ts})=>{if(!ts)return;const d=new Date(typeof ts==='string'?ts:ts).toDateString();dayMap[d]=(dayMap[d]||0)+1;});const result=[];const today=new Date();for(let i=29;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);result.push({date:d,count:dayMap[d.toDateString()]||0});}return result;}
+function buildActivityFromDocs(docs){const dayMap={};docs.forEach(doc=>{if(doc.date){const d=new Date(doc.date).toDateString();dayMap[d]=(dayMap[d]||0)+1;}});const result=[];const today=new Date();for(let i=29;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);result.push({date:d,count:dayMap[d.toDateString()]||0});}return result;}
+function computeStreak(activity){let streak=0;for(let i=activity.length-1;i>=0;i--){if(activity[i].count>0)streak++;else if(i<activity.length-1)break;}return streak;}
 
-// ════════════════════════════════════════════════════
-// ACTIVITY & STREAK
-// ════════════════════════════════════════════════════
-function buildActivityFromMessages(messages) {
-  const dayMap = {};
-  messages.forEach(({ ts }) => {
-    if (!ts) return;
-    const d = new Date(typeof ts === 'string' ? ts : ts).toDateString();
-    dayMap[d] = (dayMap[d] || 0) + 1;
-  });
-  const result = [];
-  const today = new Date();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(today); d.setDate(today.getDate() - i);
-    result.push({ date: d, count: dayMap[d.toDateString()] || 0 });
+// ═══════════════════════════════════════════════════════════
+// CROSS-DOC
+// ═══════════════════════════════════════════════════════════
+function buildCrossDocFromTopics(topics,docs){const docMap={};topics.forEach(t=>{if(!t.docId)return;if(!docMap[t.id])docMap[t.id]=new Set();docMap[t.id].add(t.docId);});const docNames={};docs.forEach(d=>{if(d.docId)docNames[d.docId]=d.filename||d.docId;});return Object.entries(docMap).filter(([,s])=>s.size>1).map(([concept,docIds])=>({concept,docs:[...docIds].map(id=>docNames[id]||id)})).sort((a,b)=>b.docs.length-a.docs.length).slice(0,8);}
+function buildCrossDocFromLinks(links,docs){const docNames={};docs.forEach(d=>{if(d.docId)docNames[d.docId]=d.filename||d.docId;});return links.map(({a,allDocIds,docA,docB})=>{const docIds=allDocIds||[docA,docB].filter(Boolean);return{concept:a,docs:[...new Set(docIds)].map(id=>docNames[id]||id)};}).slice(0,8);}
+function computeSkills(concepts,topicCount,msgCount){if(!concepts.length)return[];const total=concepts.length;const strong=concepts.filter(c=>c.score>=0.7).length;const weak=concepts.filter(c=>c.score<0.4).length;const hintAvg=concepts.reduce((s,c)=>s+(c.hintCount||0),0)/total;const attemptAvg=concepts.reduce((s,c)=>s+(c.attempts||0),0)/total;const avgScore=concepts.reduce((s,c)=>s+c.score,0)/total;return[{label:'ধারণা বোঝার দক্ষতা',pips:Math.round((strong/total)*5),max:5},{label:'স্বাধীন চিন্তাভাবনা',pips:hintAvg<1?4:hintAvg<2?3:2,max:5},{label:'নিয়মিত অনুশীলন',pips:Math.min(5,Math.round(attemptAvg)),max:5},{label:'দুর্বল অধ্যায় মেরামত',pips:weak===0?5:weak<=1?4:weak<=2?3:2,max:5},{label:'সামগ্রিক দক্ষতা',pips:Math.round(avgScore*5),max:5}];}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER HELPERS (unchanged from original)
+// ═══════════════════════════════════════════════════════════
+function renderMetrics(avgMastery,dueToday,msgCount,streak){const data=[{icon:'🧠',label:'সামগ্রিক দখল',value:avgMastery+'%',sub:'ধারণা জুড়ে',cls:'c-purple'},{icon:'📅',label:'পর্যালোচনা বাকি',value:dueToday,sub:'আজকের জন্য',cls:'c-amber'},{icon:'💬',label:'মোট বার্তা',value:msgCount,sub:'সব নথিতে',cls:'c-blue'},{icon:'🔥',label:'ধারাবাহিক দিন',value:streak+' দিন',sub:'পড়ার ধারা',cls:'c-teal'}];document.getElementById('metrics-row').innerHTML=data.map(m=>`<div class="metric-card ${m.cls}"><div class="metric-icon">${m.icon}</div><div class="metric-label">${m.label}</div><div class="metric-value">${m.value}</div><div class="metric-sub">${m.sub}</div></div>`).join('');}
+function renderConcepts(concepts){document.getElementById('concept-count').textContent=concepts.length||'—';if(!concepts.length){document.getElementById('concept-body').innerHTML=`<div class="empty-state">এখনো কুইজ দেওয়া হয়নি।<br/>প্রথম কুইজের পরে এখানে ধারণাগুলো দেখাবে।</div>`;return;}document.getElementById('concept-body').innerHTML=concepts.slice(0,8).map((c,i)=>{const pct=Math.round((c.score||0)*100);const barCls=pct>=70?'bar-strong':pct>=40?'bar-medium':'bar-weak';const pctCls=pct>=70?'pct-strong':pct>=40?'pct-medium':'pct-weak';const weakB=pct<40?`<span class="badge badge-weak">দুর্বল</span>`:'';const nr=computeNextReview(c.score,c.attempts,c.hintCount);const dueB=pct>=40&&nr<=Date.now()+86400000?`<span class="badge badge-due">review</span>`:'';return`<div class="concept-row" style="animation-delay:${i*0.05}s"><div class="concept-name">${c.concept}${weakB}${dueB}</div><div class="bar-track"><div class="bar-fill ${barCls}" style="width:0" data-w="${pct}%"></div></div><div class="bar-pct ${pctCls}">${pct}%</div></div>`;}).join('');setTimeout(()=>{document.querySelectorAll('.bar-fill[data-w]').forEach(el=>{el.style.transition='width 1.2s cubic-bezier(0.16,1,0.3,1)';el.style.width=el.dataset.w;});},120);}
+function renderReview(concepts){const due=concepts.map(c=>({...c,nextReview:computeNextReview(c.score,c.attempts,c.hintCount)})).filter(c=>c.nextReview<=Date.now()+2*86400000).slice(0,4);document.getElementById('review-count').textContent=due.length||'—';if(!due.length){document.getElementById('review-body').innerHTML=`<div class="empty-state">🎉 আজকের জন্য কোনো পর্যালোচনা নেই!</div>`;return;}document.getElementById('review-body').innerHTML=due.map((c,i)=>{const{label,cls}=reviewDueLabel(c.nextReview);const pct=Math.round((c.score||0)*100);return`<div class="review-row" style="animation-delay:${i*0.06}s"><div class="review-left"><div class="review-concept">${c.concept}</div><div class="review-sub"><span>${pct}% দখল</span><span class="review-sub-dot"></span><span>${c.hintCount||0} ইঙ্গিত</span></div></div><span class="due-tag ${cls}">${label}</span></div>`;}).join('')+`<button class="review-start-btn" onclick="startReview()">▶ আজকের পর্যালোচনা শুরু করুন</button>`;}
+function renderTopics(topics){document.getElementById('topic-count').textContent=topics.length||'—';if(!topics.length){document.getElementById('topic-body').innerHTML=`<div class="empty-state">গ্রাফ ডেটা পাওয়া যায়নি।</div>`;return;}const maxFreq=Math.max(...topics.map(t=>t.freq||1),1);document.getElementById('topic-body').innerHTML=topics.slice(0,10).map((t,i)=>{const pct=Math.round(((t.freq||1)/maxFreq)*100);const pages=Array.isArray(t.pages)?[...new Set(t.pages)].slice(0,3):[];const pagesLabel=pages.length?`পৃষ্ঠা ${pages.join(', ')}`:'';return`<div class="topic-row" style="animation-delay:${i*0.05}s"><div class="topic-name">${t.id}</div>${pagesLabel?`<span class="topic-pages">${pagesLabel}</span>`:''}<div class="topic-freq-bar"><div class="topic-freq-fill" style="width:${pct}%"></div></div><div class="topic-freq-num">${t.freq||1}</div></div>`;}).join('');}
+function renderHeatmap(activity){document.getElementById('heatmap-grid').innerHTML=activity.map(day=>{const lvl=day.count===0?0:day.count===1?1:day.count<=3?2:3;const lbl=day.date.toLocaleDateString('bn-BD',{day:'numeric',month:'short'});return`<div class="heat-cell heat-${lvl}"><div class="tooltip">${lbl}: ${day.count}টি</div></div>`;}).join('');const last7=activity.slice(-7);document.getElementById('streak-dots').innerHTML=last7.map(d=>`<div class="streak-dot ${d.count>0?'streak-on':'streak-off'}"></div>`).join('');}
+function renderCrossDoc(cross){if(!cross.length){document.getElementById('cross-body').innerHTML=`<div class="empty-state">একাধিক নথি পড়লে এখানে ধারণার মিল দেখাবে।</div>`;return;}document.getElementById('cross-body').innerHTML=cross.map((c,i)=>`<div class="cross-row" style="animation-delay:${i*0.05}s"><div class="cross-concept">${c.concept}</div><div class="cross-docs">${c.docs.slice(0,2).map(d=>`<span class="cross-doc-chip">${d}</span>`).join('')}${c.docs.length>2?`<span class="badge badge-cross">+${c.docs.length-2}</span>`:''}</div></div>`).join('');}
+function renderSkills(skills){if(!skills.length){document.getElementById('skill-body').innerHTML=`<div class="empty-state">দক্ষতার ডেটা তৈরি হচ্ছে…</div>`;return;}document.getElementById('skill-body').innerHTML=skills.map(s=>{const pips=Array.from({length:s.max},(_,i)=>{const filled=i<s.pips;const cls=filled?(s.pips>=4?'filled strong':s.pips>=3?'filled medium':'filled'):'';return`<div class="skill-pip ${cls}"></div>`;}).join('');return`<div class="skill-row"><div class="skill-label">${s.label}</div><div class="skill-level">${pips}</div></div>`;}).join('');}
+function renderAttention(sessions){const body=document.getElementById('attention-body');const countEl=document.getElementById('att-session-count');if(sessions===null){body.innerHTML=`<div class="att-disabled">👁️ মনোযোগ ট্র্যাকার এই সেশনে চালু করা হয়নি।<br/><span style="font-size:0.72rem;opacity:0.6;">মূল অ্যাপে ক্যামেরা বোতামটি চালু করলে এখানে তথ্য দেখাবে।</span></div>`;countEl.textContent='—';return;}if(!sessions.length){body.innerHTML=`<div class="att-disabled">এখনো কোনো মনোযোগ ডেটা সংরক্ষিত নেই।</div>`;countEl.textContent='0';return;}countEl.textContent=sessions.length+'টি সেশন';const latest=sessions[0];const total=Math.max(latest.total||1,1);const focPct=Math.round((latest.focused/total)*100),conPct=Math.round((latest.confused/total)*100),disPct=Math.round((latest.distracted/total)*100),nfPct=Math.round((latest.noFace/total)*100);const mins=Math.floor((latest.duration||0)/60),secs=(latest.duration||0)%60;const durationLabel=mins>0?`${mins}মি ${secs}সে`:`${secs}সে`;const liveTag=latest.live?' <span style="font-size:0.65rem;color:#00e5b0;font-weight:700;">● লাইভ</span>':'';const focusScore=focPct>=70?'att-focus-high':focPct>=45?'att-focus-mid':'att-focus-low';const focusLabel=focPct>=70?'উচ্চ মনোযোগ':focPct>=45?'মাঝারি':'কম মনোযোগ';body.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:0.75rem;color:var(--text-muted);">সর্বশেষ সেশন${liveTag}</div><span class="att-focus-pill ${focusScore}">${focusLabel}</span></div><div class="attention-grid"><div class="att-card"><div class="att-emoji">🎯</div><div class="att-val" style="color:#4ade80">${focPct}%</div><div class="att-label">মনোযোগী</div></div><div class="att-card"><div class="att-emoji">🤔</div><div class="att-val" style="color:#fbbf24">${conPct}%</div><div class="att-label">বিভ্রান্ত</div></div><div class="att-card"><div class="att-emoji">👀</div><div class="att-val" style="color:#f87171">${disPct}%</div><div class="att-label">অমনোযোগী</div></div><div class="att-card"><div class="att-emoji">⏱️</div><div class="att-val" style="color:var(--accent)">${durationLabel}</div><div class="att-label">সময়কাল</div></div></div><div class="att-bar-wrap"><div class="att-bar-label"><span>🎯 মনোযোগী</span><span>${latest.focused} ফ্রেম</span></div><div class="att-bar-track"><div class="att-bar-fill att-focused" style="width:0" data-w="${focPct}%"></div></div></div><div class="att-bar-wrap"><div class="att-bar-label"><span>🤔 বিভ্রান্ত</span><span>${latest.confused} ফ্রেম</span></div><div class="att-bar-track"><div class="att-bar-fill att-confused" style="width:0" data-w="${conPct}%"></div></div></div><div class="att-bar-wrap"><div class="att-bar-label"><span>👀 অমনোযোগী</span><span>${latest.distracted} ফ্রেম</span></div><div class="att-bar-track"><div class="att-bar-fill att-distracted" style="width:0" data-w="${disPct}%"></div></div></div>`;setTimeout(()=>{document.querySelectorAll('.att-bar-fill[data-w]').forEach(el=>{el.style.width=el.dataset.w;});},150);}
+function renderDocs(docs,concepts){document.getElementById('doc-count').textContent=docs.length||'—';if(!docs.length){document.getElementById('doc-body').innerHTML=`<div class="empty-state">এখনো কোনো নথি সংরক্ষিত নেই।</div>`;return;}document.getElementById('doc-body').innerHTML=docs.slice(0,10).map((doc,idx)=>{let score=null;if(doc.conceptMastery){const vals=Object.values(doc.conceptMastery).map(m=>m.score||0);if(vals.length)score=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*100);}else{const docConcepts=concepts.filter(c=>c.docId===doc.docId);if(docConcepts.length)score=Math.round(docConcepts.reduce((s,c)=>s+c.score,0)/docConcepts.length*100);}const scoreColor=score===null?'#A7B3C2':score>=70?'#00e5b0':score>=45?'#fcd34d':'#f87171';const circ=2*Math.PI*16;const dash=score!==null?circ-(score/100)*circ:circ;const dateStr=doc.date?new Date(doc.date).toLocaleDateString('bn-BD',{day:'numeric',month:'short'}):'';const chunks=doc.chunkCount||doc.chunk_count||0;const pages=doc.pages||0;return`<div class="doc-row" onclick="openDoc('${doc.docId}')" style="animation-delay:${idx*0.06}s"><div class="doc-icon">📄</div><div class="doc-info"><div class="doc-name">${doc.filename||'অজানা নথি'}</div><div class="doc-meta"><span>${chunks} অংশ</span><span>·</span><span>${pages} পৃষ্ঠা</span>${dateStr?`<span>·</span><span>${dateStr}</span>`:''}</div></div><div class="doc-score-ring"><svg width="42" height="42" viewBox="0 0 42 42"><circle class="ring-bg" cx="21" cy="21" r="16"/><circle class="ring-val" cx="21" cy="21" r="16" stroke="${scoreColor}" stroke-dasharray="${circ}" stroke-dashoffset="${dash}"/></svg><div class="ring-label" style="color:${scoreColor};">${score!==null?score+'%':'—'}</div></div></div>`;}).join('');}
+
+// ═══════════════════════════════════════════════════════════
+// ██████  HOLOGRAPHIC BRAIN RENDERER  ██████
+// ═══════════════════════════════════════════════════════════
+const BRAIN_MODEL_PATH = '/dist/models/brain_hologram.glb';
+
+// Zone definitions — each zone maps to a brain "region" with its data
+const BRAIN_ZONES = [
+  {
+    id: 'prefrontal',
+    label: 'প্রিফ্রন্টাল কর্টেক্স',
+    labelEn: 'Prefrontal Cortex',
+    color: new THREE.Color('#C44DFF'),
+    glowColor: '#C44DFF',
+    // normalized offset from brain center for zone center detection
+    offset: new THREE.Vector3(0, 0.25, 0.4),
+    dataKey: 'attention',
+    icon: '🎯',
+  },
+  {
+    id: 'temporal',
+    label: 'টেম্পোরাল লোব',
+    labelEn: 'Temporal Lobe',
+    color: new THREE.Color('#00B7FF'),
+    glowColor: '#00B7FF',
+    offset: new THREE.Vector3(-0.45, 0, 0.1),
+    dataKey: 'topics',
+    icon: '🕸️',
+  },
+  {
+    id: 'temporal_r',
+    label: 'টেম্পোরাল লোব (ডান)',
+    labelEn: 'Temporal Lobe (R)',
+    color: new THREE.Color('#38bdf8'),
+    glowColor: '#38bdf8',
+    offset: new THREE.Vector3(0.45, 0, 0.1),
+    dataKey: 'topics',
+    icon: '🕸️',
+  },
+  {
+    id: 'parietal',
+    label: 'প্যারিয়েটাল লোব',
+    labelEn: 'Parietal Lobe',
+    color: new THREE.Color('#00e5b0'),
+    glowColor: '#00e5b0',
+    offset: new THREE.Vector3(0, 0.2, -0.2),
+    dataKey: 'mastery',
+    icon: '📊',
+  },
+  {
+    id: 'occipital',
+    label: 'অক্সিপিটাল লোব',
+    labelEn: 'Occipital Lobe',
+    color: new THREE.Color('#f59e0b'),
+    glowColor: '#f59e0b',
+    offset: new THREE.Vector3(0, -0.05, -0.45),
+    dataKey: 'streak',
+    icon: '🔥',
+  },
+  {
+    id: 'hippocampus',
+    label: 'হিপোক্যাম্পাস',
+    labelEn: 'Hippocampus',
+    color: new THREE.Color('#f87171'),
+    glowColor: '#f87171',
+    offset: new THREE.Vector3(0, -0.3, 0.05),
+    dataKey: 'memory',
+    icon: '💾',
+  },
+];
+
+let _brainData = {};  // populated after data load
+
+class HoloBrainRenderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.container = canvas.parentElement;
+    this.scene = null;
+    this.camera = null;
+    this.renderer = null;
+    this.brainPoints = null;      // THREE.Points from GLB geometry
+    this.zoneMarkers = [];        // invisible hit-spheres for hover detection
+    this.glowSpheres = [];        // visible glow orbs per zone
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2(-999, -999);
+    this.clock = new THREE.Clock();
+    this.hoveredZone = null;
+    this.autoRotateY = 0;
+    this.glbLoaded = false;
+    this.tooltip = document.getElementById('brainTooltip');
+    this.init();
   }
-  return result;
-}
 
-function buildActivityFromDocs(docs) {
-  const dayMap = {};
-  docs.forEach(doc => {
-    if (doc.date) {
-      const d = new Date(doc.date).toDateString();
-      dayMap[d] = (dayMap[d] || 0) + 1;
-    }
-  });
-  const result = [];
-  const today = new Date();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(today); d.setDate(today.getDate() - i);
-    result.push({ date: d, count: dayMap[d.toDateString()] || 0 });
+  init() {
+    const W = this.container.clientWidth;
+    const H = this.container.clientHeight;
+
+    // Scene
+    this.scene = new THREE.Scene();
+
+    // Camera
+    this.camera = new THREE.PerspectiveCamera(42, W / H, 0.01, 100);
+    this.camera.position.set(0, 0.1, 3.2);
+
+    // Renderer
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setSize(W, H);
+    this.renderer.setClearColor(0x000000, 0);
+
+    // Ambient + rim lights (subtle, particles don't need much)
+    const ambL = new THREE.AmbientLight(0x112244, 1.5);
+    this.scene.add(ambL);
+    const rimL = new THREE.PointLight(0x00B7FF, 2, 8);
+    rimL.position.set(-2, 1, 2);
+    this.scene.add(rimL);
+    const rimR = new THREE.PointLight(0xC44DFF, 1.5, 8);
+    rimR.position.set(2, -1, 1);
+    this.scene.add(rimR);
+
+    // Resize
+    window.addEventListener('resize', () => this.onResize());
+
+    // Mouse
+    this.canvas.addEventListener('mousemove', e => this.onMouseMove(e));
+    this.canvas.addEventListener('mouseleave', () => this.onMouseLeave());
+
+    // Try loading GLB, fallback to procedural
+    this.tryLoadGLB();
+
+    // Start render loop
+    this.animate();
   }
-  return result;
-}
 
-function computeStreak(activity) {
-  let streak = 0;
-  for (let i = activity.length - 1; i >= 0; i--) {
-    if (activity[i].count > 0) streak++;
-    else if (i < activity.length - 1) break;
-  }
-  return streak;
-}
-
-// ════════════════════════════════════════════════════
-// CROSS-DOC CONCEPT LINKING
-// ════════════════════════════════════════════════════
-function buildCrossDocFromTopics(topics, docs) {
-  // Group topic IDs by their docId -> show ones appearing in multiple docs
-  const docMap = {};
-  topics.forEach(t => {
-    if (!t.docId) return;
-    if (!docMap[t.id]) docMap[t.id] = new Set();
-    docMap[t.id].add(t.docId);
-  });
-  // Also pull from localStorage graphNodes for doc filename labels
-  const docNames = {};
-  docs.forEach(d => { if (d.docId) docNames[d.docId] = d.filename || d.docId; });
-
-  return Object.entries(docMap)
-    .filter(([, s]) => s.size > 1)
-    .map(([concept, docIds]) => ({
-      concept,
-      docs: [...docIds].map(id => docNames[id] || id)
-    }))
-    .sort((a, b) => b.docs.length - a.docs.length)
-    .slice(0, 8);
-}
-
-function buildCrossDocFromLinks(links, docs) {
-  const docNames = {};
-  docs.forEach(d => { if (d.docId) docNames[d.docId] = d.filename || d.docId; });
-  return links.map(({ a, allDocIds, docA, docB }) => {
-    const docIds = allDocIds || [docA, docB].filter(Boolean);
-    return {
-      concept: a,
-      docs: [...new Set(docIds)].map(id => docNames[id] || id)
+  tryLoadGLB() {
+    const loadScript = (src, cb) => {
+      if (document.querySelector(`script[src="${src}"]`)) { cb(); return; }
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = cb;
+      s.onerror = () => this.fallbackProcedural();
+      document.head.appendChild(s);
     };
-  }).slice(0, 8);
-}
-// ════════════════════════════════════════════════════
-// SKILLS DERIVATION
-// ════════════════════════════════════════════════════
-function computeSkills(concepts, topicCount, msgCount) {
-  if (!concepts.length) return [];
-  const total = concepts.length;
-  const strong = concepts.filter(c => c.score >= 0.7).length;
-  const weak   = concepts.filter(c => c.score < 0.4).length;
-  const hintAvg = concepts.reduce((s, c) => s + (c.hintCount || 0), 0) / total;
-  const attemptAvg = concepts.reduce((s, c) => s + (c.attempts || 0), 0) / total;
-  const avgScore = concepts.reduce((s, c) => s + c.score, 0) / total;
-  return [
-    { label: 'ধারণা বোঝার দক্ষতা', pips: Math.round((strong / total) * 5), max: 5 },
-    { label: 'স্বাধীন চিন্তাভাবনা',  pips: hintAvg < 1 ? 4 : hintAvg < 2 ? 3 : 2, max: 5 },
-    { label: 'নিয়মিত অনুশীলন',    pips: Math.min(5, Math.round(attemptAvg)), max: 5 },
-    { label: 'দুর্বল অধ্যায় মেরামত', pips: weak === 0 ? 5 : weak <= 1 ? 4 : weak <= 2 ? 3 : 2, max: 5 },
-    { label: 'সামগ্রিক দক্ষতা',    pips: Math.round(avgScore * 5), max: 5 },
-  ];
-}
 
-// ════════════════════════════════════════════════════
-// RENDER HELPERS
-// ════════════════════════════════════════════════════
-function renderMetrics(avgMastery, dueToday, msgCount, streak) {
-  const data = [
-    { icon: '🧠', label: 'সামগ্রিক দখল',  value: avgMastery + '%', sub: 'ধারণা জুড়ে',  cls: 'c-purple' },
-    { icon: '📅', label: 'পর্যালোচনা বাকি', value: dueToday,        sub: 'আজকের জন্য',   cls: 'c-amber' },
-    { icon: '💬', label: 'মোট বার্তা',     value: msgCount,         sub: 'সব নথিতে',     cls: 'c-blue' },
-    { icon: '🔥', label: 'ধারাবাহিক দিন',  value: streak + ' দিন',  sub: 'পড়ার ধারা',   cls: 'c-teal' },
-  ];
-  document.getElementById('metrics-row').innerHTML = data.map(m => `
-    <div class="metric-card ${m.cls}">
-      <div class="metric-icon">${m.icon}</div>
-      <div class="metric-label">${m.label}</div>
-      <div class="metric-value">${m.value}</div>
-      <div class="metric-sub">${m.sub}</div>
-    </div>`).join('');
-}
-
-function renderConcepts(concepts) {
-  document.getElementById('concept-count').textContent = concepts.length || '—';
-  if (!concepts.length) {
-    document.getElementById('concept-body').innerHTML = `<div class="empty-state">এখনো কুইজ দেওয়া হয়নি।<br/>প্রথম কুইজের পরে এখানে ধারণাগুলো দেখাবে।</div>`;
-    return;
-  }
-  document.getElementById('concept-body').innerHTML = concepts.slice(0, 12).map((c, i) => {
-    const pct = Math.round((c.score || 0) * 100);
-    const barCls = pct >= 70 ? 'bar-strong' : pct >= 40 ? 'bar-medium' : 'bar-weak';
-    const pctCls = pct >= 70 ? 'pct-strong' : pct >= 40 ? 'pct-medium' : 'pct-weak';
-    const weakB  = pct < 40  ? `<span class="badge badge-weak">দুর্বল</span>` : '';
-    const nr = computeNextReview(c.score, c.attempts, c.hintCount);
-    const dueB   = pct >= 40 && nr <= Date.now() + 86400000 ? `<span class="badge badge-due">review</span>` : '';
-    return `<div class="concept-row" style="animation-delay:${i*0.05}s">
-      <div class="concept-name">${c.concept}${weakB}${dueB}</div>
-      <div class="bar-track"><div class="bar-fill ${barCls}" style="width:0" data-w="${pct}%"></div></div>
-      <div class="bar-pct ${pctCls}">${pct}%</div>
-    </div>`;
-  }).join('');
-  // Animate bars
-  setTimeout(() => {
-    document.querySelectorAll('.bar-fill[data-w]').forEach(el => {
-      el.style.transition = 'width 1.2s cubic-bezier(0.16,1,0.3,1)';
-      el.style.width = el.dataset.w;
+    loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js', () => {
+      if (!THREE.GLTFLoader) { this.fallbackProcedural(); return; }
+      const loader = new THREE.GLTFLoader();
+      loader.load(
+        BRAIN_MODEL_PATH,
+        (gltf) => this.onGLBLoaded(gltf),
+        null,
+        () => { this.fallbackProcedural(); }
+      );
     });
-  }, 120);
-}
-
-function renderReview(concepts) {
-  const due = concepts
-    .map(c => ({ ...c, nextReview: computeNextReview(c.score, c.attempts, c.hintCount) }))
-    .filter(c => c.nextReview <= Date.now() + 2 * 86400000)
-    .slice(0, 6);
-  document.getElementById('review-count').textContent = due.length || '—';
-  if (!due.length) {
-    document.getElementById('review-body').innerHTML = `<div class="empty-state">🎉 আজকের জন্য কোনো পর্যালোচনা নেই!</div>`;
-    return;
-  }
-  document.getElementById('review-body').innerHTML =
-    due.map((c, i) => {
-      const { label, cls } = reviewDueLabel(c.nextReview);
-      const pct = Math.round((c.score || 0) * 100);
-      return `<div class="review-row" style="animation-delay:${i*0.06}s">
-        <div class="review-left">
-          <div class="review-concept">${c.concept}</div>
-          <div class="review-sub">
-            <span>${pct}% দখল</span>
-            <span class="review-sub-dot"></span>
-            <span>${c.hintCount || 0} ইঙ্গিত</span>
-            <span class="review-sub-dot"></span>
-            <span>${c.attempts || 0} চেষ্টা</span>
-          </div>
-        </div>
-        <span class="due-tag ${cls}">${label}</span>
-      </div>`;
-    }).join('') +
-    `<button class="review-start-btn" onclick="startReview()">▶ আজকের পর্যালোচনা শুরু করুন</button>`;
-}
-
-function renderTopics(topics) {
-  document.getElementById('topic-count').textContent = topics.length || '—';
-  if (!topics.length) {
-    document.getElementById('topic-body').innerHTML = `<div class="empty-state">গ্রাফ ডেটা পাওয়া যায়নি।</div>`;
-    return;
-  }
-  const maxFreq = Math.max(...topics.map(t => t.freq || 1), 1);
-  document.getElementById('topic-body').innerHTML = topics.slice(0, 10).map((t, i) => {
-    const pct = Math.round(((t.freq || 1) / maxFreq) * 100);
-    const pages = Array.isArray(t.pages) ? [...new Set(t.pages)].slice(0, 3) : [];
-    const pagesLabel = pages.length ? `পৃষ্ঠা ${pages.join(', ')}` : '';
-    return `<div class="topic-row" style="animation-delay:${i*0.05}s">
-      <div class="topic-name">${t.id}</div>
-      ${pagesLabel ? `<span class="topic-pages">${pagesLabel}</span>` : ''}
-      <div class="topic-freq-bar"><div class="topic-freq-fill" style="width:${pct}%"></div></div>
-      <div class="topic-freq-num">${t.freq || 1}</div>
-    </div>`;
-  }).join('');
-}
-
-function renderHeatmap(activity) {
-  document.getElementById('heatmap-grid').innerHTML = activity.map(day => {
-    const lvl = day.count === 0 ? 0 : day.count === 1 ? 1 : day.count <= 3 ? 2 : 3;
-    const lbl = day.date.toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' });
-    return `<div class="heat-cell heat-${lvl}">
-      <div class="tooltip">${lbl}: ${day.count}টি</div>
-    </div>`;
-  }).join('');
-  const last7 = activity.slice(-7);
-  document.getElementById('streak-dots').innerHTML = last7.map(d =>
-    `<div class="streak-dot ${d.count > 0 ? 'streak-on' : 'streak-off'}"></div>`
-  ).join('');
-}
-
-function renderCrossDoc(cross) {
-  if (!cross.length) {
-    document.getElementById('cross-body').innerHTML = `<div class="empty-state">একাধিক নথি পড়লে এখানে ধারণার মিল দেখাবে।</div>`;
-    return;
-  }
-  document.getElementById('cross-body').innerHTML = cross.map((c, i) => `
-    <div class="cross-row" style="animation-delay:${i*0.05}s">
-      <div class="cross-concept">${c.concept}</div>
-      <div class="cross-docs">
-        ${c.docs.slice(0, 2).map(d => `<span class="cross-doc-chip">${d}</span>`).join('')}
-        ${c.docs.length > 2 ? `<span class="badge badge-cross">+${c.docs.length - 2}</span>` : ''}
-      </div>
-    </div>`).join('');
-}
-
-function renderSkills(skills) {
-  if (!skills.length) {
-    document.getElementById('skill-body').innerHTML = `<div class="empty-state">দক্ষতার ডেটা তৈরি হচ্ছে…</div>`;
-    return;
-  }
-  document.getElementById('skill-body').innerHTML = skills.map(s => {
-    const pips = Array.from({ length: s.max }, (_, i) => {
-      const filled = i < s.pips;
-      const cls = filled ? (s.pips >= 4 ? 'filled strong' : s.pips >= 3 ? 'filled medium' : 'filled') : '';
-      return `<div class="skill-pip ${cls}"></div>`;
-    }).join('');
-    return `<div class="skill-row">
-      <div class="skill-label">${s.label}</div>
-      <div class="skill-level">${pips}</div>
-    </div>`;
-  }).join('');
-}
-
-
-function renderAttention(sessions) {
-  const body = document.getElementById('attention-body');
-  const countEl = document.getElementById('att-session-count');
-
-  // null means feature was never enabled
-  if (sessions === null) {
-    body.innerHTML = `<div class="att-disabled">👁️ মনোযোগ ট্র্যাকার এই সেশনে চালু করা হয়নি।<br/><span style="font-size:0.72rem;opacity:0.6;">মূল অ্যাপে ক্যামেরা বোতামটি চালু করলে এখানে তথ্য দেখাবে।</span></div>`;
-    countEl.textContent = '—';
-    return;
   }
 
-  if (!sessions.length) {
-    body.innerHTML = `<div class="att-disabled">এখনো কোনো মনোযোগ ডেটা সংরক্ষিত নেই।</div>`;
-    countEl.textContent = '0';
-    return;
-  }
+  onGLBLoaded(gltf) {
+    this.glbLoaded = true;
+    const model = gltf.scene;
 
-  countEl.textContent = sessions.length + 'টি সেশন';
+    // Normalise scale + centre
+    const box = new THREE.Box3().setFromObject(model);
+    const centre = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale = 1.6 / maxDim;
 
-  // Use the most recent session for the summary cards
-  const latest = sessions[0];
-  const total  = Math.max(latest.total || 1, 1);
-  const focPct  = Math.round((latest.focused    / total) * 100);
-  const conPct  = Math.round((latest.confused   / total) * 100);
-  const disPct  = Math.round((latest.distracted / total) * 100);
-  const nfPct   = Math.round((latest.noFace     / total) * 100);
-  const mins    = Math.floor((latest.duration || 0) / 60);
-  const secs    = (latest.duration || 0) % 60;
-  const durationLabel = mins > 0 ? `${mins}মি ${secs}সে` : `${secs}সে`;
-  const liveTag = latest.live ? ' <span style="font-size:0.65rem;color:#00e5b0;font-weight:700;">● লাইভ</span>' : '';
+    // Collect all geometry vertices → giant point cloud
+    const positions = [];
+    const colors = [];
 
-  const focusScore = focPct >= 70 ? 'att-focus-high' : focPct >= 45 ? 'att-focus-mid' : 'att-focus-low';
-  const focusLabel = focPct >= 70 ? 'উচ্চ মনোযোগ' : focPct >= 45 ? 'মাঝারি' : 'কম মনোযোগ';
-
-  body.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <div style="font-size:0.75rem;color:var(--text-muted);">সর্বশেষ সেশন${liveTag}</div>
-      <span class="att-focus-pill ${focusScore}">${focusLabel}</span>
-    </div>
-
-    <div class="attention-grid">
-      <div class="att-card">
-        <div class="att-emoji">🎯</div>
-        <div class="att-val" style="color:#4ade80">${focPct}%</div>
-        <div class="att-label">মনোযোগী</div>
-      </div>
-      <div class="att-card">
-        <div class="att-emoji">🤔</div>
-        <div class="att-val" style="color:#fbbf24">${conPct}%</div>
-        <div class="att-label">বিভ্রান্ত</div>
-      </div>
-      <div class="att-card">
-        <div class="att-emoji">👀</div>
-        <div class="att-val" style="color:#f87171">${disPct}%</div>
-        <div class="att-label">অমনোযোগী</div>
-      </div>
-      <div class="att-card">
-        <div class="att-emoji">⏱️</div>
-        <div class="att-val" style="color:var(--accent)">${durationLabel}</div>
-        <div class="att-label">সময়কাল</div>
-      </div>
-    </div>
-
-    <div class="att-bar-wrap">
-      <div class="att-bar-label"><span>🎯 মনোযোগী</span><span>${latest.focused} ফ্রেম</span></div>
-      <div class="att-bar-track"><div class="att-bar-fill att-focused" style="width:0" data-w="${focPct}%"></div></div>
-    </div>
-    <div class="att-bar-wrap">
-      <div class="att-bar-label"><span>🤔 বিভ্রান্ত</span><span>${latest.confused} ফ্রেম</span></div>
-      <div class="att-bar-track"><div class="att-bar-fill att-confused" style="width:0" data-w="${conPct}%"></div></div>
-    </div>
-    <div class="att-bar-wrap">
-      <div class="att-bar-label"><span>👀 অমনোযোগী</span><span>${latest.distracted} ফ্রেম</span></div>
-      <div class="att-bar-track"><div class="att-bar-fill att-distracted" style="width:0" data-w="${disPct}%"></div></div>
-    </div>
-    <div class="att-bar-wrap" style="margin-bottom:14px;">
-      <div class="att-bar-label"><span>❓ মুখ নেই</span><span>${latest.noFace} ফ্রেম</span></div>
-      <div class="att-bar-track"><div class="att-bar-fill att-noface" style="width:0" data-w="${nfPct}%"></div></div>
-    </div>
-
-    ${sessions.length > 1 ? `
-    <div style="font-size:0.68rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;">পূর্ববর্তী সেশন</div>
-    ${sessions.slice(1, 5).map(s => {
-      const t = Math.max(s.total || 1, 1);
-      const fp = Math.round((s.focused / t) * 100);
-      const cls = fp >= 70 ? 'att-focus-high' : fp >= 45 ? 'att-focus-mid' : 'att-focus-low';
-      const dateLabel = new Date(s.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-      const m = Math.floor((s.duration || 0) / 60);
-      return `<div class="att-session-row">
-        <span class="att-session-date">${dateLabel}</span>
-        <span>${m}মি</span>
-        <span class="att-focus-pill ${cls}">${fp}% মনোযোগী</span>
-      </div>`;
-    }).join('')}` : ''}
-  `;
-
-  // Animate bars
-  setTimeout(() => {
-    document.querySelectorAll('.att-bar-fill[data-w]').forEach(el => {
-      el.style.width = el.dataset.w;
+    model.traverse(child => {
+      if (!child.isMesh || !child.geometry) return;
+      const geo = child.geometry;
+      const pos = geo.attributes.position;
+      if (!pos) return;
+      for (let i = 0; i < pos.count; i++) {
+        const x = (pos.getX(i) - centre.x) * scale;
+        const y = (pos.getY(i) - centre.y) * scale;
+        const z = (pos.getZ(i) - centre.z) * scale;
+        positions.push(x, y, z);
+        // Base colour: cyan-magenta mix based on position
+        const t = (y + 1) / 2;
+        colors.push(0.0 + t * 0.8, 0.7 - t * 0.4, 1.0 - t * 0.3);
+      }
     });
-  }, 150);
-}
 
-function renderDocs(docs, concepts) {
-  document.getElementById('doc-count').textContent = docs.length || '—';
-  if (!docs.length) {
-    document.getElementById('doc-body').innerHTML = `<div class="empty-state">এখনো কোনো নথি সংরক্ষিত নেই।</div>`;
-    return;
+    this.buildParticleSystem(positions, colors);
+    this.buildZoneMarkers();
+    this.hideLoading();
+    document.getElementById('brain-status-text').textContent = 'Neural Sync Active';
   }
-  // Build per-doc concept score from aggregated concepts keyed by docId
-  document.getElementById('doc-body').innerHTML = docs.slice(0, 10).map((doc, idx) => {
-    // For Neo4j docs: doc is a plain object with .filename, .docId, .pages, .chunkCount, .date
-    // Score: use doc.conceptMastery if present (localStorage), or derive from concepts
-    let score = null;
-    if (doc.conceptMastery) {
-      const vals = Object.values(doc.conceptMastery).map(m => m.score || 0);
-      if (vals.length) score = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 100);
-    } else {
-      // Use overall avg as proxy when per-doc mastery not available
-      const docConcepts = concepts.filter(c => c.docId === doc.docId);
-      if (docConcepts.length) score = Math.round(docConcepts.reduce((s, c) => s + c.score, 0) / docConcepts.length * 100);
+
+  fallbackProcedural() {
+    // Procedural brain-shaped point cloud when GLB not found
+    document.getElementById('brainError').classList.add('show');
+    const positions = [];
+    const colors = [];
+    const N = 8000;
+
+    for (let i = 0; i < N; i++) {
+      // Approximate brain shape: squashed sphere with frontal lobe bump
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 0.75 + (Math.random() - 0.5) * 0.18;
+
+      let x = r * Math.sin(phi) * Math.cos(theta);
+      let y = r * Math.sin(phi) * Math.sin(theta) * 0.85;
+      let z = r * Math.cos(phi) * 0.8;
+
+      // Frontal bump
+      if (z > 0.2) z += 0.12;
+      // Occipital bump
+      if (z < -0.3) z -= 0.08;
+      // Central sulcus groove
+      if (Math.abs(x) < 0.06 && y > 0) y += 0.05;
+
+      // Scatter noise
+      x += (Math.random() - 0.5) * 0.06;
+      y += (Math.random() - 0.5) * 0.06;
+      z += (Math.random() - 0.5) * 0.06;
+
+      positions.push(x, y, z);
+
+      // Colour gradient: cyan top, magenta bottom, purple sides
+      const normY = (y + 1) / 2;
+      const normX = Math.abs(x);
+      colors.push(normX * 0.8, 0.7 + normY * 0.3, 1.0 - normY * 0.4);
     }
-    const scoreColor = score === null ? '#A7B3C2' : score >= 70 ? '#00e5b0' : score >= 45 ? '#fcd34d' : '#f87171';
-    const circ = 2 * Math.PI * 16;
-    const dash = score !== null ? circ - (score / 100) * circ : circ;
-    const dateStr = doc.date ? new Date(doc.date).toLocaleDateString('bn-BD', { day:'numeric', month:'short' }) : '';
-    const chunks = doc.chunkCount || doc.chunk_count || 0;
-    const pages  = doc.pages || 0;
-    return `<div class="doc-row" onclick="openDoc('${doc.docId}')" style="animation-delay:${idx*0.06}s">
-      <div class="doc-icon">📄</div>
-      <div class="doc-info">
-        <div class="doc-name">${doc.filename || 'অজানা নথি'}</div>
-        <div class="doc-meta">
-          <span>${chunks} অংশ</span><span>·</span>
-          <span>${pages} পৃষ্ঠা</span>
-          ${dateStr ? `<span>·</span><span>${dateStr}</span>` : ''}
-        </div>
-      </div>
-      <div class="doc-score-ring">
-        <svg width="42" height="42" viewBox="0 0 42 42">
-          <circle class="ring-bg" cx="21" cy="21" r="16"/>
-          <circle class="ring-val" cx="21" cy="21" r="16" stroke="${scoreColor}" stroke-dasharray="${circ}" stroke-dashoffset="${dash}"/>
-        </svg>
-        <div class="ring-label" style="color:${scoreColor};">${score !== null ? score + '%' : '—'}</div>
-      </div>
-    </div>`;
-  }).join('');
+
+    this.buildParticleSystem(positions, colors);
+    this.buildZoneMarkers();
+    this.hideLoading();
+    document.getElementById('brain-status-text').textContent = 'Demo Mode · Neural Map';
+  }
+
+  buildParticleSystem(positions, colors) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    // Custom shader material for glowing particles with scanline effect
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime:      { value: 0 },
+        uSize:      { value: 2.8 * window.devicePixelRatio },
+        uHoverZone: { value: -1 },
+      },
+      vertexShader: `
+        attribute vec3 color;
+        varying vec3 vColor;
+        varying float vY;
+        varying float vDist;
+        uniform float uTime;
+        uniform float uSize;
+        void main(){
+          vColor = color;
+          vY = position.y;
+          vec4 mvPos = modelViewMatrix * vec4(position,1.0);
+          vDist = -mvPos.z;
+          // subtle drift
+          vec3 pos = position;
+          pos.x += sin(uTime * 0.7 + position.y * 4.0) * 0.005;
+          pos.y += cos(uTime * 0.5 + position.x * 3.0) * 0.004;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(pos,1.0);
+          gl_PointSize = uSize * (1.0 + 0.4 * sin(uTime * 1.2 + position.x * 8.0 + position.z * 5.0));
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vColor;
+        varying float vY;
+        varying float vDist;
+        uniform float uTime;
+        void main(){
+          // Circular point
+          vec2 uv = gl_PointCoord - 0.5;
+          float d = length(uv);
+          if(d > 0.5) discard;
+          // Glow falloff
+          float alpha = 1.0 - smoothstep(0.1, 0.5, d);
+          // Scanline pulse
+          float scan = 0.85 + 0.15 * sin(vY * 18.0 + uTime * 2.0);
+          // Flicker
+          float flicker = 0.92 + 0.08 * sin(uTime * 3.7 + vDist * 2.0);
+          gl_FragColor = vec4(vColor * scan * flicker, alpha * 0.88);
+        }
+      `,
+      transparent: true,
+      vertexColors: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    this.brainPoints = new THREE.Points(geo, mat);
+    this.scene.add(this.brainPoints);
+  }
+
+  buildZoneMarkers() {
+    BRAIN_ZONES.forEach((zone, i) => {
+      // Invisible hit-sphere
+      const hitGeo = new THREE.SphereGeometry(0.22, 8, 8);
+      const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+      const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+      hitMesh.position.copy(zone.offset);
+      hitMesh.userData = { zoneIndex: i };
+      this.scene.add(hitMesh);
+      this.zoneMarkers.push(hitMesh);
+
+      // Visible glow orb
+      const glowGeo = new THREE.SphereGeometry(0.08, 12, 12);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: zone.color,
+        transparent: true,
+        opacity: 0.55,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+      glowMesh.position.copy(zone.offset);
+      this.scene.add(glowMesh);
+      this.glowSpheres.push(glowMesh);
+
+      // Outer ring
+      const ringGeo = new THREE.RingGeometry(0.10, 0.12, 24);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: zone.color,
+        transparent: true,
+        opacity: 0.4,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.position.copy(zone.offset);
+      ring.userData = { isRing: true, zoneIdx: i };
+      this.scene.add(ring);
+    });
+  }
+
+  hideLoading() {
+    const el = document.getElementById('brainLoading');
+    if (el) el.classList.add('hidden');
+  }
+
+  onResize() {
+    const W = this.container.clientWidth;
+    const H = this.container.clientHeight;
+    this.renderer.setSize(W, H);
+    this.camera.aspect = W / H;
+    this.camera.updateProjectionMatrix();
+  }
+
+  onMouseMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    // Raycast against zone markers
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const hits = this.raycaster.intersectObjects(this.zoneMarkers);
+
+    if (hits.length > 0) {
+      const zi = hits[0].object.userData.zoneIndex;
+      if (this.hoveredZone !== zi) {
+        this.hoveredZone = zi;
+        this.showTooltip(e, zi);
+      }
+      this.updateTooltipPos(e);
+    } else {
+      if (this.hoveredZone !== null) {
+        this.hoveredZone = null;
+        this.hideTooltip();
+      }
+    }
+  }
+
+  onMouseLeave() {
+    this.hoveredZone = null;
+    this.hideTooltip();
+  }
+
+  showTooltip(e, zoneIdx) {
+    const zone = BRAIN_ZONES[zoneIdx];
+    const data = _brainData;
+
+    document.getElementById('bt-zone-dot').style.background = zone.glowColor;
+    document.getElementById('bt-zone-dot').style.boxShadow = `0 0 6px ${zone.glowColor}`;
+    document.getElementById('bt-zone-label').textContent = `${zone.icon} ${zone.label}`;
+
+    let html = '';
+
+    if (zone.dataKey === 'attention' && data.attention) {
+      const a = data.attention;
+      html += this._row('মনোযোগী', `${a.focPct}%`, zone.glowColor);
+      html += this._miniBar(a.focPct, '#4ade80');
+      html += this._row('বিভ্রান্ত', `${a.conPct}%`, '#fbbf24');
+      html += this._row('সেশন', `${a.sessions}টি`, '#A7B3C2');
+      if (a.duration) html += this._row('সময়', `${Math.floor(a.duration/60)}মি`, '#A7B3C2');
+    } else if (zone.dataKey === 'topics' && data.topics) {
+      html += this._row('বিষয় পড়া', `${data.topics.count}টি`, zone.glowColor);
+      html += this._miniBar(Math.min(100, data.topics.count * 8), zone.glowColor);
+      html += this._divider();
+      if (data.topics.top.length) {
+        html += `<div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:4px;">শীর্ষ বিষয়:</div>`;
+        data.topics.top.slice(0,3).forEach(t => {
+          html += `<div style="font-size:0.72rem;color:var(--text);padding:2px 0;">• ${t}</div>`;
+        });
+      }
+    } else if (zone.dataKey === 'mastery' && data.mastery != null) {
+      html += this._row('গড় দখল', `${data.mastery}%`, zone.glowColor);
+      html += this._miniBar(data.mastery, zone.glowColor);
+      html += this._row('শক্তিশালী', `${data.strongCount}টি ধারণা`, '#00e5b0');
+      html += this._row('দুর্বল', `${data.weakCount}টি ধারণা`, '#f87171');
+      html += this._row('মোট ধারণা', `${data.totalConcepts}টি`, '#A7B3C2');
+    } else if (zone.dataKey === 'streak' && data.streak != null) {
+      html += this._row('ধারাবাহিক দিন', `${data.streak} দিন`, zone.glowColor);
+      html += this._miniBar(Math.min(100, data.streak * 10), zone.glowColor);
+      html += this._row('মোট বার্তা', `${data.msgCount}`, '#A7B3C2');
+      html += this._row('সক্রিয় দিন', `${data.activeDays}`, '#A7B3C2');
+    } else if (zone.dataKey === 'memory' && data.memory != null) {
+      html += this._row('পর্যালোচনা বাকি', `${data.memory.dueToday}টি`, zone.glowColor);
+      html += this._miniBar(Math.min(100, data.memory.dueToday * 10), '#f87171');
+      html += this._row('পরবর্তী', data.memory.nextLabel, '#A7B3C2');
+      html += this._row('মোট নথি', `${data.memory.docCount}`, '#A7B3C2');
+    } else {
+      html += `<div style="font-size:0.75rem;color:var(--text-muted);">ডেটা সংগ্রহ হচ্ছে…</div>`;
+    }
+
+    document.getElementById('bt-metrics-body').innerHTML = html;
+    this.tooltip.classList.add('visible');
+    this.updateTooltipPos(e);
+  }
+
+  _row(label, val, color) {
+    return `<div class="bt-metric-row"><span class="bt-metric-key">${label}</span><span class="bt-metric-val" style="color:${color}">${val}</span></div>`;
+  }
+  _miniBar(pct, color) {
+    return `<div class="bt-bar-track"><div class="bt-bar-fill" style="width:${Math.max(0,Math.min(100,pct))}%;background:${color};box-shadow:0 0 6px ${color}44;"></div></div>`;
+  }
+  _divider() { return `<div class="bt-divider"></div>`; }
+
+  updateTooltipPos(e) {
+    const rect = this.container.getBoundingClientRect();
+    let x = e.clientX - rect.left + 18;
+    let y = e.clientY - rect.top - 10;
+    const tw = 240, th = 180;
+    if (x + tw > rect.width - 10) x = e.clientX - rect.left - tw - 18;
+    if (y + th > rect.height - 10) y = rect.height - th - 10;
+    this.tooltip.style.left = x + 'px';
+    this.tooltip.style.top  = y + 'px';
+  }
+
+  hideTooltip() {
+    this.tooltip.classList.remove('visible');
+  }
+
+  animate() {
+    requestAnimationFrame(() => this.animate());
+    const t = this.clock.getElapsedTime();
+
+    // Slow auto-rotate
+    if (this.brainPoints) {
+      this.brainPoints.rotation.y = t * 0.18;
+    }
+
+    // Sync zone marker & glow sphere rotations
+    this.zoneMarkers.forEach(m => { m.rotation.y = t * 0.18; });
+    this.glowSpheres.forEach((g, i) => {
+      g.rotation.y = t * 0.18;
+      // Pulse glow opacity
+      const isHovered = this.hoveredZone === i;
+      const baseOp = isHovered ? 0.9 : 0.45 + 0.15 * Math.sin(t * 1.8 + i * 1.3);
+      g.material.opacity = baseOp;
+      const s = isHovered ? 1.5 + 0.2 * Math.sin(t * 4) : 1.0;
+      g.scale.setScalar(s);
+    });
+
+    // Update rings
+    this.scene.children.forEach(obj => {
+      if (obj.userData.isRing) {
+        obj.rotation.y = t * 0.18;
+        obj.rotation.z = t * 0.6 + obj.userData.zoneIdx * 0.8;
+        const isH = this.hoveredZone === obj.userData.zoneIdx;
+        obj.material.opacity = isH ? 0.9 : 0.3 + 0.15 * Math.sin(t * 1.5 + obj.userData.zoneIdx);
+      }
+    });
+
+    // Update shader uniform
+    if (this.brainPoints) {
+      this.brainPoints.material.uniforms.uTime.value = t;
+    }
+
+    this.renderer.render(this.scene, this.camera);
+  }
 }
 
-// ════════════════════════════════════════════════════
+let _brainRenderer = null;
+
+function initBrain() {
+  const canvas = document.getElementById('brainCanvas');
+  _brainRenderer = new HoloBrainRenderer(canvas);
+}
+
+function updateBrainData(concepts, topics, attentionSessions, streak, msgCount, activity, docs, dueToday) {
+  // Build the _brainData object consumed by tooltip renderer
+  const avgMastery = concepts.length
+    ? Math.round(concepts.reduce((s,c)=>s+c.score,0)/concepts.length*100) : 0;
+  const strongCount = concepts.filter(c=>c.score>=0.7).length;
+  const weakCount   = concepts.filter(c=>c.score<0.4).length;
+
+  let attData = null;
+  if (attentionSessions && attentionSessions.length) {
+    const latest = attentionSessions[0];
+    const tot = Math.max(latest.total||1,1);
+    attData = {
+      focPct:      Math.round((latest.focused/tot)*100),
+      conPct:      Math.round((latest.confused/tot)*100),
+      sessions:    attentionSessions.length,
+      duration:    latest.duration || 0,
+    };
+  }
+
+  const activeDays = activity.filter(d=>d.count>0).length;
+  const dueToday0 = dueToday;
+  const nextDue = concepts
+    .map(c=>({concept:c.concept,nr:computeNextReview(c.score,c.attempts,c.hintCount)}))
+    .filter(c=>c.nr>Date.now())
+    .sort((a,b)=>a.nr-b.nr)[0];
+  const nextLabel = nextDue
+    ? reviewDueLabel(nextDue.nr).label + ': ' + nextDue.concept
+    : 'পর্যালোচনা সম্পন্ন';
+
+  _brainData = {
+    attention: attData,
+    topics: {
+      count: topics.length,
+      top: topics.slice(0,5).map(t=>t.id),
+    },
+    mastery: avgMastery,
+    strongCount,
+    weakCount,
+    totalConcepts: concepts.length,
+    streak,
+    msgCount,
+    activeDays,
+    memory: {
+      dueToday: dueToday0,
+      nextLabel,
+      docCount: docs.length,
+    },
+  };
+
+  // Colour zone glow spheres based on data intensity
+  if (_brainRenderer) {
+    BRAIN_ZONES.forEach((zone, i) => {
+      const sphere = _brainRenderer.glowSpheres[i];
+      if (!sphere) return;
+      let intensity = 0.5;
+      if (zone.dataKey === 'attention' && attData)  intensity = attData.focPct / 100;
+      if (zone.dataKey === 'topics')                 intensity = Math.min(1, topics.length / 20);
+      if (zone.dataKey === 'mastery')                intensity = avgMastery / 100;
+      if (zone.dataKey === 'streak')                 intensity = Math.min(1, streak / 14);
+      if (zone.dataKey === 'memory')                 intensity = Math.max(0.1, 1 - dueToday0 / 10);
+      // Lerp between dim grey and zone colour based on intensity
+      const dimCol = new THREE.Color(0.08, 0.08, 0.12);
+      sphere.material.color.lerpColors(dimCol, zone.color, intensity);
+    });
+    document.getElementById('brain-status-text').textContent = 'Live Sync · Neural Map';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 // MAIN LOAD
-// ════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 async function loadAndRender() {
   setLoading('ডেটা উৎস শনাক্ত করা হচ্ছে…', '');
-
   const hasNeo4j = checkNeo4j();
-
-  // Test Neo4j connection
   let usingNeo4j = false;
+
   if (hasNeo4j) {
     setLoading('Neo4j-এ সংযুক্ত হচ্ছে…', '');
     try {
@@ -1055,15 +1223,13 @@ async function loadAndRender() {
       usingNeo4j = true;
       setLoading('Neo4j থেকে ডেটা লোড হচ্ছে…', '🔵 Neo4j');
     } catch(e) {
-      console.warn('[Dashboard] Neo4j unreachable, falling back to localStorage:', e.message);
       usingNeo4j = false;
-      setLoading('localStorage থেকে লোড হচ্ছে…', '🟣 স্থানীয়');
+      setLoading('localStorage থেকে লোড হচ্ছে…', '🟣 ');
     }
   } else {
-    setLoading('localStorage থেকে লোড হচ্ছে…', '🟣 স্থানীয়');
+    setLoading('localStorage থেকে লোড হচ্ছে…', '🟣 ');
   }
 
-  // Update source badge in nav
   const badge = document.getElementById('data-source-badge');
   badge.style.display = 'inline-flex';
   if (usingNeo4j) {
@@ -1071,51 +1237,37 @@ async function loadAndRender() {
     badge.textContent = '🔵 Neo4j';
   } else {
     badge.className = 'source-badge source-local';
-    badge.textContent = '🟣 স্থানীয়';
+    badge.textContent = '🟣';
   }
 
   try {
-    // Parallel fetch
     const [docs, concepts, topics, messages, crossLinks, attentionSessions] = await Promise.all([
-      fetchDocuments().catch(() => loadLocal()),
-      fetchConceptMastery().catch(() => aggregateConceptsFromDocs(loadLocal())),
-      fetchTopicNodes().catch(() => []),
-      fetchMessages().catch(() => []),
-      fetchCoOccurrenceLinks().catch(() => []),
-      fetchAttentionSessions().catch(() => null),
+      fetchDocuments().catch(()=>loadLocal()),
+      fetchConceptMastery().catch(()=>aggregateConceptsFromDocs(loadLocal())),
+      fetchTopicNodes().catch(()=>[]),
+      fetchMessages().catch(()=>[]),
+      fetchCoOccurrenceLinks().catch(()=>[]),
+      fetchAttentionSessions().catch(()=>null),
     ]);
 
-    // Activity
-    const activity = messages.length
-      ? buildActivityFromMessages(messages)
-      : buildActivityFromDocs(docs);
+    const activity = messages.length ? buildActivityFromMessages(messages) : buildActivityFromDocs(docs);
     const streak = computeStreak(activity);
+    const activeDays = activity.filter(d=>d.count>0).length;
 
-    // Cross-doc concepts
     let cross = crossLinks.length
       ? buildCrossDocFromLinks(crossLinks, docs)
       : buildCrossDocFromTopics(topics, docs);
-    // Also merge localStorage cross-doc concepts
     if (!cross.length) {
       const localDocs = loadLocal();
-      const localCross = buildCrossDocFromTopics(
-        localDocs.flatMap(d => (d.graphNodes || []).map(n => ({ ...n, docId: d.docId }))),
-        localDocs
-      );
-      cross = localCross;
+      cross = buildCrossDocFromTopics(localDocs.flatMap(d=>(d.graphNodes||[]).map(n=>({...n,docId:d.docId}))),localDocs);
     }
 
-    // Stats
-    const avgMastery = concepts.length
-      ? Math.round(concepts.reduce((s, c) => s + (c.score || 0), 0) / concepts.length * 100) : 0;
-    const dueToday = concepts.filter(c => {
-      const nr = computeNextReview(c.score, c.attempts, c.hintCount);
-      return nr <= Date.now() + 86400000;
-    }).length;
+    const avgMastery = concepts.length ? Math.round(concepts.reduce((s,c)=>s+(c.score||0),0)/concepts.length*100) : 0;
+    const dueToday = concepts.filter(c=>{const nr=computeNextReview(c.score,c.attempts,c.hintCount);return nr<=Date.now()+86400000;}).length;
     const msgCount = messages.length;
     const skills = computeSkills(concepts, topics.length, msgCount);
 
-    // Render everything
+    // Render all panels
     renderMetrics(avgMastery, dueToday, msgCount, streak);
     renderConcepts(concepts);
     renderReview(concepts);
@@ -1126,57 +1278,33 @@ async function loadAndRender() {
     renderAttention(attentionSessions);
     renderDocs(docs, concepts);
 
+    // Feed brain
+    updateBrainData(concepts, topics, attentionSessions, streak, msgCount, activity, docs, dueToday);
+
     document.getElementById('nav-streak').textContent = `${streak} দিন ধারা`;
 
-    // Hide loading
     setTimeout(() => {
       const ov = document.getElementById('loading-overlay');
       ov.classList.add('done');
-      setTimeout(() => ov.style.display = 'none', 500);
+      setTimeout(() => ov.style.display='none', 500);
     }, 400);
 
   } catch(err) {
-    console.error('[Dashboard] load error:', err);
+    console.error('[Dashboard]', err);
     showToast('ডেটা লোড করতে সমস্যা হয়েছে: ' + err.message);
     document.getElementById('loading-overlay').classList.add('done');
   }
 }
 
-// ════════════════════════════════════════════════════
-// ACTIONS
-// ════════════════════════════════════════════════════
-function openDoc(docId) {
-  try { sessionStorage.setItem('amplify_open_doc', docId); } catch(e) {}
-  history.back();
-}
+function openDoc(docId) { try{sessionStorage.setItem('amplify_open_doc',docId);}catch(e){} history.back(); }
+function startReview() { try{sessionStorage.setItem('amplify_start_review','1');}catch(e){} showToast('মূল অ্যাপে ফিরে যাচ্ছে…'); setTimeout(()=>history.back(),1200); }
+function setLoading(text,source) { document.getElementById('loading-text').textContent=text; document.getElementById('loading-source').textContent=source; }
+function showToast(msg) { const t=document.getElementById('toast'); document.getElementById('toast-msg').textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
 
-function startReview() {
-  try { sessionStorage.setItem('amplify_start_review', '1'); } catch(e) {}
-  showToast('মূল অ্যাপে ফিরে যাচ্ছে…');
-  setTimeout(() => history.back(), 1200);
-}
-
-function setLoading(text, source) {
-  document.getElementById('loading-text').textContent = text;
-  document.getElementById('loading-source').textContent = source;
-}
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  document.getElementById('toast-msg').textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
-}
-
-// ════════════════════════════════════════════════════
-// BOOT
-// Also expose Neo4j config cache writer so main app can call it
-// Add this to your main app's DOMContentLoaded:
-//   localStorage.setItem('amplify_neo4j_cfg', JSON.stringify({
-//     host: NEO4J_HOST, user: NEO4J_USER, pass: NEO4J_PASS
-//   }));
-// ════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', loadAndRender);
+document.addEventListener('DOMContentLoaded', () => {
+  initBrain();
+  loadAndRender();
+});
 </script>
 </body>
 </html>
