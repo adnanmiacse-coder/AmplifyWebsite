@@ -2259,7 +2259,13 @@ async function fetchAnimatedVisual(text) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
     });
-    if (!res.ok) throw new Error('backend ' + res.status);
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '(unreadable)');
+      console.error('[Manim] URL hit:', `${apiBase()}/generate`);
+      console.error('[Manim] Status:', res.status);
+      console.error('[Manim] Response body:', errBody);
+      throw new Error('backend ' + res.status);
+    }
     const data = await res.json();
     return { videoUrl: data.video_url || '/videos/3e64f732.mp4', topic };
   } catch(e) {
