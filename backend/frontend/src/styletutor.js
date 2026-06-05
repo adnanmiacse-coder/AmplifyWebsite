@@ -765,8 +765,35 @@ async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
 }
 
 
-async function groqChat(messages, system, maxTokens=400, temperature=0.72) {
-  // Try OpenRouter first
+async function groqChat(messages, system, maxTokens=400, temperature=0.72, groqFirst=false) {
+  if (groqFirst) {
+    // Try Groq first
+    for (let mi = 0; mi < GROQ_MODELS.length; mi++) {
+      const model = GROQ_MODELS[mi];
+      for (let ki = 0; ki < groqKeys().length; ki++) {
+        try {
+          console.log(`[Groq] model: ${model} | key: ${ki+1}/${groqKeys().length}`);
+          return await groqCallModel(model, messages, system, maxTokens, temperature, groqKeys()[ki]);
+        } catch(e) {
+          console.warn(`[Groq] key ${ki+1} model ${model} error: ${e.message}`);
+          continue;
+        }
+      }
+      console.warn(`[Groq] All keys exhausted for ${model}, trying next model`);
+    }
+    // Groq failed, fall back to OpenRouter
+    console.warn('[Chat] All Groq failed, falling back to OpenRouter');
+    try {
+      const result = await openRouterChat(messages, system, maxTokens, temperature);
+      console.log('[Chat] OpenRouter fallback success');
+      return result;
+    } catch(e) {
+      console.warn('[Chat] OpenRouter fallback also failed:', e.message);
+    }
+    throw new Error('সব মডেল ও API কী রেট লিমিটে আছে। ১ মিনিট পরে আবার চেষ্টা করুন।');
+  }
+
+  // Default behaviour — OpenRouter first, Groq fallback
   try {
     const result = await openRouterChat(messages, system, maxTokens, temperature);
     console.log('[Chat] OpenRouter success');
@@ -775,7 +802,6 @@ async function groqChat(messages, system, maxTokens=400, temperature=0.72) {
     console.warn('[Chat] OpenRouter failed, falling back to Groq:', e.message);
   }
 
-  // Fallback — try each Groq model + key combination
   for (let mi = 0; mi < GROQ_MODELS.length; mi++) {
     const model = GROQ_MODELS[mi];
     for (let ki = 0; ki < groqKeys().length; ki++) {
@@ -784,125 +810,13 @@ async function groqChat(messages, system, maxTokens=400, temperature=0.72) {
         return await groqCallModel(model, messages, system, maxTokens, temperature, groqKeys()[ki]);
       } catch(e) {
         console.warn(`[Groq] key ${ki+1} model ${model} error: ${e.message}`);
-        continue; // try next key regardless of error type
+        continue;
       }
     }
     console.warn(`[Groq] All keys exhausted for ${model}, trying next model`);
   }
   throw new Error('সব মডেল ও API কী রেট লিমিটে আছে। ১ মিনিট পরে আবার চেষ্টা করুন।');
 }
-async function groqVisionOCR(base64Img, pageNum) {
-  for (let ki = 0; ki < groqKeys().length; ki++) {
-    let attempts = 0;
-    while (attempts < 2) { // max 2 attempts per key (1 retry after 429)
-      attempts++;
-      try {
-        const res = await fetch(`${groqBase()}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${groqKeys()[ki]}`
-          },
-          body: JSON.stringify({
-            model: VISION_MODEL, max_tokens: 2048,
-            messages: [{
-              role: 'user',
-              content: [
-                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
-                { type: 'text', text: 'Transcribe ALL text visible on this page exactly as it appears. Output only the raw text, preserving structure. No commentary or explanations.' }
-              ]
-            }]
-          })
-        });
-
-        if (res.status === 429) {
-          if (attempts < 2) {
-            const waitMs = (ki + 1) * 4000;
-            console.warn(`[Vision] Groq key ${ki+1} rate limited, waiting ${waitMs}ms then retrying once`);
-            await sleep(waitMs);
-            continue; // retry THIS key once
-          } else {
-            console.warn(`[Vision] Groq key ${ki+1} still rate limited after retry, moving to next key`);
-            break; // give up on this key, outer loop moves to ki+1
-          }
-        }
-
-        if (!res.ok) {
-          console.warn(`[Vision] Groq key ${ki+1} error ${res.status}, trying next key`);
-          break; // move to next key
-        }
-
-        const d = await res.json();
-        console.log(`[Vision] Groq key ${ki+1} succeeded for page ${pageNum}`);
-        return d.choices?.[0]?.message?.content || '';
-
-      } catch(e) {
-        console.warn(`[Vision] Groq key ${ki+1} failed: ${e.message}, trying next key`);
-        break; // move to next key
-      }
-    }
-  }
-
-  // All Groq keys exhausted — fall back to OpenRouter
-  console.warn(`[Vision] All Groq keys failed for page ${pageNum}, trying OpenRouter`);
-  for (let i = 0; i < openRouterKeys().length; i++) {
-    let attempts = 0;
-    while (attempts < 2) {
-      attempts++;
-      try {
-        const res = await fetch(`${openRouterBase()}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openRouterKeys()[i]}`,
-            'HTTP-Referer': 'http://localhost:5173',
-            'X-Title': 'Amplify'
-          },
-          body: JSON.stringify({
-            model: 'meta-llama/llama-4-maverick:free',
-            max_tokens: 2048,
-            messages: [{
-              role: 'user',
-              content: [
-                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
-                { type: 'text', text: 'Transcribe ALL text visible on this page exactly as it appears. Output only the raw text, preserving structure. No commentary or explanations.' }
-              ]
-            }]
-          })
-        });
-
-        if (res.status === 429) {
-          if (attempts < 2) {
-            const waitMs = (i + 1) * 5000;
-            console.warn(`[Vision] OpenRouter key ${i+1} rate limited, waiting ${waitMs}ms then retrying once`);
-            await sleep(waitMs);
-            continue;
-          } else {
-            console.warn(`[Vision] OpenRouter key ${i+1} still rate limited, moving to next key`);
-            break;
-          }
-        }
-
-        if (!res.ok) {
-          console.warn(`[Vision] OpenRouter key ${i+1} error ${res.status}, trying next`);
-          break;
-        }
-
-        const d = await res.json();
-        console.log(`[Vision] OpenRouter key ${i+1} succeeded for page ${pageNum}`);
-        return d.choices?.[0]?.message?.content || '';
-
-      } catch(e) {
-        console.warn(`[Vision] OpenRouter key ${i+1} failed: ${e.message}`);
-        break;
-      }
-    }
-  }
-
-  console.error(`[Vision] All providers failed for page ${pageNum}`);
-  return '';
-}
-
 
 // ═══════════════════════════════════════════════════
 // QUIZ ENGINE — Adaptive CAT with Groq student model
@@ -1000,7 +914,7 @@ Respond ONLY with this exact JSON, no markdown:
 {"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","hint":"...","concept":"...","difficulty":"${level}"}`;
 
   const raw = await groqChat([{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No explanation. No markdown backticks.', 800, 0.4);
+    'Respond only with valid JSON. No explanation. No markdown backticks.', 800, 0.4, true);
 
 console.log('[Quiz] generateQuestion raw response:', raw);
 
@@ -1049,7 +963,7 @@ Respond ONLY with this exact JSON, no markdown:
 {"updatedModel":{...},"feedback":"বাংলায় এক লাইন ফিডব্যাক","isCorrect":${isCorrect}}`;
 
   const raw = await groqChat([{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No markdown. No explanation.', 900, 0.25);
+    'Respond only with valid JSON. No markdown. No explanation.', 900, 0.25, true);
 
 console.log('[Quiz] assessAnswer raw:', raw);
 const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -1089,7 +1003,7 @@ Respond ONLY with this JSON, no markdown:
 {"diagnosis":"বাংলায় সারসংক্ষেপ...","resultEmoji":"🎉","replayRecommended":false,"replayMessage":"বাংলায় রিপ্লে বার্তা (only if recommended)"}`;
 
   const raw = await groqChat([{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No markdown.', 800, 0.5);
+    'Respond only with valid JSON. No markdown.', 800, 0.5, true);
 
 console.log('[Quiz] generateDiagnosis raw:', raw);
 const jsonMatch = raw.match(/\{[\s\S]*\}/);
