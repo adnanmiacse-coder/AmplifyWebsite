@@ -1213,6 +1213,11 @@ async function nextQuestion() {
 }
 
 async function finishQuiz() {
+  console.log('[Debug] finishQuiz called');
+  console.log('[Debug] currentDocId:', currentDocId);
+  console.log('[Debug] studentModel.conceptMastery:', JSON.stringify(studentModel.conceptMastery));
+  console.log('[Debug] localStorage docs:', localStorage.getItem('amplify_tutor_documents')?.slice(0, 200));
+  console.log('[Debug] quizScore:', quizScore, '/', quizTotalQ);
   showQuizLoading('ফলাফল তৈরি হচ্ছে…');
 
   let diagnosis;
@@ -1282,16 +1287,39 @@ quizWeakSegIdx = Math.max(0, Math.min(quizWeakSegIdx, lectureSegments.length - 1
   // Save concept mastery to localStorage for dashboard
   try {
     const docs = JSON.parse(localStorage.getItem('amplify_tutor_documents') || '[]');
-    if (docs.length && currentDocId) {
-      const doc = docs.find(d => d.docId === currentDocId);
+    if (docs.length) {
+      // Try to match by currentDocId, or just update the most recent doc
+      let doc = docs.find(d => d.docId === currentDocId) || docs[0];
       if (doc) {
         doc.conceptMastery = studentModel.conceptMastery;
+        doc.lastQuizScore = quizScore;
+        doc.lastQuizTotal = quizTotalQ;
+        doc.lastQuizDate = new Date().toISOString();
         localStorage.setItem('amplify_tutor_documents', JSON.stringify(docs));
+        console.log('[Dashboard] Saved concept mastery to localStorage:', Object.keys(studentModel.conceptMastery).length, 'concepts');
       }
+    } else {
+      // No doc saved yet — create a standalone entry
+      const entry = {
+        docId: currentDocId || 'quiz_' + Date.now(),
+        filename: document.getElementById('fname-text')?.textContent || 'অজানা নথি',
+        conceptMastery: studentModel.conceptMastery,
+        lastQuizScore: quizScore,
+        lastQuizTotal: quizTotalQ,
+        lastQuizDate: new Date().toISOString(),
+        chunkCount: store.chunks.length,
+        pages: totalPages,
+        date: new Date().toISOString(),
+        chunks: [],
+        graphNodes: [],
+        graphEdges: [],
+        chatHistory: [],
+      };
+      localStorage.setItem('amplify_tutor_documents', JSON.stringify([entry]));
+      console.log('[Dashboard] Created new doc entry with concept mastery');
     }
   } catch(e) { console.warn('Could not save concept mastery:', e); }
 
- 
 
   // TTS result summary
   TTS.speakAI(
