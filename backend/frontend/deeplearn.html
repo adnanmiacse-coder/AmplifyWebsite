@@ -1078,9 +1078,8 @@ body.einstein-mode .einstein-scientist-banner { display: flex; }
 
   <link rel="icon" href="data:,">
 </head>
-<input type="file" id="fileInput" multiple accept=".pdf,image/*,.txt,.doc,.docx" style="display:none">
-
 <body>
+  <input type="file" id="fileInput" multiple accept=".pdf,image/*,.txt,.doc,.docx" style="display:none">
 
   <!-- ══ Upload / Setup Screen ══ -->
   <div id="upload-screen" class="screen active">
@@ -1667,9 +1666,11 @@ async function loadAndIndexPDF(file,onProgress){
     const refsLoading     = document.getElementById('refsLoading');
 
     // ── Upload Zone ─────────────────────────────
-   uploadZone.addEventListener('click', () => {
-  fileInput.click();
-});
+    uploadZone.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.value = ''; // reset so same file can be re-selected
+      fileInput.click();
+    });
 
     // ── Auto-fill topic from URL param (passed by classroom page) ──
     (function() {
