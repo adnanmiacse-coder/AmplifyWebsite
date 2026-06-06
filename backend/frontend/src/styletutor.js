@@ -2259,14 +2259,14 @@ async function fetchAnimatedVisual(text) {
     || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.MANIM_URL)
     || 'https://madnan4980--amplify-manim-fastapi-app.modal.run';
   try {
-    const res = await fetch(`${manimUrl}/generate`, {
+    const res = await fetch(`${manimUrl}/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
     });
     if (!res.ok) {
       const errBody = await res.text().catch(() => '(unreadable)');
-      console.error('[Manim] URL hit:', `${manimUrl}/generate`);
+      console.error('[Manim] URL hit:', `${manimUrl}/`);
       console.error('[Manim] Status:', res.status);
       console.error('[Manim] Response body:', errBody);
       throw new Error('backend ' + res.status);
