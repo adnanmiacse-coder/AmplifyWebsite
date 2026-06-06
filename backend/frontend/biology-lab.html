@@ -918,7 +918,7 @@ function appendAiMessage(text, role='assistant') {
 
 function getChatAPI() {
   const env = window.AMPLIFY_ENV || {};
-  if (env.CEREBRAS_KEY) return { key: env.CEREBRAS_KEY, base: env.CEREBRAS_BASE || 'https://api.cerebras.ai/v1', model: 'llama-3.3-70b' };
+  if (env.CEREBRAS_KEY || env.CEREBRAS_API_KEY) return { key: env.CEREBRAS_KEY || env.CEREBRAS_API_KEY, base: env.CEREBRAS_BASE || 'https://api.cerebras.ai/v1', model: 'llama-3.3-70b' };
   const orKey = (env.OPENROUTER_KEYS || [])[0] || '';
   if (orKey) return { key: orKey, base: env.OPENROUTER_BASE || 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' };
   const groqKey = (env.GROQ_KEYS || [])[0] || env.GROQ_KEY || '';
@@ -1037,10 +1037,11 @@ window.sendAiQuestion = sendAiQuestion;
 ══════════════════════════════════════════ -->
 <!-- AI BANGLA VOICEOVER SYSTEM -->
 <script type="module">
+console.log('[ENV CHECK]', JSON.stringify(window.AMPLIFY_ENV));
 function getAPI() {
   const env = window.AMPLIFY_ENV || {};
-  if (env.CEREBRAS_KEY) {
-    return { key: env.CEREBRAS_KEY, base: env.CEREBRAS_BASE || 'https://api.cerebras.ai/v1', model: 'llama-3.3-70b' };
+  if (env.CEREBRAS_KEY || env.CEREBRAS_API_KEY) {
+    return { key: env.CEREBRAS_KEY || env.CEREBRAS_API_KEY, base: env.CEREBRAS_BASE || env.CEREBRAS_API_BASE_URL || 'https://api.cerebras.ai/v1', model: 'llama-3.3-70b' };
   }
   const orKey = (env.OPENROUTER_KEYS || [])[0] || '';
   if (orKey) {
