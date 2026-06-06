@@ -9,7 +9,9 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 function apiBase() {
-  const fromConfig = _config.BACKEND_URL || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.BACKEND_URL);
+  const fromConfig = _config.BACKEND_URL 
+    || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.BACKEND_URL)
+    || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.MANIM_URL);
   if (fromConfig) return String(fromConfig).replace(/\/$/, '');
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
   return '';
