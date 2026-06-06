@@ -2365,15 +2365,41 @@ function showDiagram(videoUrl, topic) {
     container.innerHTML = '';
     if (videoUrl) {
       const video = document.createElement('video');
-      video.src = videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`;
       video.autoplay = true;
       video.loop = true;
       video.muted = true;
+      video.playsInline = true;
       video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
+
+      // Handle both blob URLs and remote URLs
+      if (videoUrl.startsWith('blob:')) {
+        video.src = videoUrl;
+      } else {
+        video.src = videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`;
+      }
+
+      video.addEventListener('loadeddata', () => {
+        video.play().catch(e => console.warn('[Video] autoplay blocked:', e.message));
+        container.classList.add('visible');
+      });
+
+      video.addEventListener('error', (e) => {
+        console.warn('[Video] load error:', e);
+        // Show fallback pulse on error
+        container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
+          <rect width="460" height="240" fill="#0f0c29"/>
+          <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
+            <animate attributeName="r" values="35;55;35" dur="2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <text x="230" y="175" text-anchor="middle" fill="#a78bfa" font-size="15" font-family="Arial">${topic}</text>
+        </svg>`;
+        container.classList.add('visible');
+      });
+
       container.appendChild(video);
       cap.textContent = '🎬 ' + topic;
     } else {
-      // Fallback — plain pulsing circle, no broken SVG
       container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
         <rect width="460" height="240" fill="#0f0c29"/>
         <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
@@ -2384,8 +2410,8 @@ function showDiagram(videoUrl, topic) {
         <text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">রেন্ডার হচ্ছে…</text>
       </svg>`;
       cap.textContent = '';
+      container.classList.add('visible');
     }
-    container.classList.add('visible');
   }, 300);
 }
 
