@@ -2255,9 +2255,6 @@ function extractKeywords(text) {
 
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
-    console.log('[Manim] apiBase():', apiBase());
-  console.log('[Manim] _config.BACKEND_URL:', _config.BACKEND_URL);
-  console.log('[Manim] window.AMPLIFY_ENV:', window.AMPLIFY_ENV);
   try {
     const res = await fetch(`${apiBase()}/`, {
       method: 'POST',
