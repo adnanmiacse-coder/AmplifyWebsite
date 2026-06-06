@@ -1016,15 +1016,17 @@ body.einstein-mode .chat-welcome {
 body.einstein-mode .refs-section-title { color: var(--einstein-neon-primary) !important; }
 body.einstein-mode .depth-label { color: rgba(0,255,65,0.5) !important; }
 
-/* Einstein toggle button */
+
+/* REPLACE the .einstein-toggle CSS block */
 .einstein-toggle {
   position: fixed;
-  top: 16px; right: 16px;
+  bottom: 64px;
+  right: 16px;
   z-index: 9999;
   display: none;
   align-items: center; gap: 8px;
   padding: 7px 14px;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0,0,0,0.75);
   border: 1.5px solid rgba(255,255,255,0.15);
   border-radius: 20px;
   font-family: var(--font-body);
@@ -1033,6 +1035,7 @@ body.einstein-mode .depth-label { color: rgba(0,255,65,0.5) !important; }
   cursor: pointer;
   backdrop-filter: blur(8px);
   transition: all 0.3s ease;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
 }
 .einstein-toggle:hover { border-color: var(--einstein-neon-primary); color: var(--einstein-neon-primary); }
 .einstein-toggle.active { border-color: var(--einstein-neon-primary); color: var(--einstein-neon-primary); box-shadow: 0 0 16px rgba(0,255,65,0.3); }
@@ -2651,68 +2654,124 @@ async function fetchKnowledgeInsert(topic, phaseId) {
       runLoop();
     }
 
-    async function runLoop() {
-      while (isRunning) {
-        if (isPaused) { await sleep(400); continue; }
+    
+    // REPLACE the entire runLoop function
+async function runLoop() {
+  while (isRunning) {
+    while (isPaused) { await sleep(200); }
+    if (!isRunning) break;
 
-        if (userInterrupted && userPendingMsg) {
-          await handleUserTurn();
-          continue;
-        }
+    if (userInterrupted && userPendingMsg) {
+      await handleUserTurn();
+      continue;
+    }
 
-        const expertId = TURN_ORDER[currentTurnIndex % TURN_ORDER.length];
-        await runExpertTurn(expertId);
-        currentTurnIndex++;
-        advancePhase();
-        updatePhaseUI();
+    const expertId = TURN_ORDER[currentTurnIndex % TURN_ORDER.length];
+    await runExpertTurn(expertId);
+    currentTurnIndex++;
+    advancePhase();
+    updatePhaseUI();
 
-        if (isRunning && !isPaused) await sleep(1000);
+    if (isRunning) {
+      let waited = 0;
+      while (waited < 1000) {
+        if (!isRunning) break;
+        while (isPaused) { await sleep(200); }
+        await sleep(100);
+        waited += 100;
+      }
+    }
+  }
+}
+
+// REPLACE the entire speak function
+async function speak(text, expertId) {
+  if (!ttsEnabled) return;
+  if (!text || !text.trim()) return;
+  const tts = AGENT_TTS[expertId];
+  const sentences = splitSentences(text);
+  if (!sentences.length) return;
+  ttsWave.classList.add('speaking');
+  ttsLabel.textContent = EXPERTS[expertId].name + ' বলছেন...';
+  for (const sentence of sentences) {
+    if (!ttsEnabled) break;
+    // Wait while paused before speaking each sentence
+    while (isPaused) {
+      speechSynthesis.cancel();
+      ttsWave.classList.remove('speaking');
+      await sleep(200);
+    }
+    if (!ttsEnabled) break;
+    ttsWave.classList.add('speaking');
+    await new Promise(resolve => {
+      const timeout = setTimeout(() => resolve(), 10000);
+      speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(sentence);
+      const voice = agentVoiceMap[expertId];
+      if (voice) { utt.voice = voice; utt.lang = voice.lang; }
+      else { utt.lang = 'bn-BD'; }
+      utt.rate  = tts.rate;
+      utt.pitch = tts.pitch;
+      utt.onend   = () => { clearTimeout(timeout); resolve(); };
+      utt.onerror = () => { clearTimeout(timeout); resolve(); };
+      setTimeout(() => { if (!speechSynthesis.speaking) resolve(); }, 500);
+      speechSynthesis.speak(utt);
+    });
+    await sleep(120);
+  }
+  ttsWave.classList.remove('speaking');
+  ttsLabel.textContent = 'নীরব';
+}
+
+// REPLACE runExpertTurn entirely
+async function runExpertTurn(expertId) {
+  const expert = EXPERTS[expertId];
+  const phase  = getCurrentPhase();
+
+  // Bail immediately if paused or stopped
+  while (isPaused) { await sleep(200); }
+  if (!isRunning) return;
+
+  setExpertSpeaking(expertId);
+  showTyping(expertId);
+
+  let reply = '';
+  try {
+    const shouldInsert = (currentTurnIndex % 9 === 4) && (phase.id === 'analysis' || phase.id === 'debate');
+    if (shouldInsert && expertId === 'expert2') {
+      const knowledge = await fetchKnowledgeInsert(sessionTopic, phase.id);
+      if (knowledge?.insight) {
+        showKnowledgeInsert(knowledge.insight, knowledge.sources);
+        await sleep(2000);
       }
     }
 
-    async function runExpertTurn(expertId) {
-      const expert = EXPERTS[expertId];
-      const phase  = getCurrentPhase();
+    reply = await callGroq(expertId);
+  } catch (err) {
+    console.error('[runExpertTurn] failed:', err.message, err);
+    hideTyping(); clearExpertSpeaking();
+    await sleep(1200);
+    return;
+  }
 
-      setExpertSpeaking(expertId);
-      showTyping(expertId);
+  // After API call, re-check pause before rendering
+  while (isPaused) { await sleep(200); }
+  if (!isRunning) { hideTyping(); clearExpertSpeaking(); return; }
 
-      let reply = '';
-      try {
-        // Occasionally inject knowledge insight
-        const shouldInsert = (currentTurnIndex % 9 === 4) && (phase.id === 'analysis' || phase.id === 'debate');
-        if (shouldInsert && expertId === 'expert2') {
-          const knowledge = await fetchKnowledgeInsert(sessionTopic, phase.id);
-          if (knowledge?.insight) {
-            showKnowledgeInsert(knowledge.insight, knowledge.sources);
-            await sleep(2000);
-          }
-        }
+  hideTyping();
+  dialogueLog.push({ name: expert.name, text: reply });
+  if (dialogueLog.length > 24) dialogueLog = dialogueLog.slice(-24);
 
-        reply = await callGroq(expertId);
-      } catch (err) {
-        console.error('[runExpertTurn] failed:', err.message, err); // REPLACE existing console.error(err)
-        console.error('[runExpertTurn] GROQ_KEYS:', GROQ_KEYS.length, 'OR_KEYS:', OPENROUTER_KEYS.length, 'OR_BASE:', OPENROUTER_BASE);
-        hideTyping(); clearExpertSpeaking();
-        await sleep(1200);
-        return;
-      }
+  const stanceKey = expertId === 'expert3' && phase.id === 'debate' ? 'critique'
+                  : phase.id === 'debate' ? 'debate'
+                  : phase.id === 'synthesis' || phase.id === 'conclude' ? 'synthesis'
+                  : 'discuss';
 
-      hideTyping();
-      dialogueLog.push({ name: expert.name, text: reply });
-      if (dialogueLog.length > 24) dialogueLog = dialogueLog.slice(-24);
-
-      const stanceKey = expertId === 'expert3' && phase.id === 'debate' ? 'critique'
-                      : phase.id === 'debate' ? 'debate'
-                      : phase.id === 'synthesis' || phase.id === 'conclude' ? 'synthesis'
-                      : 'discuss';
-
-      showOnStage(expertId, reply, stanceKey);
-      
-      await addChatBubble(expertId, reply);
-      await speak(reply, expertId);
-      clearExpertSpeaking();
-    }
+  showOnStage(expertId, reply, stanceKey);
+  await addChatBubble(expertId, reply);
+  await speak(reply, expertId);
+  clearExpertSpeaking();
+}
 
     async function handleUserTurn() {
       const msg = userPendingMsg;
@@ -2974,13 +3033,20 @@ No commentary, no markdown, just the JSON.`;
   return { name:'Richard Feynman', emoji:'⚛️', field:'Physics & Curiosity', style:'playful, analogies, bottomless curiosity' };
 }
 
+
+// REPLACE enableEinsteinMode
 async function enableEinsteinMode() {
   einsteinActive = true;
+
+  // Immediately halt current speech and pause the loop
+  speechSynthesis.cancel();
+  ttsWave.classList.remove('speaking');
+  ttsLabel.textContent = 'Einstein Mode...';
+  isPaused = true; // freeze loop while we set up
+
   document.body.classList.add('einstein-mode');
   einsteinToggle.classList.add('active');
-  einsteinToggle.innerHTML = '<div class="e-dot"></div>Einstein Mode';
 
-  // Pick scientist based on current topic
   einsteinName.textContent = '...identifying scientist...';
   einsteinDesc.textContent  = '';
   einsteinEmoji.textContent = '⚛️';
@@ -2990,14 +3056,34 @@ async function enableEinsteinMode() {
   einsteinName.textContent  = sci.name;
   einsteinDesc.textContent  = sci.field + ' · ' + sci.style;
   einsteinEmoji.textContent = sci.emoji;
+
+  // Clear the existing chat & stage so it feels like a fresh mode
+  chatMessages.innerHTML = '';
+  debateStage.innerHTML = '';
+  debateStage.classList.add('hidden');
+  stageIdle.classList.remove('hidden');
+  dialogueLog = []; // wipe history so next turn starts fresh
+
+  ttsLabel.textContent = 'নীরব';
+  isPaused = false; // resume loop — now callGroq override is active
 }
 
+// REPLACE disableEinsteinMode
 function disableEinsteinMode() {
   einsteinActive = false;
   einsteinScientist = null;
+  speechSynthesis.cancel();
   document.body.classList.remove('einstein-mode');
   einsteinToggle.classList.remove('active');
+  // Clear and restart fresh in Bengali mode
+  chatMessages.innerHTML = '';
+  debateStage.innerHTML = '';
+  debateStage.classList.add('hidden');
+  stageIdle.classList.remove('hidden');
+  dialogueLog = [];
+  ttsLabel.textContent = 'নীরব';
 }
+
 
 einsteinToggle.addEventListener('click', () => {
   if (!isRunning) return;
@@ -3029,21 +3115,24 @@ callGroq = async function(expertId) {
   const phase = getCurrentPhase();
   const lastTwo = dialogueLog.slice(-2).map(e => `"${e.text.slice(0,80)}"`).join(' | ');
 
-  const einsteinSystem = `You are ${sci.name}, the legendary ${sci.field} scientist. You are speaking in ENGLISH only.
-Roleplay fully as ${sci.name} — use their actual speaking style: ${sci.style}.
-Topic being discussed: "${sessionTopic}"
+  const einsteinSystem = `You are ${sci.name}, the legendary ${sci.field} scientist, and you are delivering a live lecture to curious students.
 
-Strict rules:
-- Stay entirely in character as ${sci.name}
-- Use first person ("I", "In my experiments...", "When I observed...")
-- Reference your real historical work, discoveries, and era naturally
-- Explain using the exact style and analogies ${sci.name} would use
+Your speaking style: ${sci.style}
+
+Topic of today's lecture: "${sessionTopic}"
+
+You speak exactly as ${sci.name} would in a real lecture — with conviction, personal anecdotes from your actual life and experiments, vivid analogies drawn from everyday things, and genuine intellectual excitement. You pause to make sure the students follow. You reference your own published works and discoveries naturally, as a professor would.
+
+Rules:
+- First person always 
+- Reference your real historical experiments, papers, and era
+- Use the rhetorical style of a lecture: build up an idea, use an analogy, land the point
 - Do NOT say your own name
-- Avoid any Bengali text — English only
-- EXACTLY 2 sentences, each ending with a period
-- Each sentence max 25 words
-- Do NOT repeat ideas from recent turns: ${lastTwo || 'none yet'}
-- Start directly — no greeting, no name prefix`;
+- English only — no Bengali, no mixed language
+- Exactly 3 sentences per turn
+- Each sentence maximum 30 words — complete, elegant sentences
+- Do NOT repeat ideas from the recent discussion: ${lastTwo || 'none yet'}
+- Start mid-thought, as if continuing a lecture — no "Hello" or introductions`;
 
   const msgs = [{ role:'user', content: `Explain the current discussion point about "${sessionTopic}" in phase "${phase.label}". Recent discussion: ${lastTwo}. Give your ${sci.name}-style insight in 2 sentences.` }];
 
