@@ -273,6 +273,53 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 const _ocrQueue = [];
 let _ocrRunning = false;
 
+async function groqVisionOCR(base64Img, pageNum) {
+  const keys = groqKeys();
+  for (let ki = 0; ki < keys.length; ki++) {
+    for (const model of ['meta-llama/llama-4-scout-17b-16e-instruct', 'llama-3.2-11b-vision-preview']) {
+      try {
+        const res = await fetch(`${groqBase()}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${keys[ki]}`
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: 1024,
+            temperature: 0.1,
+            messages: [{
+              role: 'user',
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: { url: `data:image/jpeg;base64,${base64Img}` }
+                },
+                {
+                  type: 'text',
+                  text: `This is page ${pageNum} of a Bengali/English textbook. Extract ALL text exactly as it appears. Preserve structure. Output only the extracted text, nothing else.`
+                }
+              ]
+            }]
+          })
+        });
+        if (res.status === 429) { await sleep(2000); continue; }
+        if (!res.ok) { const e = await res.text(); throw new Error('Groq vision ' + res.status + ': ' + e); }
+        const d = await res.json();
+        const text = d.choices?.[0]?.message?.content || '';
+        if (text.trim().length > 10) {
+          console.log(`[OCR] Page ${pageNum} done via ${model} key ${ki+1}`);
+          return text;
+        }
+      } catch(e) {
+        console.warn(`[OCR] key ${ki+1} model ${model} failed:`, e.message);
+        continue;
+      }
+    }
+  }
+  throw new Error('All OCR attempts failed for page ' + pageNum);
+}
+
 async function queuedOCR(base64Img, pageNum) {
   return new Promise((resolve, reject) => {
     _ocrQueue.push({ base64Img, pageNum, resolve, reject });
