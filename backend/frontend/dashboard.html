@@ -105,11 +105,13 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 }
 @keyframes neuralPulse{0%,100%{opacity:1;box-shadow:0 0 8px var(--accent);}50%{opacity:0.4;box-shadow:0 0 3px var(--accent);}}
 
+/* REPLACE WITH: */
 .brain-canvas-container{
   position:relative;
   height:420px;
   display:flex;align-items:center;justify-content:center;
   overflow:hidden;
+  background:#000000;
 }
 #brainCanvas{
   width:100%;height:100%;
@@ -870,7 +872,8 @@ class HoloBrainRenderer {
 
       const positions = [];
       const colors = [];
-      for (let i = 0; i < pos.count; i++) {
+      // REPLACE WITH:
+      for (let i = 0; i < pos.count; i += 3) { // skip 2/3 of points
         positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
         
         // REPLACE WITH:
@@ -888,9 +891,10 @@ class HoloBrainRenderer {
         const isCyan = noise > 0.1;
         const isMag  = noise < -0.1;
         // Dim, soft colors — not full 1.0 saturation
-        const r = isCyan ? 0.02 : isMag ? 0.48 : 0.25;
-        const g = isCyan ? 0.45 : isMag ? 0.12 : 0.28;
-        const b = isCyan ? 0.62 : isMag ? 0.62 : 0.62;
+        // REPLACE WITH:
+        const r = isCyan ? 0.04 : isMag ? 0.72 : 0.38;
+        const g = isCyan ? 0.58 : isMag ? 0.08 : 0.20;
+        const b = isCyan ? 0.78 : isMag ? 0.82 : 0.80;
         colors.push(r, g, b);
       }
 
@@ -901,7 +905,7 @@ class HoloBrainRenderer {
       const ptMat = new THREE.ShaderMaterial({
         uniforms: {
           uTime: { value: 0 },
-          uSize: { value: 2.0 * window.devicePixelRatio },
+          uSize: { value: 1.3 * window.devicePixelRatio },
         },
         vertexShader: `
           attribute vec3 aColor;
@@ -930,7 +934,7 @@ class HoloBrainRenderer {
             if(d > 0.5) discard;
             float alpha = 1.0 - smoothstep(0.05, 0.5, d);
             float scan = 0.88 + 0.12 * sin(vY * 20.0 + uTime * 2.0);
-             gl_FragColor = vec4(vColor * scan * 1.4, alpha * 0.55);
+             gl_FragColor = vec4(vColor * scan * 0.7, alpha * 0.38);
           }
         `,
         transparent: true,
