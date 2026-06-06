@@ -1015,24 +1015,31 @@ window.openAiChat=openAiChat; window.closeAiChat=closeAiChat; window.sendAiQuest
 <script type="module">
 // Config loaded from server via amplify-env-bootstrap.js
 // REPLACE WITH:
-async function getCerebrasKey() {
-  // Try window.AMPLIFY_ENV first (set at parse time)
-  const fromEnv = window.AMPLIFY_ENV?.CEREBRAS_API_KEY
-    || window.AMPLIFY_ENV?.CEREBRAS_KEY
-    || window.AMPLIFY_ENV?.GROQ_KEY
-    || '';
-  if (fromEnv) return fromEnv;
 
-  // Fall back to /api/config fetch (matches your amplify-env-bootstrap.js)
+
+async function getCerebrasKey() {
   try {
     const r = await fetch('/api/config');
     const d = await r.json();
-    return d.CEREBRAS_API_KEY || d.CEREBRAS_KEY || d.GROQ_API_KEY || '';
+    // Log so you can verify exactly what's returned
+    console.log('[KEY] /api/config keys available:', Object.keys(d));
+    // Try every possible name your server might use
+    const key = d.CEREBRAS_API_KEY
+      || d.CEREBRAS_KEY
+      || d.cerebras_api_key
+      || '';
+    if (key) {
+      console.log('[KEY] Found key starting with:', key.slice(0,12));
+      return key;
+    }
+    console.warn('[KEY] No Cerebras key found in config. Available:', JSON.stringify(d));
+    return '';
   } catch(e) {
-    console.error('[VO] Could not fetch /api/config:', e);
+    console.error('[KEY] /api/config fetch failed:', e);
     return '';
   }
 }
+
 
 const btn       = document.getElementById('voBtn');
 const hud       = document.getElementById('voHud');
