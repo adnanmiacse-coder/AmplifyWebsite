@@ -2253,6 +2253,7 @@ function extractKeywords(text) {
   return latin[0] || 'Biology';
 }
 
+
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
   const manimUrl = _config.MANIM_URL
@@ -2271,14 +2272,36 @@ async function fetchAnimatedVisual(text) {
       console.error('[Manim] Response body:', errBody);
       throw new Error('backend ' + res.status);
     }
+
+    const contentType = res.headers.get('content-type') || '';
+
+    // Backend returns raw MP4 bytes
+    if (contentType.includes('video') || contentType.includes('octet-stream')) {
+      const blob = await res.blob();
+      const videoUrl = URL.createObjectURL(blob);
+      return { videoUrl, topic };
+    }
+
+    // Backend returns JSON with a video_url field
     const data = await res.json();
-    return { videoUrl: data.video_url || '/videos/3e64f732.mp4', topic };
+    if (data.video_url) {
+      const videoUrl = data.video_url.startsWith('http')
+        ? data.video_url
+        : `${manimUrl}${data.video_url}`;
+      return { videoUrl, topic };
+    }
+
+    // Backend returns JSON with a direct URL string
+    if (typeof data === 'string' && data.startsWith('http')) {
+      return { videoUrl: data, topic };
+    }
+
+    throw new Error('Unrecognised response format');
   } catch(e) {
     console.warn('[Manim] failed:', e.message);
-    return { videoUrl: '/videos/3e64f732.mp4', topic };
+    return { videoUrl: null, topic };
   }
 }
-
 
 
 function showDiagram(videoUrl, topic) {
