@@ -161,8 +161,8 @@ body::after {
     .ep-role { font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; }
 
     
-    .upload-zone * { pointer-events: none; }
-    .upload-zone { pointer-events: all; border: 1.5px solid transparent;
+    .upload-zone {
+  border: 1.5px solid transparent;
   background:
     linear-gradient(var(--bg-alt), var(--bg-alt)) padding-box,
     linear-gradient(135deg, #00B7FF, #7A5CFF, #E15CFF) border-box;
@@ -1078,8 +1078,9 @@ body.einstein-mode .einstein-scientist-banner { display: flex; }
 
   <link rel="icon" href="data:,">
 </head>
+<input type="file" id="fileInput" multiple accept=".pdf,image/*,.txt,.doc,.docx" style="display:none">
+
 <body>
-  <input type="file" id="fileInput" multiple accept=".pdf,image/*,.txt,.doc,.docx" style="display:none">
 
   <!-- ══ Upload / Setup Screen ══ -->
   <div id="upload-screen" class="screen active">
@@ -1118,7 +1119,7 @@ body.einstein-mode .einstein-scientist-banner { display: flex; }
       </div>
 
       <!-- PDF Upload -->
-      <label class="upload-zone" id="uploadZone" for="fileInput" role="button" tabindex="0">
+      <div class="upload-zone" id="uploadZone">
         <div class="upload-icon">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -1129,7 +1130,8 @@ body.einstein-mode .einstein-scientist-banner { display: flex; }
         </div>
         <div class="upload-zone-text">PDF বা ছবি ফাইল আপলোড করুন</div>
         <div class="upload-zone-hint">টেনে আনুন অথবা ক্লিক করুন · সর্বোচ্চ ৩টি ফাইল</div>
-      </label>
+        
+      </div>
 
       <div class="upload-previews hidden" id="uploadPreviews"></div>
 
@@ -1663,6 +1665,11 @@ async function loadAndIndexPDF(file,onProgress){
 
     const refsBody        = document.getElementById('refsBody');
     const refsLoading     = document.getElementById('refsLoading');
+
+    // ── Upload Zone ─────────────────────────────
+   uploadZone.addEventListener('click', () => {
+  fileInput.click();
+});
 
     // ── Auto-fill topic from URL param (passed by classroom page) ──
     (function() {
