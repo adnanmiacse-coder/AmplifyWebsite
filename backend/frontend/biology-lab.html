@@ -886,7 +886,21 @@ window.MODELS = MODELS;
 
 <!-- AI Chat (Groq) -->
 <script src="/amplify-env-bootstrap.js"></script>
+<script src="/amplify-env-bootstrap.js"></script>
+<script>
+  // Debug: check key availability at different moments
+  console.log('[BOOT] AMPLIFY_ENV at parse time:', window.AMPLIFY_ENV);
+  window.addEventListener('DOMContentLoaded', () =>
+    console.log('[BOOT] AMPLIFY_ENV at DOMContentLoaded:', window.AMPLIFY_ENV)
+  );
+</script>
 <script type="module">
+
+  function getCerebrasKey() {
+  return window.AMPLIFY_ENV?.CEREBRAS_KEY
+    || window.AMPLIFY_ENV?.GROQ_KEY   // fallback alias
+    || '';
+}
 // Config loaded from server via amplify-env-bootstrap.js
 const GROQ_API_KEY = window.AMPLIFY_ENV?.GROQ_KEY || '';
 const aiChatPanel   = document.getElementById('aiChatPanel');
@@ -1125,11 +1139,12 @@ JSON ফরম্যাটে উত্তর দাও, অন্য কিছ�
   } catch { return null; }
 }
 
+
 async function fetchBanglaIntro(modelName) {
-  const key = CEREBRAS_API_KEY_MODULE;
-  if (!key) return null;
+  const key = getCerebrasKey();
+  if (!key) { console.warn('[VO] No Cerebras key — skipping intro'); return null; }
+  console.log('[VO] Fetching Bangla intro for:', modelName, '| key starts with:', key.slice(0,8));
   try {
-    // CHANGE 3: Updated intro prompt to avoid hyphens/dashes
     const r = await fetch('https://api.cerebras.ai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
@@ -1141,22 +1156,27 @@ async function fetchBanglaIntro(modelName) {
           role: 'user',
           content: `তুমি একজন অভিজ্ঞ বাংলা জীববিজ্ঞান শিক্ষক। একজন শিক্ষার্থী এখন "${modelName}" এর ইন্টারেক্টিভ থ্রিডি মডেল দেখছে।
 
-এই অঙ্গ বা কাঠামো সম্পর্কে ঠিক দুটি বাংলা বাক্য লেখো যেখানে প্রথম বাক্যে এর সবচেয়ে গুরুত্বপূর্ণ জৈবিক কাজটি স্পষ্টভাবে বলো এবং দ্বিতীয় বাক্যে একটি চমকপ্রদ বৈজ্ঞানিক তথ্য বা সংখ্যা উল্লেখ করো।
+এই অঙ্গ বা কাঠামো সম্পর্কে ঠিক দুটি বাংলা বাক্য লেখো।
 
 অবশ্যই মানতে হবে:
 - কোনো হাইফেন বা ড্যাশ চিহ্ন ব্যবহার করবে না
-- "বড়" লিখবে না, "বড়ো" লিখবে। "ছোট" লিখবে না, "ছোটো" লিখবে
-- "হলো" লিখবে, "হল" লিখবে না
-- সংখ্যা বাংলা অক্ষরে লিখবে (যেমন: ত্রিশ কোটি, দশ লক্ষ)
+- সংখ্যা বাংলা অক্ষরে লিখবে
 - কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না
-- বাক্য বাংলা TTS-এ সঠিকভাবে উচ্চারণযোগ্য হতে হবে
 - কোনো ভূমিকা বা শিরোনাম ছাড়াই শুধু দুটি বাক্য দাও`
         }]
       })
     });
-    const d = await r.json();
-    return d.choices?.[0]?.message?.content?.trim() || null;
-  } catch { return null; }
+    const data = await r.json();
+    console.log('[VO] Intro response status:', r.status, data);
+    if (!r.ok) throw new Error(data.error?.message || `HTTP ${r.status}: ${JSON.stringify(data)}`);
+    const text = data.choices?.[0]?.message?.content?.trim();
+    if (!text) throw new Error('Empty intro content');
+    console.log('[VO] Got intro:', text.slice(0, 80));
+    return text;
+  } catch(e) {
+    console.error('[VO] fetchBanglaIntro failed:', e);
+    return null;
+  }
 }
 
 function speak(text, onEnd) {
