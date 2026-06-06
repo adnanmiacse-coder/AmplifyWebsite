@@ -886,6 +886,190 @@ body::after {
       border: 1px solid var(--border);
       color: var(--text-muted);
     }
+
+
+
+    /* ══ EINSTEIN MODE ══ */
+:root {
+  --einstein-bg: #000000;
+  --einstein-neon-primary: #00ff41;
+  --einstein-neon-blue: #00cfff;
+  --einstein-neon-purple: #bf00ff;
+  --einstein-neon-amber: #ffb700;
+  --einstein-text: #e0ffe0;
+}
+
+body.einstein-mode {
+  background: var(--einstein-bg) !important;
+  transition: background 0.6s ease;
+}
+
+body.einstein-mode::before {
+  background: radial-gradient(circle, rgba(0,255,65,0.5) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.07;
+}
+
+body.einstein-mode::after {
+  background:
+    radial-gradient(ellipse at 15% 50%, rgba(0,255,65,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 20%, rgba(0,207,255,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 90%, rgba(191,0,255,0.05) 0%, transparent 45%);
+}
+
+body.einstein-mode .refs-panel,
+body.einstein-mode .right-panel,
+body.einstein-mode .stage-panel {
+  background: #000 !important;
+  border-color: rgba(0,255,65,0.25) !important;
+  transition: background 0.6s ease, border-color 0.6s ease;
+}
+
+body.einstein-mode .refs-panel { border-right-color: rgba(0,255,65,0.25) !important; }
+body.einstein-mode .stage-panel { border-right-color: rgba(0,255,65,0.25) !important; }
+
+body.einstein-mode .expert-card,
+body.einstein-mode .chat-input-row,
+body.einstein-mode .bottom-bar {
+  background: #000 !important;
+  border-color: rgba(0,255,65,0.2) !important;
+}
+
+body.einstein-mode .experts-grid { background: rgba(0,255,65,0.12) !important; }
+
+body.einstein-mode .stage-mode-badge {
+  background: rgba(0,255,65,0.08) !important;
+  border-color: rgba(0,255,65,0.4) !important;
+  color: var(--einstein-neon-primary) !important;
+}
+
+body.einstein-mode .mode-dot { background: var(--einstein-neon-primary) !important; }
+
+body.einstein-mode .speaker-card {
+  background: #050505 !important;
+  border-color: rgba(0,255,65,0.3) !important;
+  box-shadow: 0 0 24px rgba(0,255,65,0.08), inset 0 0 40px rgba(0,255,65,0.02);
+}
+
+body.einstein-mode .speaker-card::before { background: var(--einstein-neon-primary) !important; }
+
+body.einstein-mode .speaker-text-lg {
+  color: #c8ffd4 !important;
+  border-left-color: rgba(0,255,65,0.4) !important;
+  font-family: 'Courier New', monospace !important;
+  font-size: 1rem !important;
+  line-height: 2 !important;
+}
+
+body.einstein-mode .speaker-name-lg { color: var(--einstein-neon-primary) !important; text-shadow: 0 0 12px rgba(0,255,65,0.6); }
+body.einstein-mode .speaker-role-lg { color: rgba(0,255,65,0.6) !important; }
+
+body.einstein-mode .bubble-expert1 .bubble-text,
+body.einstein-mode .bubble-expert2 .bubble-text,
+body.einstein-mode .bubble-expert3 .bubble-text {
+  background: rgba(0,255,65,0.05) !important;
+  border-left-color: var(--einstein-neon-primary) !important;
+  color: #c8ffd4 !important;
+  font-family: 'Courier New', monospace !important;
+}
+
+body.einstein-mode .bubble-meta { color: rgba(0,255,65,0.7) !important; }
+
+body.einstein-mode .ref-card {
+  background: #050505 !important;
+  border-color: rgba(0,255,65,0.2) !important;
+}
+
+body.einstein-mode .ref-card:hover { border-color: var(--einstein-neon-primary) !important; }
+body.einstein-mode .ref-card-link { color: var(--einstein-neon-primary) !important; }
+
+body.einstein-mode .user-input {
+  background: #050505 !important;
+  border-color: rgba(0,255,65,0.3) !important;
+  color: #c8ffd4 !important;
+}
+
+body.einstein-mode .user-input:focus { border-color: var(--einstein-neon-primary) !important; }
+
+body.einstein-mode .depth-phase { background: rgba(0,255,65,0.1) !important; }
+body.einstein-mode .depth-phase.done { background: var(--einstein-neon-primary) !important; }
+body.einstein-mode .depth-phase.active { background: var(--einstein-neon-blue) !important; }
+
+body.einstein-mode .tts-wave.speaking span { background: var(--einstein-neon-primary) !important; }
+
+body.einstein-mode .send-btn { background: var(--einstein-neon-primary) !important; }
+body.einstein-mode .send-btn:hover:not(:disabled) { background: #00cc33 !important; }
+
+body.einstein-mode .bar-btn { border-color: rgba(0,255,65,0.3) !important; color: rgba(0,255,65,0.7) !important; }
+body.einstein-mode .bar-btn:hover { border-color: var(--einstein-neon-primary) !important; color: var(--einstein-neon-primary) !important; }
+
+body.einstein-mode .phase-label-bar {
+  background: rgba(0,255,65,0.08) !important;
+  color: var(--einstein-neon-primary) !important;
+}
+
+body.einstein-mode .chat-welcome {
+  border-color: rgba(0,255,65,0.2) !important;
+  color: rgba(0,255,65,0.5) !important;
+}
+
+body.einstein-mode .refs-section-title { color: var(--einstein-neon-primary) !important; }
+body.einstein-mode .depth-label { color: rgba(0,255,65,0.5) !important; }
+
+/* Einstein toggle button */
+.einstein-toggle {
+  position: fixed;
+  top: 16px; right: 16px;
+  z-index: 9999;
+  display: none;
+  align-items: center; gap: 8px;
+  padding: 7px 14px;
+  background: rgba(0,0,0,0.7);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  font-family: var(--font-body);
+  font-size: 0.78rem; font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+.einstein-toggle:hover { border-color: var(--einstein-neon-primary); color: var(--einstein-neon-primary); }
+.einstein-toggle.active { border-color: var(--einstein-neon-primary); color: var(--einstein-neon-primary); box-shadow: 0 0 16px rgba(0,255,65,0.3); }
+.einstein-toggle .e-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+#deeplearn-screen.active ~ .einstein-toggle,
+.screen.active + .einstein-toggle { display: flex; }
+
+/* Einstein scientist card (stage overlay) */
+.einstein-scientist-banner {
+  display: none;
+  align-items: center; gap: 14px;
+  padding: 12px 20px;
+  background: rgba(0,255,65,0.05);
+  border-bottom: 1px solid rgba(0,255,65,0.2);
+  flex-shrink: 0;
+}
+body.einstein-mode .einstein-scientist-banner { display: flex; }
+.esb-avatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(0,255,65,0.15);
+  border: 1.5px solid var(--einstein-neon-primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+  box-shadow: 0 0 12px rgba(0,255,65,0.3);
+  flex-shrink: 0;
+}
+.esb-name { font-family: 'Courier New', monospace; font-size: 0.9rem; font-weight: 700; color: var(--einstein-neon-primary); text-shadow: 0 0 8px rgba(0,255,65,0.5); }
+.esb-desc { font-size: 0.72rem; color: rgba(0,255,65,0.55); margin-top: 2px; }
+.esb-badge {
+  margin-left: auto;
+  font-size: 0.68rem; padding: 3px 10px;
+  border: 1px solid rgba(0,207,255,0.4);
+  border-radius: 20px; color: var(--einstein-neon-blue);
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+}
+
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
@@ -998,6 +1182,15 @@ body::after {
           </div>
         </div>
       </div>
+
+      <div class="einstein-scientist-banner" id="einsteinBanner">
+  <div class="esb-avatar" id="einsteinEmoji">⚛️</div>
+  <div>
+    <div class="esb-name" id="einsteinName">Scientist Loading...</div>
+    <div class="esb-desc" id="einsteinDesc">Channeling expertise...</div>
+  </div>
+  <div class="esb-badge">EINSTEIN MODE</div>
+</div>
 
       <div class="stage-area" id="stageArea">
 
@@ -1121,6 +1314,13 @@ body::after {
   </div><!-- /deeplearn-screen -->
 
   <script src="/amplify-env-bootstrap.js"></script>
+
+
+  <button class="einstein-toggle" id="einsteinToggle">
+  <div class="e-dot"></div>
+  Einstein Mode
+</button>
+
   <script type="module">
     import { loadEnvConfig, getGroqKeys, getOpenRouterKeys, getGroqBase, getOpenRouterBase, parseEnvList } from '/src/env-config.js';
 
@@ -2676,6 +2876,206 @@ async function fetchKnowledgeInsert(topic, phaseId) {
     // ── Helpers ───────────────────────────────────
     function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+
+
+    // ══════════════════════════════════════════════
+//  EINSTEIN MODE
+// ══════════════════════════════════════════════
+let einsteinActive = false;
+let einsteinScientist = null;
+
+const einsteinToggle  = document.getElementById('einsteinToggle');
+const einsteinBanner  = document.getElementById('einsteinBanner');
+const einsteinName    = document.getElementById('einsteinName');
+const einsteinDesc    = document.getElementById('einsteinDesc');
+const einsteinEmoji   = document.getElementById('einsteinEmoji');
+
+const EINSTEIN_SCIENTIST_DB = {
+  // Physics
+  quantum:        { name:'Richard Feynman',    emoji:'⚛️',  field:'Quantum Physics',          style:'playful, diagram-heavy, "You know what\'s interesting..."' },
+  relativity:     { name:'Albert Einstein',    emoji:'🌌',  field:'Relativity & Spacetime',   style:'thought experiments, philosophical, "Imagine you are riding a beam of light..."' },
+  electromagnetism:{ name:'James Clerk Maxwell',emoji:'⚡', field:'Electromagnetism',         style:'rigorous mathematical, visual field lines' },
+  thermodynamics: { name:'Ludwig Boltzmann',   emoji:'🌡️', field:'Statistical Mechanics',    style:'probabilistic, entropy-obsessed' },
+  optics:         { name:'Isaac Newton',       emoji:'🍎',  field:'Optics & Classical Mechanics', style:'methodical, prism experiments, "I feign no hypotheses"' },
+  mechanics:      { name:'Isaac Newton',       emoji:'🍎',  field:'Classical Mechanics',      style:'methodical, precise, law-driven' },
+  gravity:        { name:'Albert Einstein',    emoji:'🌌',  field:'General Relativity',       style:'geometric intuition, curved spacetime analogies' },
+  // Chemistry
+  chemistry:      { name:'Marie Curie',        emoji:'☢️',  field:'Radioactivity & Chemistry',style:'methodical, lab-notebook style, patient experimentation' },
+  radioactivity:  { name:'Marie Curie',        emoji:'☢️',  field:'Radioactivity',            style:'precise, experimental, pioneering' },
+  organic:        { name:'Linus Pauling',      emoji:'🧪',  field:'Chemical Bonding',         style:'bond theory, resonance structures, "Nature uses only the longest threads..."' },
+  periodic:       { name:'Dmitri Mendeleev',   emoji:'📊',  field:'Periodic Table',           style:'pattern-obsessed, predictive, systematic' },
+  // Biology
+  evolution:      { name:'Charles Darwin',     emoji:'🦕',  field:'Natural Selection',        style:'observational, humble, "It is not the strongest that survives..."' },
+  genetics:       { name:'Gregor Mendel',      emoji:'🌱',  field:'Heredity & Genetics',      style:'garden-pea experiments, ratio-driven, meticulous' },
+  dna:            { name:'Rosalind Franklin',  emoji:'🔬',  field:'DNA Structure & X-ray Crystallography', style:'data-driven, crystallographic evidence, precise' },
+  cell:           { name:'Robert Hooke',       emoji:'🔭',  field:'Cell Biology & Microscopy',style:'vivid observation, "I observed a honeycomb of tiny rooms..."' },
+  neuroscience:   { name:'Santiago Ramón y Cajal',emoji:'🧠',field:'Neuroscience',            style:'artistic-scientific, neuronal drawings, poetic precision' },
+  // Computer Science
+  computer:       { name:'Alan Turing',        emoji:'💻',  field:'Computation & AI',         style:'abstract machine thinking, "Can machines think?", cryptographic' },
+  algorithm:      { name:'Alan Turing',        emoji:'💻',  field:'Algorithms & Computation', style:'step-by-step tape model thinking' },
+  programming:    { name:'Ada Lovelace',       emoji:'🖥️', field:'Programming & Algorithms', style:'analytical engine notes, visionary, "Imagination is the Discovering Faculty"' },
+  ai:             { name:'Alan Turing',        emoji:'🤖',  field:'Artificial Intelligence',  style:'Turing test framing, imitation game analogies' },
+  // Math
+  calculus:       { name:'Gottfried Leibniz',  emoji:'∫',   field:'Calculus & Notation',      style:'notation-focused, infinitesimal philosophy' },
+  geometry:       { name:'Euclid',             emoji:'📐',  field:'Geometry',                 style:'axiomatic, "From a point to a point a straight line can be drawn..."' },
+  statistics:     { name:'Karl Pearson',       emoji:'📉',  field:'Statistics & Biometrics',  style:'correlation, normal distribution, measurement' },
+  number:         { name:'Leonhard Euler',     emoji:'🔢',  field:'Number Theory & Analysis', style:'prolific, elegant proofs, "e^(iπ)+1=0"' },
+  // Earth & Astronomy
+  astronomy:      { name:'Galileo Galilei',    emoji:'🔭',  field:'Astronomy & Mechanics',    style:'telescope observations, "And yet it moves", empirical defiance' },
+  climate:        { name:'Svante Arrhenius',   emoji:'🌍',  field:'Climate & Greenhouse Effect',style:'CO2 absorption calculations, 1896 climate model' },
+  geology:        { name:'Charles Lyell',      emoji:'🪨',  field:'Geology & Uniformitarianism',style:'"The present is the key to the past", stratigraphic layers' },
+  space:          { name:'Carl Sagan',         emoji:'🌌',  field:'Astrophysics & Cosmology', style:'poetic cosmos, "We are made of star stuff", awe-inspiring scale' },
+  // Medicine
+  medicine:       { name:'Hippocrates',        emoji:'⚕️', field:'Medicine & Observation',   style:'systematic observation, "First, do no harm", holistic' },
+  vaccine:        { name:'Louis Pasteur',      emoji:'💉',  field:'Microbiology & Vaccines',  style:'germ theory champion, lab experiments, methodical' },
+  anatomy:        { name:'Andreas Vesalius',   emoji:'🫀',  field:'Human Anatomy',            style:'dissection-based, correcting Galen, observational' },
+};
+
+const TOPIC_KEYWORDS = Object.keys(EINSTEIN_SCIENTIST_DB);
+
+async function pickScientist(topic) {
+  // Fast local keyword match first
+  const t = topic.toLowerCase();
+  for (const kw of TOPIC_KEYWORDS) {
+    if (t.includes(kw)) return EINSTEIN_SCIENTIST_DB[kw];
+  }
+  // AI fallback
+  if (GROQ_KEYS.length > 0 || OPENROUTER_KEYS.length > 0) {
+    try {
+      const prompt = `Given this academic topic: "${topic}", which one real historical scientist is most associated with it?
+Return ONLY a JSON object: {"name":"Full Name","emoji":"one relevant emoji","field":"their specialty","style":"their explanation style in 10 words"}
+No commentary, no markdown, just the JSON.`;
+      const msgs = [{ role:'user', content: prompt }];
+      let text = '';
+      if (GROQ_KEYS.length > 0) {
+        const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[0]}`},
+          body: JSON.stringify({ model:'llama-3.1-8b-instant', max_tokens:80, temperature:0.2, messages: msgs }),
+        });
+        if (res.ok) { const d = await res.json(); text = d?.choices?.[0]?.message?.content?.trim()||''; }
+      }
+      if (!text && OPENROUTER_KEYS.length > 0) {
+        const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':`Bearer ${OPENROUTER_KEYS[0]}`,'HTTP-Referer':'http://localhost','X-Title':'DeepLearn'},
+          body: JSON.stringify({ model:'google/gemma-3n-e4b-it:free', max_tokens:80, temperature:0.2, messages: msgs }),
+        });
+        if (res.ok) { const d = await res.json(); text = d?.choices?.[0]?.message?.content?.trim()||''; }
+      }
+      if (text) {
+        const clean = text.replace(/```json|```/g,'').trim();
+        const parsed = JSON.parse(clean);
+        if (parsed.name) return parsed;
+      }
+    } catch(e) { console.warn('[Einstein] scientist pick failed:', e.message); }
+  }
+  // Default fallback
+  return { name:'Richard Feynman', emoji:'⚛️', field:'Physics & Curiosity', style:'playful, analogies, bottomless curiosity' };
+}
+
+async function enableEinsteinMode() {
+  einsteinActive = true;
+  document.body.classList.add('einstein-mode');
+  einsteinToggle.classList.add('active');
+  einsteinToggle.innerHTML = '<div class="e-dot"></div>Einstein Mode';
+
+  // Pick scientist based on current topic
+  einsteinName.textContent = '...identifying scientist...';
+  einsteinDesc.textContent  = '';
+  einsteinEmoji.textContent = '⚛️';
+
+  const sci = await pickScientist(sessionTopic || 'science');
+  einsteinScientist = sci;
+  einsteinName.textContent  = sci.name;
+  einsteinDesc.textContent  = sci.field + ' · ' + sci.style;
+  einsteinEmoji.textContent = sci.emoji;
+}
+
+function disableEinsteinMode() {
+  einsteinActive = false;
+  einsteinScientist = null;
+  document.body.classList.remove('einstein-mode');
+  einsteinToggle.classList.remove('active');
+}
+
+einsteinToggle.addEventListener('click', () => {
+  if (!isRunning) return;
+  if (einsteinActive) disableEinsteinMode();
+  else enableEinsteinMode();
+});
+
+// Show toggle when deep learn screen is active
+const origSwitchToDeepLearn = switchToDeepLearn;
+// Patch: show toggle button when session starts
+const _origStartDiscussion = startDiscussion;
+startDiscussion = async function() {
+  einsteinToggle.style.display = 'flex';
+  await _origStartDiscussion.apply(this, arguments);
+};
+
+resetBtn.addEventListener('click', () => {
+  // runs after confirm — hide toggle & reset
+  einsteinToggle.style.display = 'none';
+  disableEinsteinMode();
+}, true); // capture phase so it runs first
+
+// ── Override callGroq to inject Einstein persona when active ──
+const _origCallGroq = callGroq;
+callGroq = async function(expertId) {
+  if (!einsteinActive || !einsteinScientist) return _origCallGroq(expertId);
+
+  const sci = einsteinScientist;
+  const phase = getCurrentPhase();
+  const lastTwo = dialogueLog.slice(-2).map(e => `"${e.text.slice(0,80)}"`).join(' | ');
+
+  const einsteinSystem = `You are ${sci.name}, the legendary ${sci.field} scientist. You are speaking in ENGLISH only.
+Roleplay fully as ${sci.name} — use their actual speaking style: ${sci.style}.
+Topic being discussed: "${sessionTopic}"
+
+Strict rules:
+- Stay entirely in character as ${sci.name}
+- Use first person ("I", "In my experiments...", "When I observed...")
+- Reference your real historical work, discoveries, and era naturally
+- Explain using the exact style and analogies ${sci.name} would use
+- Do NOT say your own name
+- Avoid any Bengali text — English only
+- EXACTLY 2 sentences, each ending with a period
+- Each sentence max 25 words
+- Do NOT repeat ideas from recent turns: ${lastTwo || 'none yet'}
+- Start directly — no greeting, no name prefix`;
+
+  const msgs = [{ role:'user', content: `Explain the current discussion point about "${sessionTopic}" in phase "${phase.label}". Recent discussion: ${lastTwo}. Give your ${sci.name}-style insight in 2 sentences.` }];
+
+  // Try Groq
+  if (GROQ_KEYS.length > 0) {
+    for (const model of GROQ_MODELS) {
+      for (let ki=0; ki<GROQ_KEYS.length; ki++) {
+        try {
+          const res = await fetch(`${GROQ_BASE}/chat/completions`,{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[ki]}`},
+            body: JSON.stringify({ model, max_tokens:200, temperature:0.9,
+              messages:[{role:'system',content:einsteinSystem},...msgs] }),
+          });
+          if (!res.ok){ if(res.status===429) await sleep(1200); throw new Error(`${res.status}`); }
+          const d = await res.json();
+          const text = d?.choices?.[0]?.message?.content||'';
+          if (!text.trim()) throw new Error('Empty');
+          return cleanReply(text.trim());
+        } catch(e){ console.warn(`[Einstein/Groq] ${model}:`, e.message); }
+      }
+    }
+  }
+  // OpenRouter fallback
+  if (OPENROUTER_KEYS.length > 0) {
+    return openRouterChat(msgs, einsteinSystem, 200, 0.9);
+  }
+  return _origCallGroq(expertId);
+};
+
+
   </script>
+
 </body>
 </html>
