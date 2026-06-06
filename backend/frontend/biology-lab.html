@@ -1014,7 +1014,25 @@ window.openAiChat=openAiChat; window.closeAiChat=closeAiChat; window.sendAiQuest
 ══════════════════════════════════════════ -->
 <script type="module">
 // Config loaded from server via amplify-env-bootstrap.js
-const CEREBRAS_API_KEY_MODULE = window.AMPLIFY_ENV?.CEREBRAS_KEY || '';
+// REPLACE WITH:
+async function getCerebrasKey() {
+  // Try window.AMPLIFY_ENV first (set at parse time)
+  const fromEnv = window.AMPLIFY_ENV?.CEREBRAS_API_KEY
+    || window.AMPLIFY_ENV?.CEREBRAS_KEY
+    || window.AMPLIFY_ENV?.GROQ_KEY
+    || '';
+  if (fromEnv) return fromEnv;
+
+  // Fall back to /api/config fetch (matches your amplify-env-bootstrap.js)
+  try {
+    const r = await fetch('/api/config');
+    const d = await r.json();
+    return d.CEREBRAS_API_KEY || d.CEREBRAS_KEY || d.GROQ_API_KEY || '';
+  } catch(e) {
+    console.error('[VO] Could not fetch /api/config:', e);
+    return '';
+  }
+}
 
 const btn       = document.getElementById('voBtn');
 const hud       = document.getElementById('voHud');
@@ -1097,7 +1115,30 @@ const PREDEFINED_SEGMENTS = {
 };
 
 async function fetchAiSegmentsForModel(modelName) {
-  const key = CEREBRAS_API_KEY_MODULE;
+ // REPLACE WITH (the function now awaits the key):
+async function fetchAiSegmentsForModel(modelName) {
+  const key = await getCerebrasKey();
+  if (!key) { console.warn('[VO] No key — skipping AI segments'); return null; }
+  console.log('[VO] Fetching AI segments for:', modelName);
+  try {
+    const r = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
+      body: JSON.stringify({
+        model: 'llama3.1-8b',
+        max_completion_tokens: 1200,
+        temperature: 0.6,
+        messages: [{ role:'user', content:`তুমি একজন বাংলা জীববিজ্ঞান শিক্ষক। "${modelName}" সম্পর্কে নিচের চারটি বিষয়ে আলাদা আলাদাভাবে দুই বাক্য করে বাংলায় লেখো।\n\nলেখার নিয়ম:\n- কোনো হাইফেন বা ড্যাশ চিহ্ন ব্যবহার করবে না\n- সংখ্যা বাংলা অক্ষরে লিখবে\n- কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না\n\nJSON ফরম্যাটে উত্তর দাও, অন্য কিছু লিখবে না:\n{"পরিচিতি":"...","গঠন":"...","বৈশিষ্ট্য":"...","কার্যকারিতা":"..."}` }]
+      })
+    });
+    const d = await r.json();
+    console.log('[VO] AI segments status:', r.status, d);
+    if (!r.ok) throw new Error(d.error?.message || `HTTP ${r.status}`);
+    const raw = d.choices?.[0]?.message?.content?.trim();
+    if (!raw) throw new Error('Empty response');
+    return JSON.parse(raw.replace(/```json|```/g,'').trim());
+  } catch(e) { console.error('[VO] fetchAiSegmentsForModel failed:', e); return null; }
+}
   if (!key) return null;
   try {
     // CHANGE 2: Updated prompt with 4 sections and instruction to avoid hyphens/dashes
@@ -1140,10 +1181,11 @@ JSON ফরম্যাটে উত্তর দাও, অন্য কিছ�
 }
 
 
+
 async function fetchBanglaIntro(modelName) {
-  const key = getCerebrasKey();
-  if (!key) { console.warn('[VO] No Cerebras key — skipping intro'); return null; }
-  console.log('[VO] Fetching Bangla intro for:', modelName, '| key starts with:', key.slice(0,8));
+  const key = await getCerebrasKey();
+  if (!key) { console.warn('[VO] No key — skipping intro'); return null; }
+  console.log('[VO] Fetching intro for:', modelName, '| key:', key.slice(0,12)+'...');
   try {
     const r = await fetch('https://api.cerebras.ai/v1/chat/completions', {
       method: 'POST',
@@ -1152,31 +1194,17 @@ async function fetchBanglaIntro(modelName) {
         model: 'llama3.1-8b',
         max_completion_tokens: 600,
         temperature: 0.6,
-        messages: [{
-          role: 'user',
-          content: `তুমি একজন অভিজ্ঞ বাংলা জীববিজ্ঞান শিক্ষক। একজন শিক্ষার্থী এখন "${modelName}" এর ইন্টারেক্টিভ থ্রিডি মডেল দেখছে।
-
-এই অঙ্গ বা কাঠামো সম্পর্কে ঠিক দুটি বাংলা বাক্য লেখো।
-
-অবশ্যই মানতে হবে:
-- কোনো হাইফেন বা ড্যাশ চিহ্ন ব্যবহার করবে না
-- সংখ্যা বাংলা অক্ষরে লিখবে
-- কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না
-- কোনো ভূমিকা বা শিরোনাম ছাড়াই শুধু দুটি বাক্য দাও`
-        }]
+        messages: [{ role:'user', content:`তুমি একজন অভিজ্ঞ বাংলা জীববিজ্ঞান শিক্ষক। একজন শিক্ষার্থী এখন "${modelName}" এর ইন্টারেক্টিভ থ্রিডি মডেল দেখছে।\n\nএই অঙ্গ বা কাঠামো সম্পর্কে ঠিক দুটি বাংলা বাক্য লেখো।\n\nঅবশ্যই মানতে হবে:\n- কোনো হাইফেন বা ড্যাশ চিহ্ন ব্যবহার করবে না\n- সংখ্যা বাংলা অক্ষরে লিখবে\n- কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না\n- কোনো ভূমিকা বা শিরোনাম ছাড়াই শুধু দুটি বাক্য দাও` }]
       })
     });
-    const data = await r.json();
-    console.log('[VO] Intro response status:', r.status, data);
-    if (!r.ok) throw new Error(data.error?.message || `HTTP ${r.status}: ${JSON.stringify(data)}`);
-    const text = data.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error('Empty intro content');
-    console.log('[VO] Got intro:', text.slice(0, 80));
+    const d = await r.json();
+    console.log('[VO] Intro status:', r.status, d);
+    if (!r.ok) throw new Error(d.error?.message || `HTTP ${r.status}: ${JSON.stringify(d)}`);
+    const text = d.choices?.[0]?.message?.content?.trim();
+    if (!text) throw new Error('Empty intro');
+    console.log('[VO] Got intro:', text.slice(0,80));
     return text;
-  } catch(e) {
-    console.error('[VO] fetchBanglaIntro failed:', e);
-    return null;
-  }
+  } catch(e) { console.error('[VO] fetchBanglaIntro failed:', e); return null; }
 }
 
 function speak(text, onEnd) {
