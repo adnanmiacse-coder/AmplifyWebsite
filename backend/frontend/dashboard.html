@@ -772,7 +772,7 @@ class HoloBrainRenderer {
     this.isDragging = false;
     this.prevMouse = { x: 0, y: 0 };
     this.orbitX = 0;  // pitch
-    this.orbitY = 0;  // yaw
+    this.orbitY = Math.PI * 0.5; // start facing side view (90 degrees)
     this.canvas.addEventListener('mousedown', e => {
       this.isDragging = true;
       this.prevMouse = { x: e.clientX, y: e.clientY };
@@ -1228,8 +1228,8 @@ class HoloBrainRenderer {
     
     // REPLACE WITH:
     // Auto-rotate + mouse orbit
-    const autoY = this.isDragging ? 0 : t * 0.18;
-    const rotY = autoY + (this.orbitY || 0);
+    // REPLACE WITH:
+    const rotY = this.orbitY || 0;
     const rotX = this.orbitX || 0;
 
     if (this.brainPoints) {
@@ -1241,7 +1241,7 @@ class HoloBrainRenderer {
       this.glbModel.rotation.x = rotX;
     }
 
-    // Sync zone marker & glow sphere rotations
+    // Sync zone markers
     this.zoneMarkers.forEach(m => { m.rotation.y = rotY; m.rotation.x = rotX; });
 
     // Sync zone marker & glow sphere rotations
