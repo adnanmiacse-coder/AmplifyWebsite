@@ -793,6 +793,8 @@ class HoloBrainRenderer {
     });
   }
 
+ 
+  // REPLACE WITH:
   onGLBLoaded(gltf) {
     this.glbLoaded = true;
     const model = gltf.scene;
@@ -803,28 +805,101 @@ class HoloBrainRenderer {
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
     const scale = 1.6 / maxDim;
+    model.position.sub(centre);
+    model.scale.setScalar(scale);
 
-    // Collect all geometry vertices → giant point cloud
-    const positions = [];
-    const colors = [];
-
+    // Keep original materials — just ensure additive blending + transparency
     model.traverse(child => {
-      if (!child.isMesh || !child.geometry) return;
+      if (!child.isMesh) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach(mat => {
+        mat.transparent = true;
+        mat.depthWrite = false;
+        mat.blending = THREE.AdditiveBlending;
+        // Boost emission so particles glow against dark bg
+        if (mat.emissive) mat.emissive.multiplyScalar(2.2);
+        if (mat.color) mat.color.multiplyScalar(1.4);
+        mat.needsUpdate = true;
+      });
+
+      // If it's already a Points mesh, leave it alone
+      if (child.isPoints) return;
+
+      // Convert mesh to glowing point cloud preserving original vertex colors
       const geo = child.geometry;
+      if (!geo || !geo.attributes.position) return;
       const pos = geo.attributes.position;
-      if (!pos) return;
+      const hasColor = !!geo.attributes.color;
+
+      const positions = [];
+      const colors = [];
       for (let i = 0; i < pos.count; i++) {
-        const x = (pos.getX(i) - centre.x) * scale;
-        const y = (pos.getY(i) - centre.y) * scale;
-        const z = (pos.getZ(i) - centre.z) * scale;
-        positions.push(x, y, z);
-        // Base colour: cyan-magenta mix based on position
-        const t = (y + 1) / 2;
-        colors.push(0.0 + t * 0.8, 0.7 - t * 0.4, 1.0 - t * 0.3);
+        positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
+        if (hasColor) {
+          const c = geo.attributes.color;
+          colors.push(c.getX(i), c.getY(i), c.getZ(i));
+        } else {
+          // Sample from material color if no vertex colors
+          const mc = mats[0]?.color || new THREE.Color('#00B7FF');
+          colors.push(mc.r, mc.g, mc.b);
+        }
       }
+
+      const ptGeo = new THREE.BufferGeometry();
+      ptGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      ptGeo.setAttribute('aColor', new THREE.Float32BufferAttribute(colors, 3));
+
+      const ptMat = new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+          uSize: { value: 2.2 * window.devicePixelRatio },
+        },
+        vertexShader: `
+          attribute vec3 aColor;
+          varying vec3 vColor;
+          varying float vY;
+          uniform float uTime;
+          uniform float uSize;
+          void main(){
+            vColor = aColor;
+            vY = position.y;
+            vec3 pos = position;
+            pos.x += sin(uTime * 0.7 + position.y * 4.0) * 0.003;
+            pos.y += cos(uTime * 0.5 + position.x * 3.0) * 0.003;
+            vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+            gl_Position = projectionMatrix * mvPos;
+            gl_PointSize = uSize * (1.2 + 0.5 * sin(uTime * 1.2 + position.x * 8.0));
+          }
+        `,
+        fragmentShader: `
+          varying vec3 vColor;
+          varying float vY;
+          uniform float uTime;
+          void main(){
+            vec2 uv = gl_PointCoord - 0.5;
+            float d = length(uv);
+            if(d > 0.5) discard;
+            float alpha = 1.0 - smoothstep(0.05, 0.5, d);
+            float scan = 0.88 + 0.12 * sin(vY * 20.0 + uTime * 2.0);
+            gl_FragColor = vec4(vColor * scan, alpha * 0.92);
+          }
+        `,
+        transparent: true,
+        vertexColors: false,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+
+      const points = new THREE.Points(ptGeo, ptMat);
+      points.userData.isGLBPoints = true;
+      child.parent?.add(points);
+      child.visible = false; // hide original mesh, show points instead
+      this.glbPoints = this.glbPoints || [];
+      this.glbPoints.push(points);
     });
 
-    this.buildParticleSystem(positions, colors);
+    this.scene.add(model);
+    this.glbModel = model;
     this.buildZoneMarkers();
     this.hideLoading();
     document.getElementById('brain-status-text').textContent = 'Neural Sync Active';
