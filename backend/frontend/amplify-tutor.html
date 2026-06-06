@@ -41,7 +41,7 @@
   <div class="home-header">
     <div class="home-logo">Amplify <span class="badge">শিক্ষার্থী</span></div>
     <div class="home-subtitle">তোমার পাঠ্য উপকরণ</div>
-    <a href="dashboard.html" class="home-dashboard-btn">📊 অগ্রগতি দেখুন</a>
+    <a href="dashboard.html" class="home-dashboard-btn">📊 অগ্রগতি দেখুন</a><div id="quiz-setup"></div>
   </div>
   <div class="home-grid" id="home-grid">
     <div class="home-new-card" id="home-new-btn">
@@ -185,6 +185,15 @@
 
   <!-- SETUP SCREEN -->
   <div id="quiz-setup">
+    <div style="margin-bottom:16px;">
+  <label style="font-size:0.85rem;color:#a0aec0;display:block;margin-bottom:6px;">
+    তোমার ইমেইল (রিপোর্ট পাঠানোর জন্য)
+  </label>
+  <input type="email" id="student-email" 
+    placeholder="your@email.com"
+    style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-size:0.9rem;font-family:'Hind Siliguri',sans-serif;"
+  />
+</div>
     <div class="quiz-setup-title">📝 অ্যাডাপ্টিভ কুইজ</div>
     <div class="quiz-setup-sub">কুইজটি তোমার বোঝার গভীরতা মূল্যায়ন করবে এবং দুর্বল বিষয়গুলো চিহ্নিত করবে।</div>
     <div class="quiz-setup-row">
