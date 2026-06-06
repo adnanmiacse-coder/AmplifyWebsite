@@ -641,7 +641,7 @@ function renderDocs(docs,concepts){document.getElementById('doc-count').textCont
 // ═══════════════════════════════════════════════════════════
 // ██████  HOLOGRAPHIC BRAIN RENDERER  ██████
 // ═══════════════════════════════════════════════════════════
-const BRAIN_MODEL_PATH = 'dist/models/brain_hologram.glb';
+const BRAIN_MODEL_PATH = '/models/brain_hologram.glb';
 
 // Zone definitions — each zone maps to a brain "region" with its data
 const BRAIN_ZONES = [
@@ -876,7 +876,7 @@ class HoloBrainRenderer {
   buildParticleSystem(positions, colors) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geo.setAttribute('aColor', new THREE.Float32BufferAttribute(colors, 3));
 
     // Custom shader material for glowing particles with scanline effect
     const mat = new THREE.ShaderMaterial({
@@ -886,14 +886,14 @@ class HoloBrainRenderer {
         uHoverZone: { value: -1 },
       },
       vertexShader: `
-        attribute vec3 color;
+        attribute vec3 acolor;
         varying vec3 vColor;
         varying float vY;
         varying float vDist;
         uniform float uTime;
         uniform float uSize;
         void main(){
-          vColor = color;
+          vColor = acolor;
           vY = position.y;
           vec4 mvPos = modelViewMatrix * vec4(position,1.0);
           vDist = -mvPos.z;
@@ -925,7 +925,7 @@ class HoloBrainRenderer {
         }
       `,
       transparent: true,
-      vertexColors: true,
+      vertexColors: false,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
