@@ -1017,26 +1017,30 @@ window.openAiChat=openAiChat; window.closeAiChat=closeAiChat; window.sendAiQuest
 // REPLACE WITH:
 
 
+
 async function getCerebrasKey() {
   try {
     const r = await fetch('/api/config');
     const d = await r.json();
-    // Log so you can verify exactly what's returned
-    console.log('[KEY] /api/config keys available:', Object.keys(d));
-    // Try every possible name your server might use
-    const key = d.CEREBRAS_API_KEY
-      || d.CEREBRAS_KEY
-      || d.cerebras_api_key
-      || '';
-    if (key) {
-      console.log('[KEY] Found key starting with:', key.slice(0,12));
-      return key;
+    
+    // Try Cerebras first
+    if (d.CEREBRAS_API_KEY) {
+      console.log('[KEY] Using Cerebras key');
+      return { key: d.CEREBRAS_API_KEY, base: 'https://api.cerebras.ai/v1', model: 'llama3.1-8b' };
     }
-    console.warn('[KEY] No Cerebras key found in config. Available:', JSON.stringify(d));
-    return '';
+    
+    // Fall back to first available Groq key
+    const groqKey = Array.isArray(d.GROQ_KEYS) ? d.GROQ_KEYS[0] : d.GROQ_API_KEY;
+    if (groqKey) {
+      console.log('[KEY] Cerebras key empty — falling back to Groq');
+      return { key: groqKey, base: 'https://api.groq.com/openai/v1', model: 'llama-3.1-8b-instant' };
+    }
+    
+    console.warn('[KEY] No API key found');
+    return null;
   } catch(e) {
     console.error('[KEY] /api/config fetch failed:', e);
-    return '';
+    return null;
   }
 }
 
@@ -1121,94 +1125,31 @@ const PREDEFINED_SEGMENTS = {
   ],
 };
 
-async function fetchAiSegmentsForModel(modelName) {
- // REPLACE WITH (the function now awaits the key):
-async function fetchAiSegmentsForModel(modelName) {
-  const key = await getCerebrasKey();
-  if (!key) { console.warn('[VO] No key — skipping AI segments'); return null; }
-  console.log('[VO] Fetching AI segments for:', modelName);
-  try {
-    const r = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
-      body: JSON.stringify({
-        model: 'llama3.1-8b',
-        max_completion_tokens: 1200,
-        temperature: 0.6,
-        messages: [{ role:'user', content:`তুমি একজন বাংলা জীববিজ্ঞান শিক্ষক। "${modelName}" সম্পর্কে নিচের চারটি বিষয়ে আলাদা আলাদাভাবে দুই বাক্য করে বাংলায় লেখো।\n\nলেখার নিয়ম:\n- কোনো হাইফেন বা ড্যাশ চিহ্ন ব্যবহার করবে না\n- সংখ্যা বাংলা অক্ষরে লিখবে\n- কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না\n\nJSON ফরম্যাটে উত্তর দাও, অন্য কিছু লিখবে না:\n{"পরিচিতি":"...","গঠন":"...","বৈশিষ্ট্য":"...","কার্যকারিতা":"..."}` }]
-      })
-    });
-    const d = await r.json();
-    console.log('[VO] AI segments status:', r.status, d);
-    if (!r.ok) throw new Error(d.error?.message || `HTTP ${r.status}`);
-    const raw = d.choices?.[0]?.message?.content?.trim();
-    if (!raw) throw new Error('Empty response');
-    return JSON.parse(raw.replace(/```json|```/g,'').trim());
-  } catch(e) { console.error('[VO] fetchAiSegmentsForModel failed:', e); return null; }
-}
-  if (!key) return null;
-  try {
-    // CHANGE 2: Updated prompt with 4 sections and instruction to avoid hyphens/dashes
-    const r = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
-      body: JSON.stringify({
-        model: 'llama3.1-8b',
-        max_completion_tokens: 1200,
-        temperature: 0.6,
-        messages: [{
-          role: 'user',
-          content: `তুমি একজন বাংলা জীববিজ্ঞান শিক্ষক। "${modelName}" সম্পর্কে নিচের চারটি বিষয়ে আলাদা আলাদাভাবে দুই বাক্য করে বাংলায় লেখো।
 
-লেখার নিয়ম (অবশ্যই মানতে হবে):
-- কোনো হাইফেন বা ড্যাশ চিহ্ন ব্যবহার করবে না
-- সংক্ষিপ্ত রূপ ব্যবহার করবে না, সবসময় পূর্ণ শব্দ লিখবে
-- "বড়" লিখবে না, "বড়ো" লিখবে। "ছোট" লিখবে না, "ছোটো" লিখবে
-- "হলো" লিখবে, "হল" লিখবে না। "করো" লিখবে, "কর" লিখবে না
-- সংখ্যা সবসময় বাংলা অক্ষরে লিখবে (যেমন: ১০ লক্ষ, ৩০ কোটি)
-- বাক্য সহজ, স্পষ্ট এবং বাংলা TTS-এ সঠিকভাবে উচ্চারণযোগ্য হতে হবে
-- কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না, সম্পূর্ণ বাংলায় লিখবে
 
-JSON ফরম্যাটে উত্তর দাও, অন্য কিছু লিখবে না:
-{
-  "পরিচিতি": "এই অঙ্গ বা কাঠামোর সাধারণ পরিচয় ও অবস্থান নিয়ে দুটি বাক্য",
-  "গঠন": "এর শারীরিক ও আণবিক গঠন সম্পর্কে দুটি নির্দিষ্ট তথ্যসমৃদ্ধ বাক্য",
-  "বৈশিষ্ট্য": "এর সবচেয়ে গুরুত্বপূর্ণ জৈবিক বৈশিষ্ট্য ও বিশেষত্ব নিয়ে দুটি বাক্য",
-  "কার্যকারিতা": "শরীরে এর মূল ভূমিকা ও কাজ নিয়ে দুটি বাক্য, একটি সংখ্যাগত তথ্য অন্তর্ভুক্ত করো"
-}`
-        }]
-      })
-    });
-    const d = await r.json();
-    const raw = d.choices?.[0]?.message?.content?.trim();
-    if (!raw) return null;
-    const clean = raw.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
-  } catch { return null; }
-}
+
 
 
 
 async function fetchBanglaIntro(modelName) {
-  const key = await getCerebrasKey();
-  if (!key) { console.warn('[VO] No key — skipping intro'); return null; }
-  console.log('[VO] Fetching intro for:', modelName, '| key:', key.slice(0,12)+'...');
+  const api = await getCerebrasKey();
+  if (!api) { console.warn('[VO] No API key — skipping intro'); return null; }
+  console.log('[VO] Fetching intro via:', api.base);
   try {
-    const r = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+    const r = await fetch(`${api.base}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${key}` },
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${api.key}` },
       body: JSON.stringify({
-        model: 'llama3.1-8b',
-        max_completion_tokens: 600,
+        model: api.model,
+        max_tokens: 600,
         temperature: 0.6,
         messages: [{ role:'user', content:`তুমি একজন অভিজ্ঞ বাংলা জীববিজ্ঞান শিক্ষক। একজন শিক্ষার্থী এখন "${modelName}" এর ইন্টারেক্টিভ থ্রিডি মডেল দেখছে।\n\nএই অঙ্গ বা কাঠামো সম্পর্কে ঠিক দুটি বাংলা বাক্য লেখো।\n\nঅবশ্যই মানতে হবে:\n- কোনো হাইফেন বা ড্যাশ চিহ্ন ব্যবহার করবে না\n- সংখ্যা বাংলা অক্ষরে লিখবে\n- কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না\n- কোনো ভূমিকা বা শিরোনাম ছাড়াই শুধু দুটি বাক্য দাও` }]
       })
     });
     const d = await r.json();
-    console.log('[VO] Intro status:', r.status, d);
-    if (!r.ok) throw new Error(d.error?.message || `HTTP ${r.status}: ${JSON.stringify(d)}`);
+    if (!r.ok) throw new Error(d.error?.message || `HTTP ${r.status}`);
     const text = d.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error('Empty intro');
+    if (!text) throw new Error('Empty response');
     console.log('[VO] Got intro:', text.slice(0,80));
     return text;
   } catch(e) { console.error('[VO] fetchBanglaIntro failed:', e); return null; }
