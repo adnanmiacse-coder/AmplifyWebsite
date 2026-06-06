@@ -835,14 +835,18 @@ class HoloBrainRenderer {
       const colors = [];
       for (let i = 0; i < pos.count; i++) {
         positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
-        if (hasColor) {
-          const c = geo.attributes.color;
-          colors.push(c.getX(i), c.getY(i), c.getZ(i));
-        } else {
-          // Sample from material color if no vertex colors
-          const mc = mats[0]?.color || new THREE.Color('#00B7FF');
-          colors.push(mc.r, mc.g, mc.b);
-        }
+        
+        // REPLACE WITH:
+        // Always use position-based gradient (matches downloaded model look)
+        const px = pos.getX(i), py = pos.getY(i), pz = pos.getZ(i);
+        const normY = Math.max(0, Math.min(1, (py + 1.2) / 2.4));
+        const normX = Math.abs(px) / 1.2;
+        const normZ = Math.max(0, Math.min(1, (pz + 1.0) / 2.0));
+        // Cyan-to-magenta gradient like the original model
+        const r = 0.55 + normX * 0.6 + (1 - normY) * 0.3;
+        const g = 0.6 * normY + 0.15 * normZ;
+        const b = 0.85 + normY * 0.15 - normX * 0.3;
+        colors.push(Math.min(1,r), Math.min(1,g), Math.min(1,b));
       }
 
       const ptGeo = new THREE.BufferGeometry();
@@ -852,7 +856,7 @@ class HoloBrainRenderer {
       const ptMat = new THREE.ShaderMaterial({
         uniforms: {
           uTime: { value: 0 },
-          uSize: { value: 2.2 * window.devicePixelRatio },
+          uSize: { value: 3.2 * window.devicePixelRatio },
         },
         vertexShader: `
           attribute vec3 aColor;
@@ -881,7 +885,7 @@ class HoloBrainRenderer {
             if(d > 0.5) discard;
             float alpha = 1.0 - smoothstep(0.05, 0.5, d);
             float scan = 0.88 + 0.12 * sin(vY * 20.0 + uTime * 2.0);
-            gl_FragColor = vec4(vColor * scan, alpha * 0.92);
+            gl_FragColor = vec4(vColor * scan * 1.8, alpha * 0.95);
           }
         `,
         transparent: true,
@@ -1173,8 +1177,17 @@ class HoloBrainRenderer {
     const t = this.clock.getElapsedTime();
 
     // Slow auto-rotate
+   // REPLACE WITH:
     if (this.brainPoints) {
-      this.brainPoints.rotation.y = t * 0.18;
+      this.brainPoints.material.uniforms.uTime.value = t;
+    }
+    if (this.glbPoints) {
+      this.glbPoints.forEach(p => {
+        if (p.material.uniforms) p.material.uniforms.uTime.value = t;
+      });
+    }
+    if (this.glbModel) {
+      this.glbModel.rotation.y = t * 0.18;
     }
 
     // Sync zone marker & glow sphere rotations
