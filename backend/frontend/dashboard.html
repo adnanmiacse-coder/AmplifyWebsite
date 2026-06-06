@@ -843,10 +843,16 @@ class HoloBrainRenderer {
         const normX = Math.abs(px) / 1.2;
         const normZ = Math.max(0, Math.min(1, (pz + 1.0) / 2.0));
         // Cyan-to-magenta gradient like the original model
-        const r = 0.55 + normX * 0.6 + (1 - normY) * 0.3;
-        const g = 0.6 * normY + 0.15 * normZ;
-        const b = 0.85 + normY * 0.15 - normX * 0.3;
-        colors.push(Math.min(1,r), Math.min(1,g), Math.min(1,b));
+        // REPLACE WITH:
+        // Cyan (#00B7FF) to Magenta (#C44DFF) mix based on position
+        const tY = Math.max(0, Math.min(1, (py + 1.0) / 2.0));
+        const tX = Math.max(0, Math.min(1, (px + 1.0) / 2.0));
+        // Alternate cyan/magenta per particle using noise from position
+        const isCyan = Math.sin(px * 17.3 + py * 13.7 + pz * 9.1) > 0;
+        const r = isCyan ? 0.0  : 0.77;
+        const g = isCyan ? 0.72 : 0.30;
+        const b = isCyan ? 1.0  : 1.0;
+        colors.push(r, g, b);
       }
 
       const ptGeo = new THREE.BufferGeometry();
@@ -885,7 +891,7 @@ class HoloBrainRenderer {
             if(d > 0.5) discard;
             float alpha = 1.0 - smoothstep(0.05, 0.5, d);
             float scan = 0.88 + 0.12 * sin(vY * 20.0 + uTime * 2.0);
-            gl_FragColor = vec4(vColor * scan * 1.8, alpha * 0.95);
+            gl_FragColor = vec4(vColor * scan * 0.95, alpha * 0.75);
           }
         `,
         transparent: true,
