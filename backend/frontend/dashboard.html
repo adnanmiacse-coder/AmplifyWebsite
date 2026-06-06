@@ -761,8 +761,45 @@ class HoloBrainRenderer {
     window.addEventListener('resize', () => this.onResize());
 
     // Mouse
+    // REPLACE WITH:
+    // Mouse hover for tooltips
     this.canvas.addEventListener('mousemove', e => this.onMouseMove(e));
     this.canvas.addEventListener('mouseleave', () => this.onMouseLeave());
+
+    // Mouse orbit control
+    this.isDragging = false;
+    this.prevMouse = { x: 0, y: 0 };
+    this.orbitX = 0;  // pitch
+    this.orbitY = 0;  // yaw
+    this.canvas.addEventListener('mousedown', e => {
+      this.isDragging = true;
+      this.prevMouse = { x: e.clientX, y: e.clientY };
+    });
+    window.addEventListener('mouseup', () => { this.isDragging = false; });
+    this.canvas.addEventListener('mousemove', e => {
+      if (!this.isDragging) return;
+      const dx = e.clientX - this.prevMouse.x;
+      const dy = e.clientY - this.prevMouse.y;
+      this.orbitY += dx * 0.008;
+      this.orbitX += dy * 0.008;
+      this.orbitX = Math.max(-1.2, Math.min(1.2, this.orbitX)); // clamp pitch
+      this.prevMouse = { x: e.clientX, y: e.clientY };
+    });
+    // Touch support
+    this.canvas.addEventListener('touchstart', e => {
+      this.isDragging = true;
+      this.prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    });
+    this.canvas.addEventListener('touchend', () => { this.isDragging = false; });
+    this.canvas.addEventListener('touchmove', e => {
+      if (!this.isDragging) return;
+      const dx = e.touches[0].clientX - this.prevMouse.x;
+      const dy = e.touches[0].clientY - this.prevMouse.y;
+      this.orbitY += dx * 0.008;
+      this.orbitX += dy * 0.008;
+      this.orbitX = Math.max(-1.2, Math.min(1.2, this.orbitX));
+      this.prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    });
 
     // Try loading GLB, fallback to procedural
     this.tryLoadGLB();
@@ -845,13 +882,15 @@ class HoloBrainRenderer {
         // Cyan-to-magenta gradient like the original model
         // REPLACE WITH:
         // Cyan (#00B7FF) to Magenta (#C44DFF) mix based on position
-        const tY = Math.max(0, Math.min(1, (py + 1.0) / 2.0));
-        const tX = Math.max(0, Math.min(1, (px + 1.0) / 2.0));
-        // Alternate cyan/magenta per particle using noise from position
-        const isCyan = Math.sin(px * 17.3 + py * 13.7 + pz * 9.1) > 0;
-        const r = isCyan ? 0.0  : 0.77;
-        const g = isCyan ? 0.72 : 0.30;
-        const b = isCyan ? 1.0  : 1.0;
+        
+        // REPLACE WITH:
+        const noise = Math.sin(px * 17.3 + py * 13.7 + pz * 9.1);
+        const isCyan = noise > 0.1;
+        const isMag  = noise < -0.1;
+        // Dim, soft colors — not full 1.0 saturation
+        const r = isCyan ? 0.02 : isMag ? 0.48 : 0.25;
+        const g = isCyan ? 0.45 : isMag ? 0.12 : 0.28;
+        const b = isCyan ? 0.62 : isMag ? 0.62 : 0.62;
         colors.push(r, g, b);
       }
 
@@ -862,7 +901,7 @@ class HoloBrainRenderer {
       const ptMat = new THREE.ShaderMaterial({
         uniforms: {
           uTime: { value: 0 },
-          uSize: { value: 3.2 * window.devicePixelRatio },
+          uSize: { value: 2.0 * window.devicePixelRatio },
         },
         vertexShader: `
           attribute vec3 aColor;
@@ -891,7 +930,7 @@ class HoloBrainRenderer {
             if(d > 0.5) discard;
             float alpha = 1.0 - smoothstep(0.05, 0.5, d);
             float scan = 0.88 + 0.12 * sin(vY * 20.0 + uTime * 2.0);
-            gl_FragColor = vec4(vColor * scan * 0.95, alpha * 0.75);
+             gl_FragColor = vec4(vColor * scan * 1.4, alpha * 0.55);
           }
         `,
         transparent: true,
@@ -1182,19 +1221,24 @@ class HoloBrainRenderer {
     requestAnimationFrame(() => this.animate());
     const t = this.clock.getElapsedTime();
 
-    // Slow auto-rotate
-   // REPLACE WITH:
+    
+    // REPLACE WITH:
+    // Auto-rotate + mouse orbit
+    const autoY = this.isDragging ? 0 : t * 0.18;
+    const rotY = autoY + (this.orbitY || 0);
+    const rotX = this.orbitX || 0;
+
     if (this.brainPoints) {
-      this.brainPoints.material.uniforms.uTime.value = t;
-    }
-    if (this.glbPoints) {
-      this.glbPoints.forEach(p => {
-        if (p.material.uniforms) p.material.uniforms.uTime.value = t;
-      });
+      this.brainPoints.rotation.y = rotY;
+      this.brainPoints.rotation.x = rotX;
     }
     if (this.glbModel) {
-      this.glbModel.rotation.y = t * 0.18;
+      this.glbModel.rotation.y = rotY;
+      this.glbModel.rotation.x = rotX;
     }
+
+    // Sync zone marker & glow sphere rotations
+    this.zoneMarkers.forEach(m => { m.rotation.y = rotY; m.rotation.x = rotX; });
 
     // Sync zone marker & glow sphere rotations
     this.zoneMarkers.forEach(m => { m.rotation.y = t * 0.18; });
