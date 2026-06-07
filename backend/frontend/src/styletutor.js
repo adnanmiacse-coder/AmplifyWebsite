@@ -9,9 +9,7 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 function apiBase() {
-  const fromConfig = _config.BACKEND_URL 
-    || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.BACKEND_URL)
-    || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.MANIM_URL);
+  const fromConfig = _config.BACKEND_URL || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.BACKEND_URL);
   if (fromConfig) return String(fromConfig).replace(/\/$/, '');
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
   return '';
@@ -132,71 +130,75 @@ const GROQ_MODELS = [
 ];
 
 // ── TTS MANAGER ──
-
-// ── TTS MANAGER ──
-let _currentAudio = null;
-
-async function azureSpeak(text, rate = '-13%', pitch = '+5%') {
-  const key    = azureKey();
-  const region = azureRegion();
-  if (!key) { console.warn('[Azure TTS] No key'); return; }
-
-  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
-
-  const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='bn-BD-NabanitaNeural'><prosody rate='${rate}' pitch='${pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
-
-  const res = await fetch(
-    `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
-    {
-      method: 'POST',
-      headers: {
-        'Ocp-Apim-Subscription-Key': key,
-        'Content-Type': 'application/ssml+xml',
-        'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
-      },
-      body: ssml,
-    }
-  );
-  if (!res.ok) throw new Error(`Azure TTS ${res.status}`);
-  const blob  = await res.blob();
-  const url   = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-  _currentAudio = audio;
-  return new Promise(resolve => {
-    audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
-    audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
-    audio.play();
-  });
-}
-
 const TTS = {
+  aiUtterance: null,
   aiPaused: false,
   _pendingResolve: null,
   _interruptedText: null,
 
-  async speakAI(text) {
-    try { await azureSpeak(text, '-13%', '+5%'); } catch(e) { console.warn('[TTS.speakAI]', e.message); }
+  speakAI(text) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "bn-BD";
+    utterance.rate = 0.95;
+    this.aiUtterance = utterance;
+    this.aiPaused = false;
+    window.speechSynthesis.speak(utterance);
   },
 
-  async speakWarning(interruptedText) {
+  speakWarning(interruptedText) {
+    // Save what was being spoken so we can re-speak it after
     this._interruptedText = interruptedText || null;
-    if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+
+    // Cancel current lecture speech
+    window.speechSynthesis.cancel();
     this.aiPaused = true;
-    try {
-      await azureSpeak('মনোযোগ দিন! আপনি মনোযোগ হারাচ্ছেন!!', '-5%', '+20%');
-    } catch(e) { console.warn('[TTS.speakWarning]', e.message); }
-    this.aiPaused = false;
-    if (this._interruptedText && lectureActive && !lecturePaused && !lectureAborted) {
-      try { await azureSpeak(this._interruptedText, '-13%', '+5%'); } catch(e) {}
-    }
-    if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
-    this._interruptedText = null;
+
+    const utterance = new SpeechSynthesisUtterance("মনোযোগ দিন! আপনি মনোযোগ হারাচ্ছেন!!");
+    utterance.lang = "bn-BD";
+    utterance.rate = 0.95;
+
+    utterance.onend = () => {
+      this.aiPaused = false;
+      // If the lecture is still active and not manually paused, re-speak the interrupted sentence
+      if (this._interruptedText && lectureActive && !lecturePaused && !lectureAborted) {
+        const resumeUtt = new SpeechSynthesisUtterance(this._interruptedText);
+        if (_lectureVoice) { resumeUtt.voice = _lectureVoice; resumeUtt.lang = _lectureVoice.lang; }
+        resumeUtt.rate = 0.87;
+        resumeUtt.pitch = 1.0;
+        this.aiUtterance = resumeUtt;
+        // Resolve the pending speakWithLaser promise when done
+        resumeUtt.onend = () => {
+          this.aiUtterance = null;
+          if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
+        };
+        resumeUtt.onerror = () => {
+          this.aiUtterance = null;
+          if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
+        };
+        window.speechSynthesis.speak(resumeUtt);
+      } else {
+        // Nothing to resume — just resolve
+        if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
+      }
+      this._interruptedText = null;
+    };
+
+    utterance.onerror = () => {
+      this.aiPaused = false;
+      this._interruptedText = null;
+      if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
+    };
+
+    window.speechSynthesis.speak(utterance);
   },
 
   stop() {
-    if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+    window.speechSynthesis.cancel();
+    this.aiUtterance = null;
     this.aiPaused = false;
     this._interruptedText = null;
+    // Don't clear _pendingResolve here — speakWithLaser's onerror will handle it
   }
 };
 
@@ -235,8 +237,6 @@ loadEnvConfig().then(cfg => {
 function geminiKey() { return _geminiConfig.GEMINI_KEY || _env.VITE_GEMINI_KEY || ''; }
 function geminiModel() { return _geminiConfig.GEMINI_MODEL || _env.VITE_GEMINI_MODEL || 'gemini-2.0-flash-lite'; }
 function geminiBase() { return _geminiConfig.GEMINI_BASE || _env.VITE_GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta/models'; }
-function azureKey() { return _config?.AZURE_SPEECH_KEY || _config?.VITE_AZURE_SPEECH_KEY || ''; }
-function azureRegion() { return _config?.AZURE_SPEECH_REGION || _config?.VITE_AZURE_SPEECH_REGION || 'southeastasia'; }
 
 // Pipeline settings
 const CHUNK_WORDS  = 300;
@@ -270,53 +270,6 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 // ── OCR rate limiter: max 1 request per 2s per provider ──
 const _ocrQueue = [];
 let _ocrRunning = false;
-
-async function groqVisionOCR(base64Img, pageNum) {
-  const keys = groqKeys();
-  for (let ki = 0; ki < keys.length; ki++) {
-    for (const model of ['meta-llama/llama-4-scout-17b-16e-instruct', 'llama-3.2-11b-vision-preview']) {
-      try {
-        const res = await fetch(`${groqBase()}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${keys[ki]}`
-          },
-          body: JSON.stringify({
-            model,
-            max_tokens: 1024,
-            temperature: 0.1,
-            messages: [{
-              role: 'user',
-              content: [
-                {
-                  type: 'image_url',
-                  image_url: { url: `data:image/jpeg;base64,${base64Img}` }
-                },
-                {
-                  type: 'text',
-                  text: `This is page ${pageNum} of a Bengali/English textbook. Extract ALL text exactly as it appears. Preserve structure. Output only the extracted text, nothing else.`
-                }
-              ]
-            }]
-          })
-        });
-        if (res.status === 429) { await sleep(2000); continue; }
-        if (!res.ok) { const e = await res.text(); throw new Error('Groq vision ' + res.status + ': ' + e); }
-        const d = await res.json();
-        const text = d.choices?.[0]?.message?.content || '';
-        if (text.trim().length > 10) {
-          console.log(`[OCR] Page ${pageNum} done via ${model} key ${ki+1}`);
-          return text;
-        }
-      } catch(e) {
-        console.warn(`[OCR] key ${ki+1} model ${model} failed:`, e.message);
-        continue;
-      }
-    }
-  }
-  throw new Error('All OCR attempts failed for page ' + pageNum);
-}
 
 async function queuedOCR(base64Img, pageNum) {
   return new Promise((resolve, reject) => {
@@ -533,7 +486,7 @@ let cy = null;
 function renderTopicGraph() {
   const placeholder = document.getElementById('cy-placeholder');
   const container   = document.getElementById('cy');
-  if (!container) return;
+  if (!container) return; // Graph UI removed — skip rendering safely
   if (!graph.nodes || !Object.keys(graph.nodes).length) return;
   if (placeholder) placeholder.style.display = 'none';
 
@@ -802,9 +755,7 @@ async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
       if (!res.ok) throw new Error(`OpenRouter key ${i+1}: ${res.status}`);
       const d = await res.json();
       console.log(`[OpenRouter] key ${i+1} success`);
-      const content = d.choices[0]?.message?.content;
-if (!content) throw new Error(`OpenRouter key ${i+1}: empty response`);
-return content;
+      return d.choices[0].message.content;
     } catch(e) {
       console.warn(`[OpenRouter] key ${i+1} error: ${e.message} — trying next`);
       continue;  // continue on ALL errors, not just 429
@@ -814,45 +765,17 @@ return content;
 }
 
 
-async function groqChat(messages, system, maxTokens=400, temperature=0.72, groqFirst=false) {
-  if (groqFirst) {
-    // Try Groq first
-    for (let mi = 0; mi < GROQ_MODELS.length; mi++) {
-      const model = GROQ_MODELS[mi];
-      for (let ki = 0; ki < groqKeys().length; ki++) {
-        try {
-          console.log(`[Groq] model: ${model} | key: ${ki+1}/${groqKeys().length}`);
-          return await groqCallModel(model, messages, system, maxTokens, temperature, groqKeys()[ki]);
-        } catch(e) {
-          console.warn(`[Groq] key ${ki+1} model ${model} error: ${e.message}`);
-          continue;
-        }
-      }
-      console.warn(`[Groq] All keys exhausted for ${model}, trying next model`);
-    }
-    // Groq failed, fall back to OpenRouter
-    console.warn('[Chat] All Groq failed, falling back to OpenRouter');
-    try {
-      const result = await openRouterChat(messages, system, maxTokens, temperature);
-if (!result) throw new Error('OpenRouter returned empty content');
-console.log('[Chat] OpenRouter success');
-return result;
-    } catch(e) {
-      console.warn('[Chat] OpenRouter fallback also failed:', e.message);
-    }
-    throw new Error('সব মডেল ও API কী রেট লিমিটে আছে। ১ মিনিট পরে আবার চেষ্টা করুন।');
-  }
-
-  // Default behaviour — OpenRouter first, Groq fallback
+async function groqChat(messages, system, maxTokens=400, temperature=0.72) {
+  // Try OpenRouter first
   try {
     const result = await openRouterChat(messages, system, maxTokens, temperature);
-if (!result) throw new Error('OpenRouter fallback returned empty content');
-console.log('[Chat] OpenRouter fallback success');
-return result;
+    console.log('[Chat] OpenRouter success');
+    return result;
   } catch(e) {
     console.warn('[Chat] OpenRouter failed, falling back to Groq:', e.message);
   }
 
+  // Fallback — try each Groq model + key combination
   for (let mi = 0; mi < GROQ_MODELS.length; mi++) {
     const model = GROQ_MODELS[mi];
     for (let ki = 0; ki < groqKeys().length; ki++) {
@@ -861,13 +784,125 @@ return result;
         return await groqCallModel(model, messages, system, maxTokens, temperature, groqKeys()[ki]);
       } catch(e) {
         console.warn(`[Groq] key ${ki+1} model ${model} error: ${e.message}`);
-        continue;
+        continue; // try next key regardless of error type
       }
     }
     console.warn(`[Groq] All keys exhausted for ${model}, trying next model`);
   }
   throw new Error('সব মডেল ও API কী রেট লিমিটে আছে। ১ মিনিট পরে আবার চেষ্টা করুন।');
 }
+async function groqVisionOCR(base64Img, pageNum) {
+  for (let ki = 0; ki < groqKeys().length; ki++) {
+    let attempts = 0;
+    while (attempts < 2) { // max 2 attempts per key (1 retry after 429)
+      attempts++;
+      try {
+        const res = await fetch(`${groqBase()}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${groqKeys()[ki]}`
+          },
+          body: JSON.stringify({
+            model: VISION_MODEL, max_tokens: 2048,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
+                { type: 'text', text: 'Transcribe ALL text visible on this page exactly as it appears. Output only the raw text, preserving structure. No commentary or explanations.' }
+              ]
+            }]
+          })
+        });
+
+        if (res.status === 429) {
+          if (attempts < 2) {
+            const waitMs = (ki + 1) * 4000;
+            console.warn(`[Vision] Groq key ${ki+1} rate limited, waiting ${waitMs}ms then retrying once`);
+            await sleep(waitMs);
+            continue; // retry THIS key once
+          } else {
+            console.warn(`[Vision] Groq key ${ki+1} still rate limited after retry, moving to next key`);
+            break; // give up on this key, outer loop moves to ki+1
+          }
+        }
+
+        if (!res.ok) {
+          console.warn(`[Vision] Groq key ${ki+1} error ${res.status}, trying next key`);
+          break; // move to next key
+        }
+
+        const d = await res.json();
+        console.log(`[Vision] Groq key ${ki+1} succeeded for page ${pageNum}`);
+        return d.choices?.[0]?.message?.content || '';
+
+      } catch(e) {
+        console.warn(`[Vision] Groq key ${ki+1} failed: ${e.message}, trying next key`);
+        break; // move to next key
+      }
+    }
+  }
+
+  // All Groq keys exhausted — fall back to OpenRouter
+  console.warn(`[Vision] All Groq keys failed for page ${pageNum}, trying OpenRouter`);
+  for (let i = 0; i < openRouterKeys().length; i++) {
+    let attempts = 0;
+    while (attempts < 2) {
+      attempts++;
+      try {
+        const res = await fetch(`${openRouterBase()}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openRouterKeys()[i]}`,
+            'HTTP-Referer': 'http://localhost:5173',
+            'X-Title': 'Amplify'
+          },
+          body: JSON.stringify({
+            model: 'meta-llama/llama-4-maverick:free',
+            max_tokens: 2048,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
+                { type: 'text', text: 'Transcribe ALL text visible on this page exactly as it appears. Output only the raw text, preserving structure. No commentary or explanations.' }
+              ]
+            }]
+          })
+        });
+
+        if (res.status === 429) {
+          if (attempts < 2) {
+            const waitMs = (i + 1) * 5000;
+            console.warn(`[Vision] OpenRouter key ${i+1} rate limited, waiting ${waitMs}ms then retrying once`);
+            await sleep(waitMs);
+            continue;
+          } else {
+            console.warn(`[Vision] OpenRouter key ${i+1} still rate limited, moving to next key`);
+            break;
+          }
+        }
+
+        if (!res.ok) {
+          console.warn(`[Vision] OpenRouter key ${i+1} error ${res.status}, trying next`);
+          break;
+        }
+
+        const d = await res.json();
+        console.log(`[Vision] OpenRouter key ${i+1} succeeded for page ${pageNum}`);
+        return d.choices?.[0]?.message?.content || '';
+
+      } catch(e) {
+        console.warn(`[Vision] OpenRouter key ${i+1} failed: ${e.message}`);
+        break;
+      }
+    }
+  }
+
+  console.error(`[Vision] All providers failed for page ${pageNum}`);
+  return '';
+}
+
 
 // ═══════════════════════════════════════════════════
 // QUIZ ENGINE — Adaptive CAT with Groq student model
@@ -964,30 +999,14 @@ Create ONE multiple-choice question. Rules:
 Respond ONLY with this exact JSON, no markdown:
 {"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","hint":"...","concept":"...","difficulty":"${level}"}`;
 
-  const raw = await groqChat(
-    [{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No explanation. No markdown backticks.',
-    800, 0.4,
-    true  // groqFirst
-  );
+  const raw = await groqChat([{ role: 'user', content: prompt }],
+    'Respond only with valid JSON. No explanation. No markdown backticks.', 500, 0.4);
 
-  console.log('[Quiz] generateQuestion raw:', raw);
-
-  // Strip markdown fences and find JSON object
-  const cleaned = raw.replace(/```json|```/gi, '').trim();
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('No JSON found in response: ' + raw.slice(0, 200));
-
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch(e) {
-    console.error('[Quiz] JSON parse failed:', e.message, '\nRaw:', raw.slice(0, 400));
-    throw new Error('JSON parse failed: ' + e.message);
-  }
+  const clean = raw.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
 }
 
 // ── Call 2: Assess answer, update student model ──
-
 async function assessAnswer(questionData, chosenOption, hintUsed) {
   const isCorrect = chosenOption.startsWith(questionData.answer + '.');
 
@@ -1016,30 +1035,23 @@ Rules for updating:
 Respond ONLY with this exact JSON, no markdown:
 {"updatedModel":{...},"feedback":"বাংলায় এক লাইন ফিডব্যাক","isCorrect":${isCorrect}}`;
 
-  const raw = await groqChat(
-    [{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No markdown. No explanation.',
-    900, 0.25,
-    true  // groqFirst
-  );
+  const raw = await groqChat([{ role: 'user', content: prompt }],
+    'Respond only with valid JSON. No markdown. No explanation.', 600, 0.25);
 
-  console.log('[Quiz] assessAnswer raw:', raw);
-  const cleaned = raw.replace(/```json|```/gi, '').trim();
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('No JSON in assessAnswer: ' + raw.slice(0, 200));
-  return JSON.parse(jsonMatch[0]);
+  const clean = raw.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
 }
+
 // ── Call 3: Final diagnosis ──
 async function generateDiagnosis() {
   sendSessionSummaryToN8n().then(summary => {
-    if (summary) {
-      const diagEl = document.getElementById('quiz-result-diagnosis');
-      if (diagEl) {
-        diagEl.innerHTML += '<br><br><b>📋 সেশন সারসংক্ষেপ:</b><br>' + summary;
-      }
+  if (summary) {
+    const diagEl = document.getElementById('quiz-result-diagnosis');
+    if (diagEl) {
+      diagEl.innerHTML += '<br><br><b>📋 সেশন সারসংক্ষেপ:</b><br>' + summary;
     }
-  });
-
+  }
+});
   const prompt = `You are a Bangladeshi teacher analyzing a student's quiz performance.
 
 Student model after quiz:
@@ -1048,13 +1060,11 @@ ${JSON.stringify(studentModel, null, 2)}
 Total questions: ${quizTotalQ}
 Final score: ${quizScore}/${quizTotalQ}
 
-Write a short diagnostic summary in Bengali (3-4 sentences) directly addressing the student as "তুমি":
-- Speak directly to the student, never say "শিক্ষার্থী" or "তারা" or "তাদের"
-- Use "তুমি" and "তোমার" throughout
-- What they understand well (say "তুমি ভালো বুঝেছ...")
-- What needs more work (say "তোমার আরও কাজ করতে হবে...")
-- Whether they should replay or move forward
-- Be warm, encouraging and personal like a caring teacher talking directly to a student
+Write a short diagnostic summary in Bengali (3-4 sentences):
+- What they understand well
+- What needs more work  
+- Whether they should replay the lecture or can move forward
+- Be encouraging but honest
 
 Also determine:
 - resultEmoji: 🎉 if score >= 80%, 🤔 if 50-79%, 😟 if < 50%
@@ -1063,18 +1073,11 @@ Also determine:
 Respond ONLY with this JSON, no markdown:
 {"diagnosis":"বাংলায় সারসংক্ষেপ...","resultEmoji":"🎉","replayRecommended":false,"replayMessage":"বাংলায় রিপ্লে বার্তা (only if recommended)"}`;
 
-  const raw = await groqChat(
-    [{ role: 'user', content: prompt }],
-    'Respond only with valid JSON. No markdown.',
-    800, 0.5,
-    true  // groqFirst
-  );
+  const raw = await groqChat([{ role: 'user', content: prompt }],
+    'Respond only with valid JSON. No markdown.', 500, 0.5);
 
-  console.log('[Quiz] generateDiagnosis raw:', raw);
-  const cleaned = raw.replace(/```json|```/gi, '').trim();
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('No JSON in diagnosis: ' + raw.slice(0, 200));
-  return JSON.parse(jsonMatch[0]);
+  const clean = raw.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
 }
 
 // ── UI: Show/hide quiz panel ──
@@ -1101,23 +1104,24 @@ function openQuiz() {
 
 async function sendSessionSummaryToN8n() {
   const payload = {
-    body: {
-      studentName: 'শিক্ষার্থী',
-      quizScore: quizScore,
-      totalQuestions: quizTotalQ,
-      conceptMastery: studentModel.conceptMastery,
-      weakConcepts: studentModel.weakConcepts,
-      correctStreak: studentModel.correctStreak,
-      wrongStreak: studentModel.wrongStreak,
-      currentDifficulty: studentModel.overallLevel,
-      attentionLog: window._attentionLog || [],
-      distractionCount: (window._attentionLog || []).filter(e => e.state === 'distracted').length,
-      focusedCount: (window._attentionLog || []).filter(e => e.state === 'focused').length,
-      sessionDurationSeconds: Math.floor((Date.now() - (window._sessionStart || Date.now())) / 1000)
-    }
-  };
+  body: {
+    studentName: 'শিক্ষার্থী',
+    quizScore: quizScore,
+    totalQuestions: quizTotalQ,
+    conceptMastery: quizState.conceptMastery,
+    weakConcepts: quizState.weakConcepts,
+    correctStreak: quizState.correctStreak,
+    wrongStreak: quizState.wrongStreak,
+    currentDifficulty: quizState.currentDifficulty,
+    attentionLog: window._attentionLog || [],
+    distractionCount: (window._attentionLog || []).filter(e => e.state === 'confused').length,
+    focusedCount: (window._attentionLog || []).filter(e => e.state === 'focused').length,
+    sessionDurationSeconds: Math.floor((Date.now() - (window._sessionStart || Date.now())) / 1000)
+  }
+};
+
   try {
-    const response = await fetch('https://n8n-production-ec70.up.railway.app/webhook/session-summary', {
+    const response = await fetch('http://localhost:5678/webhook/session-summary', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1125,7 +1129,7 @@ async function sendSessionSummaryToN8n() {
     const data = await response.json();
     return data.summary;
   } catch (e) {
-    console.error('n8n  failed:', e);
+    console.error('n8n summary failed:', e);
     return null;
   }
 }
@@ -1218,21 +1222,6 @@ async function handleOptionClick(chosenOpt, btnEl) {
   try {
     const assessment = await assessAnswer(quizCurrentData, chosenOpt, quizHintUsed);
     if (assessment.updatedModel) studentModel = assessment.updatedModel;
-// Fix concept mastery format and clamp scores
-if (studentModel.conceptMastery) {
-  Object.keys(studentModel.conceptMastery).forEach(concept => {
-    const val = studentModel.conceptMastery[concept];
-    if (typeof val === 'number') {
-      studentModel.conceptMastery[concept] = {
-        score: Math.max(0.05, Math.min(1, val)),
-        attempts: studentModel.questionsAsked || 1,
-        hintCount: 0
-      };
-    } else if (val && typeof val === 'object') {
-      val.score = Math.max(0.05, Math.min(1, val.score || 0));
-    }
-  });
-}
     studentModel.questionsAsked = quizCurrentQ + 1;
 
     const fbEl = document.getElementById('quiz-feedback');
@@ -1277,11 +1266,6 @@ async function nextQuestion() {
 }
 
 async function finishQuiz() {
-  console.log('[Debug] finishQuiz called');
-  console.log('[Debug] currentDocId:', currentDocId);
-  console.log('[Debug] studentModel.conceptMastery:', JSON.stringify(studentModel.conceptMastery));
-  console.log('[Debug] localStorage docs:', localStorage.getItem('amplify_tutor_documents')?.slice(0, 200));
-  console.log('[Debug] quizScore:', quizScore, '/', quizTotalQ);
   showQuizLoading('ফলাফল তৈরি হচ্ছে…');
 
   let diagnosis;
@@ -1342,49 +1326,6 @@ quizWeakSegIdx = Math.max(0, Math.min(quizWeakSegIdx, lectureSegments.length - 1
     replayBox.style.display = 'none';
   }
 
-
-  persistQuizResultsToNeo4j().catch(e => console.warn('[Quiz] persist failed:', e));
-  persistAttentionSessionToNeo4j().catch(() => {});
-  
-
-
-  // Save concept mastery to localStorage for dashboard
-  try {
-    const docs = JSON.parse(localStorage.getItem('amplify_tutor_documents') || '[]');
-    if (docs.length) {
-      // Try to match by currentDocId, or just update the most recent doc
-      let doc = docs.find(d => d.docId === currentDocId) || docs[0];
-      if (doc) {
-        doc.conceptMastery = studentModel.conceptMastery;
-        doc.lastQuizScore = quizScore;
-        doc.lastQuizTotal = quizTotalQ;
-        doc.lastQuizDate = new Date().toISOString();
-        localStorage.setItem('amplify_tutor_documents', JSON.stringify(docs));
-        console.log('[Dashboard] Saved concept mastery to localStorage:', Object.keys(studentModel.conceptMastery).length, 'concepts');
-      }
-    } else {
-      // No doc saved yet — create a standalone entry
-      const entry = {
-        docId: currentDocId || 'quiz_' + Date.now(),
-        filename: document.getElementById('fname-text')?.textContent || 'অজানা নথি',
-        conceptMastery: studentModel.conceptMastery,
-        lastQuizScore: quizScore,
-        lastQuizTotal: quizTotalQ,
-        lastQuizDate: new Date().toISOString(),
-        chunkCount: store.chunks.length,
-        pages: totalPages,
-        date: new Date().toISOString(),
-        chunks: [],
-        graphNodes: [],
-        graphEdges: [],
-        chatHistory: [],
-      };
-      localStorage.setItem('amplify_tutor_documents', JSON.stringify([entry]));
-      console.log('[Dashboard] Created new doc entry with concept mastery');
-    }
-  } catch(e) { console.warn('Could not save concept mastery:', e); }
-
-
   // TTS result summary
   TTS.speakAI(
     diagnosis.replayRecommended
@@ -1392,68 +1333,6 @@ quizWeakSegIdx = Math.max(0, Math.min(quizWeakSegIdx, lectureSegments.length - 1
       : `চমৎকার! তুমি ${Math.round((quizScore/quizTotalQ)*100)} শতাংশ পেয়েছ। ${diagnosis.diagnosis}`
   );
 }
-
-async function persistQuizResultsToNeo4j() {
-  if (!_neo4jReady || !currentDocId) return;
-  const entries = Object.entries(studentModel.conceptMastery || {});
-  if (!entries.length) return;
-  try {
-    for (let i = 0; i < entries.length; i += 20) {
-      const batch = entries.slice(i, i + 20).map(([concept, data]) => ({
-        id: currentDocId + '_sc_' + concept.replace(/\s+/g, '_'),
-        concept,
-        score: data.score || 0,
-        attempts: data.attempts || 0,
-        hintCount: data.hintCount || 0,
-        docId: currentDocId,
-        lastUpdated: new Date().toISOString()
-      }));
-      await neo4jRun(
-        `UNWIND $batch AS sc
-         MERGE (n:StudentConcept {id: sc.id})
-         SET n.concept = sc.concept, n.score = sc.score,
-             n.attempts = sc.attempts, n.hintCount = sc.hintCount,
-             n.docId = sc.docId, n.lastUpdated = sc.lastUpdated`,
-        { batch }
-      );
-    }
-    console.log('[Neo4j]  Saved', entries.length, 'concept mastery records');
-  } catch(e) {
-    console.warn('[Neo4j] persistQuizResults failed:', e.message);
-  }
-}
-
-async function persistAttentionSessionToNeo4j() {
-  if (!_neo4jReady || !currentDocId) return;
-  const log = window._attentionLog || [];
-  if (!log.length) return;
-  const focused    = log.filter(e => e.state === 'focused').length;
-  const confused   = log.filter(e => e.state === 'confused').length;
-  const distracted = log.filter(e => e.state === 'distracted').length;
-  const noFace     = log.filter(e => e.state === 'no_face').length;
-  const duration   = Math.floor((Date.now() - (window._sessionStart || Date.now())) / 1000);
-  try {
-    await neo4jRun(
-      `CREATE (a:AttentionSession {
-         id: $id, docId: $docId, date: $date,
-         focused: $focused, confused: $confused,
-         distracted: $distracted, noFace: $noFace,
-         durationSeconds: $duration, total: $total
-       })`,
-      {
-        id: currentDocId + '_att_' + Date.now(),
-        docId: currentDocId,
-        date: new Date().toISOString(),
-        focused, confused, distracted, noFace,
-        duration, total: log.length
-      }
-    );
-    console.log('[Neo4j] ✓ Attention session saved');
-  } catch(e) {
-    console.warn('[Neo4j] attention persist failed:', e.message);
-  }
-}
-
 
 // ── Replay specific lecture segment ──
 async function replayWeakSegment() {
@@ -1513,7 +1392,7 @@ async function replayWeakSegment() {
       if (tp !== currentPage) { currentPage = tp; renderPage(currentPage); }
     }
 
-    genEl.style.display = 'none'; segEl.style.display = 'block';
+    genEl.style.display = 'none'; segEl.style.display = 'none';
 
     const sentences = splitSentences(current?.text || '');
     const pct = Math.round(((lectureSegIdx + 1) / total) * 100);
@@ -1658,10 +1537,6 @@ async function loadAndIndex(file) {
     setProgress(90);
     await yieldToBrowser();
     store.build();
-
-    console.log('[Encoding Check] First chunk sample:', store.chunks[0]?.text?.slice(0, 100));
-    console.log('[Encoding Check] this has Bangali Unicode:', /[\u0980-\u09FF]/.test(store.chunks[0]?.text || ''));
-
     graph.buildGraph(store.chunks);
     renderTopicGraph();
     // Persist to Neo4j in background (non-blocking)
@@ -1977,6 +1852,9 @@ function showHomeScreen(show) {
   const gsec = document.getElementById('graph-map-section');
   if (gsec) gsec.style.display = show ? 'none' : 'block';
 }
+if (typeof window !== 'undefined') {
+  window.showHomeScreen = showHomeScreen;
+}
 function yieldToBrowser(){return new Promise(r=>setTimeout(r,0));}
 
 // ─────────────────────────────────────────────────────
@@ -2146,28 +2024,6 @@ function injectLectureStyles(){
       font-family: 'Hind Siliguri', sans-serif;
       letter-spacing: 0.3px;
     }
-
-    /* Typewriter text below video */
-    #lecture-segment {
-      display: block;
-      max-height: 160px;
-      overflow-y: auto;
-      font-family: 'Hind Siliguri', sans-serif;
-      font-size: 1.15rem;
-      font-weight: 400;
-      line-height: 1.8;
-      color: #e2e8f0;
-      text-align: left;
-      padding: 10px 16px 14px;
-      background: rgba(255,255,255,0.04);
-      border-top: 1px solid rgba(255,255,255,0.07);
-      border-radius: 0 0 16px 16px;
-      word-break: break-word;
-      scroll-behavior: smooth;
-    }
-    .lw-typewriter-sentence {
-      display: inline;
-    }
   `;
   document.head.appendChild(style);
 }
@@ -2299,55 +2155,26 @@ function extractKeywords(text) {
 }
 
 
+// AFTERxd:
+
 async function fetchAnimatedVisual(text) {
   const topic = extractKeywords(text);
-  const manimUrl = _config.MANIM_URL
-    || (typeof window !== 'undefined' && window.AMPLIFY_ENV?.MANIM_URL)
-    || 'https://madnan4980--amplify-manim-fastapi-app.modal.run';
   try {
-    const res = await fetch(`${manimUrl}/`, {
+    const res = await fetch(`https://madnan4980--amplify-manim-fastapi-app.modal.run/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: topic, context: text.slice(0, 300) })
     });
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '(unreadable)');
-      console.error('[Manim] URL hit:', `${manimUrl}/`);
-      console.error('[Manim] Status:', res.status);
-      console.error('[Manim] Response body:', errBody);
-      throw new Error('backend ' + res.status);
-    }
-
-    const contentType = res.headers.get('content-type') || '';
-
-    // Backend returns raw MP4 bytes
-    if (contentType.includes('video') || contentType.includes('octet-stream')) {
-      const blob = await res.blob();
-      const videoUrl = URL.createObjectURL(blob);
-      return { videoUrl, topic };
-    }
-
-    // Backend returns JSON with a video_url field
-    const data = await res.json();
-    if (data.video_url) {
-      const videoUrl = data.video_url.startsWith('http')
-        ? data.video_url
-        : `${manimUrl}${data.video_url}`;
-      return { videoUrl, topic };
-    }
-
-    // Backend returns JSON with a direct URL string
-    if (typeof data === 'string' && data.startsWith('http')) {
-      return { videoUrl: data, topic };
-    }
-
-    throw new Error('Unrecognised response format');
+    if (!res.ok) throw new Error('backend ' + res.status);
+    const blob = await res.blob();
+    const videoUrl = URL.createObjectURL(blob);
+    console.log('[Manim] success, blob size:', blob.size, 'url:', videoUrl);
+    return { videoUrl, topic };
   } catch(e) {
     console.warn('[Manim] failed:', e.message);
     return { videoUrl: null, topic };
   }
 }
-
 
 function showDiagram(videoUrl, topic) {
   const stage  = document.getElementById('lecture-visual-stage');
@@ -2361,43 +2188,13 @@ function showDiagram(videoUrl, topic) {
 
   setTimeout(() => {
     container.innerHTML = '';
-    if (videoUrl) {
-      const video = document.createElement('video');
-      video.autoplay = true;
-      video.loop = true;
-      video.muted = true;
-      video.playsInline = true;
-      video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
-
-      // Handle both blob URLs and remote URLs
-      if (videoUrl.startsWith('blob:')) {
-        video.src = videoUrl;
-      } else {
-        video.src = videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`;
-      }
-
-      video.addEventListener('loadeddata', () => {
-        video.play().catch(e => console.warn('[Video] autoplay blocked:', e.message));
-        container.classList.add('visible');
-      });
-
-      video.addEventListener('error', (e) => {
-        console.warn('[Video] load error:', e);
-        // Show fallback pulse on error
-        container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
-          <rect width="460" height="240" fill="#0f0c29"/>
-          <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
-            <animate attributeName="r" values="35;55;35" dur="2s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/>
-          </circle>
-          <text x="230" y="175" text-anchor="middle" fill="#a78bfa" font-size="15" font-family="Arial">${topic}</text>
-        </svg>`;
-        container.classList.add('visible');
-      });
-
-      container.appendChild(video);
-      cap.textContent = '🎬 ' + topic;
-    } else {
+    
+    // AFTER:
+    const video = document.createElement('video');
+    video.src = videoUrl
+      ? (videoUrl.startsWith('blob:') || videoUrl.startsWith('http') ? videoUrl : `${apiBase()}${videoUrl}`)
+      : '';
+    if (!videoUrl) {
       container.innerHTML = `<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg">
         <rect width="460" height="240" fill="#0f0c29"/>
         <circle cx="230" cy="105" r="40" fill="none" stroke="#a78bfa" stroke-width="2">
@@ -2405,20 +2202,46 @@ function showDiagram(videoUrl, topic) {
           <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/>
         </circle>
         <text x="230" y="175" text-anchor="middle" fill="#a78bfa" font-size="15" font-family="Arial">${topic}</text>
-        <text x="230" y="200" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="11" font-family="Arial">রেন্ডার হচ্ছে…</text>
       </svg>`;
-      cap.textContent = '';
+      cap.textContent = topic;
       container.classList.add('visible');
+      return;
     }
+    
+    video.autoplay = true;
+    video.loop = true;
+    video.muted = true;
+      video.style.cssText = 'width:100%;height:100%;object-fit:contain;border-radius:inherit;background:#0A1F33;';
+    video.onerror = () => {
+      if (!triedFallback) {
+        triedFallback = true;
+        video.src = fallbackVideoUrl;
+        video.load();
+        video.play().catch(() => {});
+      }
+    };
+
+    container.appendChild(video);
+    cap.textContent = '🎬 ' + topic;
+    container.classList.add('visible');
+    video.play().catch(() => {});
   }, 300);
 }
 
 // ─────────────────────────────────────────────────────
 // VOICE LOADING
 // ─────────────────────────────────────────────────────
-
 function loadLectureVoice(){
-  // Azure TTS — no local voice loading needed
+  const assign=()=>{
+    const all=speechSynthesis.getVoices();
+    const bnBD=all.filter(v=>v.lang==='bn-BD');
+    const bnIN=all.filter(v=>v.lang==='bn-IN');
+    const bnOth=all.filter(v=>v.lang.startsWith('bn')&&v.lang!=='bn-BD'&&v.lang!=='bn-IN');
+    const bnAll=[...bnBD,...bnIN,...bnOth];
+    _lectureVoice=bnAll[0]||all.find(v=>v.lang.startsWith('hi'))||all[0]||null;
+  };
+  assign();
+  speechSynthesis.addEventListener('voiceschanged',assign);
 }
 
 function splitSentences(text){
@@ -2561,58 +2384,97 @@ async function getSegment(idx, timeoutMs = 12000) {
 // ─────────────────────────────────────────────────────
 // TTS WITH LASER POINTER
 // ─────────────────────────────────────────────────────
+function speakWithLaser(sentence){
+  return new Promise(resolve=>{
+    if(!window.speechSynthesis||lectureAborted){resolve();return;}
 
-async function speakWithLaser(sentence){
-  if(lectureAborted) return;
-  if(TTS.aiPaused){
+    // If a warning is mid-play, wait for it to finish (it will re-speak and resolve us)
+    if(TTS.aiPaused){
+      TTS._interruptedText = sentence;
+      TTS._pendingResolve = resolve;
+      return;
+    }
+
+    TTS.stop();
+    const utt=new SpeechSynthesisUtterance(sentence);
+    if(_lectureVoice){utt.voice=_lectureVoice;utt.lang=_lectureVoice.lang;}
+    utt.rate=0.87; utt.pitch=1.0;
+    TTS.aiUtterance=utt;
+    TTS.aiPaused=false;
+
+    // Store current sentence and resolver in case warning fires mid-speech
     TTS._interruptedText = sentence;
-    await new Promise(resolve => { TTS._pendingResolve = resolve; });
-    return;
-  }
-  TTS.stop();
-  TTS._interruptedText = sentence;
-  try { await azureSpeak(sentence, '-13%', '+5%'); } catch(e) { console.warn('[speakWithLaser]', e.message); }
-  TTS._interruptedText = null;
-  if(TTS._pendingResolve){ TTS._pendingResolve(); TTS._pendingResolve = null; }
+    TTS._pendingResolve = resolve;
+
+    if(_laserSpans.length>0){_laserActive=true;moveLaser(0);}
+    utt.onboundary=(event)=>{
+      if(!_laserActive||lecturePaused||event.name!=='word') return;
+      const charIdx=event.charIndex;
+      let acc=0;
+      for(let i=0;i<_laserSpans.length;i++){
+        const wlen=_laserSpans[i].textContent.length;
+        if(charIdx<=acc+wlen){moveLaser(i);break;}
+        acc+=wlen+1;
+      }
+    };
+    utt.onend=()=>{
+      TTS.aiUtterance=null;
+      TTS._interruptedText=null;
+      if(TTS._pendingResolve){TTS._pendingResolve();TTS._pendingResolve=null;}
+    };
+    utt.onerror=()=>{
+      TTS.aiUtterance=null;
+      TTS._interruptedText=null;
+      if(TTS._pendingResolve){TTS._pendingResolve();TTS._pendingResolve=null;}
+    };
+    speechSynthesis.speak(utt);
+  });
 }
 
-function stopTTS(){ TTS.stop(); if(_currentAudio){_currentAudio.pause();_currentAudio=null;} }
+function stopTTS(){ TTS.stop(); }
 
-async function typewriterAppend(segEl, text, speedMs = 28) {
-  // Create a new <span> for this sentence and type it character by character
+
+async function typewriteSentence(el, text) {
+  el.innerHTML = '';
+  el.style.opacity = '1';
+  // Don't use laser spans during typewrite — plain span for clean animation
   const span = document.createElement('span');
-  span.className = 'lw-typewriter-sentence';
-  segEl.appendChild(span);
-  for (let i = 0; i < text.length; i++) {
-    if (lectureAborted) return;
-    span.textContent += text[i];
-    await sleep(speedMs);
+  span.className = 'lw';
+  el.appendChild(span);
+
+  const chars = [...text]; // handles multi-byte Unicode (Bangla) correctly
+  for(let i = 0; i < chars.length; i++){
+    if(lectureAborted) return;
+    span.textContent += chars[i];
+    // Slightly faster on spaces for natural rhythm
+    await sleep(/\s/.test(chars[i]) ? 18 : 28);
   }
-  // Add a space after each sentence
-  segEl.appendChild(document.createTextNode(' '));
 }
 
 async function speakSegmentSentences(sentences){
-  const segEl=document.getElementById('lecture-segment');
+  const segEl = document.getElementById('lecture-segment');
   ensureLaser();
 
-  // Clear previous segment text and start fresh for this segment
-  segEl.innerHTML = '';
-  if (_laserEl) { _laserEl.classList.add('hidden'); }
-
-  for(let i=0;i<sentences.length;i++){
+  for(let i = 0; i < sentences.length; i++){
     if(lectureAborted) return;
-    while(lecturePaused&&!lectureAborted) await sleep(120);
+    while(lecturePaused && !lectureAborted) await sleep(120);
     if(lectureAborted) return;
 
-    // Type the sentence AND speak it simultaneously
-    const [,] = await Promise.all([
-      typewriterAppend(segEl, sentences[i], 22),
-      speakWithLaser(sentences[i]),
-    ]);
+    // Clear and typewrite the sentence
+    segEl.style.display = 'block';
+    await typewriteSentence(segEl, sentences[i]);
 
-    hideLaser();
-    if(!lectureAborted&&!lecturePaused) await sleep(180);
+    // Speak while text is visible (typewrite completes first, then TTS plays)
+    await speakWithLaser(sentences[i]);
+
+    // Short pause, then fade out before next sentence
+    await sleep(180);
+    segEl.style.opacity = '0';
+    await sleep(220);
+    segEl.innerHTML = '';
+    segEl.style.opacity = '1';
+
+    if(!lectureAborted && !lecturePaused) await sleep(120);
   }
 }
 
@@ -2674,7 +2536,11 @@ async function startLecture(){
       if(tp!==currentPage){ currentPage=tp; renderPage(currentPage); }
     }
 
-    genEl.style.display='none'; segEl.style.display='block'; // show text below video
+    
+    genEl.style.display='none';
+    segEl.style.display='block';
+    segEl.style.opacity='1';
+    segEl.innerHTML='';
 
     const sentences = splitSentences(current?.text || '');
     const pct = Math.round(((lectureSegIdx + 1) / total) * 100);
@@ -2740,7 +2606,7 @@ function pauseLecture(){
   lecturePaused=!lecturePaused;
   const btn=document.getElementById('pause-btn');
   if(lecturePaused){
-    stopTTS(); if(_currentAudio){_currentAudio.pause();_currentAudio=null;} hideLaser();
+    stopTTS(); hideLaser();
     btn.textContent='▶ চালিয়ে যাও';
     document.getElementById('lecture-question-area').classList.add('open');
     document.getElementById('lecture-status-text').textContent='⏸ বিরতি';
@@ -2866,10 +2732,21 @@ ${context}
   rec.start();
 }
 
-async function speakAnswer(text){
-  TTS.stop();
-  try { await azureSpeak(text, '-10%', '+8%'); } catch(e) { console.warn('[speakAnswer]', e.message); }
+function speakAnswer(text){
+  return new Promise(resolve=>{
+    if(!window.speechSynthesis){resolve();return;}
+    TTS.stop();
+    const utt=new SpeechSynthesisUtterance(text);
+    if(_lectureVoice){utt.voice=_lectureVoice;utt.lang=_lectureVoice.lang;}
+    utt.rate=0.88; utt.pitch=1.05;
+    TTS.aiUtterance=utt;
+    TTS.aiPaused=false;
+    utt.onend=()=>{TTS.aiUtterance=null;resolve();};
+    utt.onerror=()=>{TTS.aiUtterance=null;resolve();};
+    speechSynthesis.speak(utt);
+  });
 }
+
 // ─────────────────────────────────────────────────────
 // UI HELPERS
 // ─────────────────────────────────────────────────────
@@ -2985,14 +2862,7 @@ function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrol
 // ─────────────────────────────────────────────────────
 // EVENT WIRING
 // ─────────────────────────────────────────────────────
-
 document.addEventListener('DOMContentLoaded', async function(){
-  function on(id,evt,fn){
-    const el=document.getElementById(id);
-    if(el) el.addEventListener(evt,fn);
-    else console.warn('[Amplify] Missing element: #'+id);
-  }
-
   _config = await loadEnvConfig();
   refreshNeo4jConfig();
   if (!groqKeys().length) {
@@ -3001,7 +2871,6 @@ document.addEventListener('DOMContentLoaded', async function(){
   showHomeScreen(true);
   if (_neo4jEnabled) await initNeo4j();
   await loadSavedDocuments();
-
   document.getElementById('home-new-btn').onclick = () => {
     showHomeScreen(false);
     document.getElementById('upload-zone').style.display = 'block';
@@ -3010,6 +2879,11 @@ document.addEventListener('DOMContentLoaded', async function(){
     document.getElementById('file-input').click();
   };
   on('home-back-btn', 'click', () => showHomeScreen(true));
+  function on(id,evt,fn){
+    const el=document.getElementById(id);
+    if(el) el.addEventListener(evt,fn);
+    else console.warn('[Amplify] Missing element: #'+id);
+  }
   on('upload-zone','click',function(){document.getElementById('file-input').click();});
   on('file-input','change',function(e){if(e.target.files[0]) loadAndIndex(e.target.files[0]);});
   on('upload-zone','dragover',function(e){e.preventDefault();this.classList.add('drag-over');});
@@ -3024,70 +2898,59 @@ document.addEventListener('DOMContentLoaded', async function(){
   on('lecture-btn','click',startLecture);
   on('pause-btn','click',pauseLecture);
   on('stop-lecture-btn','click',stopLecture);
+  // voice-qa-btn event removed - button doesn't exist in current HTML
   on('modal-close-btn','click',closeModal);
   on('chunk-modal','click',function(e){if(e.target===this) closeModal();});
   on('attention-btn','click',toggleAttention);
   on('quiz-btn', 'click', openQuiz);
 
-  on('quiz-start-btn', 'click', async function() {
-    showQuizLoading('প্রথম প্রশ্ন তৈরি হচ্ছে…');
-    try {
-      const chunk = getQuizChunkForModel();
-      const qData = await generateQuestion(chunk);
-      renderQuestion(qData);
-    } catch(e) {
-      console.error('[Quiz] start error:', e);
-      document.getElementById('quiz-loading-text').textContent = '❌ ত্রুটি: ' + e.message;
-    }
-  });
-
-  on('quiz-hint-btn', 'click', function() {
-    if (!quizCurrentData || quizAnswered) return;
-    quizHintUsed = true;
-    document.getElementById('quiz-hint-text').textContent = '💡 ' + quizCurrentData.hint;
-    document.getElementById('quiz-hint-text').style.display = 'block';
-    document.getElementById('quiz-hint-btn').disabled = true;
-    const concept = quizCurrentData.concept;
-    if (concept) {
-      if (!studentModel.conceptMastery[concept]) studentModel.conceptMastery[concept] = { score: 0.5, hintCount: 0, attempts: 0 };
-      studentModel.conceptMastery[concept].hintCount++;
-      if (studentModel.conceptMastery[concept].hintCount >= 2 && !studentModel.weakConcepts.includes(concept)) {
-        studentModel.weakConcepts.push(concept);
-      }
-    }
-  });
-
-  on('quiz-next-btn', 'click', nextQuestion);
-  on('quiz-retry-btn', 'click', openQuiz);
-  on('quiz-close-btn', 'click', closeQuiz);
-  on('quiz-replay-btn', 'click', replayWeakSegment);
-
-  document.querySelectorAll('.qcount-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('.qcount-btn').forEach(b => b.classList.remove('active'));
-      this.classList.add('active');
-      quizTotalQ = parseInt(this.dataset.count);
-    });
-  });
-
-  const edgeSlider = document.getElementById('edge-threshold');
-  const nodeSlider = document.getElementById('node-limit');
-  if (edgeSlider) {
-    edgeSlider.addEventListener('input', function() {
-      document.getElementById('edge-threshold-val').textContent = this.value;
-      if (graph.nodes && Object.keys(graph.nodes).length) renderTopicGraph();
-    });
+on('quiz-start-btn', 'click', async function() {
+  showQuizLoading('প্রথম প্রশ্ন তৈরি হচ্ছে…');
+  try {
+    const chunk = getQuizChunkForModel();
+    const qData = await generateQuestion(chunk);
+    renderQuestion(qData);
+  } catch(e) {
+    console.error('[Quiz] start error:', e);
+    document.getElementById('quiz-loading-text').textContent = '❌ ত্রুটি: ' + e.message;
   }
-  if (nodeSlider) {
-    nodeSlider.addEventListener('input', function() {
-      document.getElementById('node-limit-val').textContent = this.value;
-      if (graph.nodes && Object.keys(graph.nodes).length) renderTopicGraph();
-    });
+});
+
+on('quiz-hint-btn', 'click', function() {
+  if (!quizCurrentData || quizAnswered) return;
+  quizHintUsed = true;
+  document.getElementById('quiz-hint-text').textContent = '💡 ' + quizCurrentData.hint;
+  document.getElementById('quiz-hint-text').style.display = 'block';
+  document.getElementById('quiz-hint-btn').disabled = true;
+  // Count hint usage in student model
+  const concept = quizCurrentData.concept;
+  if (concept) {
+    if (!studentModel.conceptMastery[concept]) studentModel.conceptMastery[concept] = { score: 0.5, hintCount: 0, attempts: 0 };
+    studentModel.conceptMastery[concept].hintCount++;
+    if (studentModel.conceptMastery[concept].hintCount >= 2 && !studentModel.weakConcepts.includes(concept)) {
+      studentModel.weakConcepts.push(concept);
+    }
   }
-  on('graph-relayout-btn', 'click', function() {
-    if (cy) cy.layout({ name: 'cose', animate: true, animationDuration: 600,
-      nodeRepulsion: () => 8000, idealEdgeLength: () => 80, fit: true, padding: 32 }).run();
+});
+
+on('quiz-next-btn', 'click', nextQuestion);
+on('quiz-retry-btn', 'click', openQuiz);
+on('quiz-close-btn', 'click', closeQuiz);
+on('quiz-replay-btn', 'click', replayWeakSegment);
+
+// Question count selector
+document.querySelectorAll('.qcount-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.qcount-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    quizTotalQ = parseInt(this.dataset.count);
   });
+});
+
+
+  // Graph map controls removed (UI no longer present)
+
+
 });
 
 // ─────────────────────────────────────────────────────
@@ -3168,30 +3031,8 @@ async function toggleAttention(){
     trackerOn=false;btn.classList.remove('active');ov.classList.remove('visible');
     const v=document.getElementById('tracker-video');
     if(v.srcObject){v.srcObject.getTracks().forEach(t=>t.stop());v.srcObject=null;}
-    // Save session to localStorage so dashboard can read it
-    const log = window._attentionLog || [];
-    if (log.length) {
-      const focused    = log.filter(e => e.state === 'focused').length;
-      const confused   = log.filter(e => e.state === 'confused').length;
-      const distracted = log.filter(e => e.state === 'distracted').length;
-      const noFace     = log.filter(e => e.state === 'no_face').length;
-      const duration   = Math.floor((Date.now() - (window._sessionStart || Date.now())) / 1000);
-      const session    = {
-        date: new Date().toISOString(),
-        focused, confused, distracted, noFace,
-        duration, total: log.length
-      };
-      try {
-        const prev = JSON.parse(localStorage.getItem('amplify_attention_sessions') || '[]');
-        prev.unshift(session);
-        localStorage.setItem('amplify_attention_sessions', JSON.stringify(prev.slice(0, 20)));
-      } catch(e) {}
-    }
-    window._attentionLog = [];
-    window._sessionStart = Date.now();
     return;
   }
-  
   btn.classList.add('active');ov.classList.add('visible');
   document.getElementById('tracker-loading').style.display='flex';
   if(!mLoaded){
@@ -3211,5 +3052,6 @@ async function toggleAttention(){
     await v.play();
     document.getElementById('tracker-loading').style.display='none';
     trackerOn=true; tDetect();
+ 
   }catch(e){document.getElementById('tracker-loading').textContent='ক্যামেরা চালু হয়নি';btn.classList.remove('active');}
 }

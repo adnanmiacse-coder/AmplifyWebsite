@@ -7,14 +7,12 @@
 
   <!-- Fonts -->
   <link
-    href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Tiro+Bangla:ital@0;1&display=swap"
     rel="stylesheet"
   />
 
   <!-- Third-party libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script> 
-  <!-- Third-party libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script> 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
 
   <!-- App stylesheet -->
@@ -33,6 +31,11 @@
         <div class="dot"></div>
         মনোযোগ ট্র্যাকার
       </button>
+      <a href="./dashboard.html" class="btn-dashboard" style="text-decoration:none;">
+        <button class="btn-dashboard-btn">
+          📊 ড্যাশবোর্ড
+        </button>
+      </a>
     </div>
   </nav>
 
@@ -41,7 +44,6 @@
   <div class="home-header">
     <div class="home-logo">Amplify <span class="badge">শিক্ষার্থী</span></div>
     <div class="home-subtitle">তোমার পাঠ্য উপকরণ</div>
-    <a href="dashboard.html" class="home-dashboard-btn">📊 অগ্রগতি দেখুন</a><div id="quiz-setup"></div>
   </div>
   <div class="home-grid" id="home-grid">
     <div class="home-new-card" id="home-new-btn">
@@ -113,27 +115,17 @@
       </div>
     </div>
 
-    <!-- RIGHT PANEL: Chat + Lecture -->
-    <div class="panel" id="chat-panel">
-      <div class="panel-header">
-        <div class="panel-icon">🤖</div>
-        <div style="flex:1;">
-          <div class="chat-panel-header-row">
-            <div>
-              <div class="panel-title">AI শিক্ষা সহকারী</div>
-              <div class="panel-subtitle">বাংলায় প্রশ্ন করুন, বিষয় বুঝুন</div>
-            </div>
-            <button id="lecture-btn">
-              <span class="btn-icon">🎓</span> লাইভ লেকচার
-            </button>
-            <button id="quiz-btn">
-            <span class="btn-icon">📝</span> কুইজ
-            </button>
-          </div>
-        </div>
+    <!-- CENTER PANEL: Video + Subtitle -->
+    <div class="panel" id="stage-panel">
+      <div id="stage-idle">
+        <div class="stage-idle-icon">🎬</div>
+        <h2 class="stage-idle-title">লেকচার স্টেজ</h2>
+        <p class="stage-idle-text">
+          ডান পাশ থেকে <strong>🎓 লাইভ লেকচার</strong> শুরু করুন।<br />
+          ভিডিও ও সাবটাইটেল এখানে বড় স্ক্রিনে দেখাবে।
+        </p>
       </div>
 
-      <!-- LECTURE SCREEN (animates open/closed) -->
       <div id="lecture-screen">
         <div class="lecture-top">
           <div class="lecture-badge">
@@ -159,16 +151,13 @@
             </div>
             <p>লেকচার তৈরি হচ্ছে…</p>
           </div>
-          <!-- Visual stage — replaces text display -->
           <div id="lecture-visual-stage" style="display:none;">
             <div id="lecture-anim-container"></div>
             <div id="lecture-caption"></div>
           </div>
-          <!-- Keep segment div hidden — still used internally for laser, but never shown -->
           <div class="lecture-segment" id="lecture-segment" style="display:none;"></div>
         </div>
 
-        <!-- Inline question area (shown on pause) -->
         <div id="lecture-question-area">
           <div class="lq-label">⏸ বিরতি — প্রশ্ন করুন, তারপর লেকচার চলবে</div>
           <div class="lq-row">
@@ -178,22 +167,33 @@
           <div id="lq-answer" class="lq-answer" style="display:none;"></div>
         </div>
       </div>
+    </div>
 
+    <!-- RIGHT PANEL: Chat + Quiz -->
+    <div class="panel" id="chat-panel">
+      <div class="panel-header">
+        <div class="panel-icon">🤖</div>
+        <div style="flex:1;">
+          <div class="chat-panel-header-row">
+            <div>
+              <div class="panel-title">AI শিক্ষা সহকারী</div>
+              <div class="panel-subtitle">বাংলায় প্রশ্ন করুন, বিষয় বুঝুন</div>
+            </div>
+            <button id="lecture-btn">
+              <span class="btn-icon">🎓</span> লাইভ লেকচার
+            </button>
+            <button id="quiz-btn">
+              <span class="btn-icon">📝</span> কুইজ
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- QUIZ PANEL — replaces chat temporarily -->
 <div id="quiz-panel" style="display:none;">
 
   <!-- SETUP SCREEN -->
   <div id="quiz-setup">
-    <div style="margin-bottom:16px;">
-  <label style="font-size:0.85rem;color:#a0aec0;display:block;margin-bottom:6px;">
-    তোমার ইমেইল (রিপোর্ট পাঠানোর জন্য)
-  </label>
-  <input type="email" id="student-email" 
-    placeholder="your@email.com"
-    style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-size:0.9rem;font-family:'Hind Siliguri',sans-serif;"
-  />
-</div>
     <div class="quiz-setup-title">📝 অ্যাডাপ্টিভ কুইজ</div>
     <div class="quiz-setup-sub">কুইজটি তোমার বোঝার গভীরতা মূল্যায়ন করবে এবং দুর্বল বিষয়গুলো চিহ্নিত করবে।</div>
     <div class="quiz-setup-row">

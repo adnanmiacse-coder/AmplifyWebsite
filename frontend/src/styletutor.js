@@ -2211,7 +2211,7 @@ function showDiagram(videoUrl, topic) {
     video.autoplay = true;
     video.loop = true;
     video.muted = true;
-    video.style.cssText = 'width:100%;height:240px;object-fit:contain;border-radius:10px;background:#0f0c29;';
+      video.style.cssText = 'width:100%;height:100%;object-fit:contain;border-radius:inherit;background:#0A1F33;';
     video.onerror = () => {
       if (!triedFallback) {
         triedFallback = true;
