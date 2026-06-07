@@ -643,6 +643,8 @@ async def get_config():
         "GEMINI_KEY": os.getenv('GEMINI_KEY', ''),
         "GEMINI_MODEL": os.getenv('GEMINI_MODEL', 'gemini-2.0-flash-lite'),
         "GEMINI_BASE": os.getenv('GEMINI_BASE', 'https://generativelanguage.googleapis.com/v1beta/models'),
+        "AZURE_SPEECH_KEY": os.getenv('AZURE_SPEECH_KEY', ''),
+        "AZURE_SPEECH_REGION": os.getenv('AZURE_SPEECH_REGION', 'southeastasia'),
     }
 
 
