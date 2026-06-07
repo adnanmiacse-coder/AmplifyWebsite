@@ -132,75 +132,71 @@ const GROQ_MODELS = [
 ];
 
 // ── TTS MANAGER ──
+
+// ── TTS MANAGER ──
+let _currentAudio = null;
+
+async function azureSpeak(text, rate = '-13%', pitch = '+5%') {
+  const key    = azureKey();
+  const region = azureRegion();
+  if (!key) { console.warn('[Azure TTS] No key'); return; }
+
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+
+  const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='bn-BD-NabanitaNeural'><prosody rate='${rate}' pitch='${pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
+
+  const res = await fetch(
+    `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+    {
+      method: 'POST',
+      headers: {
+        'Ocp-Apim-Subscription-Key': key,
+        'Content-Type': 'application/ssml+xml',
+        'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+      },
+      body: ssml,
+    }
+  );
+  if (!res.ok) throw new Error(`Azure TTS ${res.status}`);
+  const blob  = await res.blob();
+  const url   = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  _currentAudio = audio;
+  return new Promise(resolve => {
+    audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+    audio.play();
+  });
+}
+
 const TTS = {
-  aiUtterance: null,
   aiPaused: false,
   _pendingResolve: null,
   _interruptedText: null,
 
-  speakAI(text) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "bn-BD";
-    utterance.rate = 0.95;
-    this.aiUtterance = utterance;
-    this.aiPaused = false;
-    window.speechSynthesis.speak(utterance);
+  async speakAI(text) {
+    try { await azureSpeak(text, '-13%', '+5%'); } catch(e) { console.warn('[TTS.speakAI]', e.message); }
   },
 
-  speakWarning(interruptedText) {
-    // Save what was being spoken so we can re-speak it after
+  async speakWarning(interruptedText) {
     this._interruptedText = interruptedText || null;
-
-    // Cancel current lecture speech
-    window.speechSynthesis.cancel();
+    if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
     this.aiPaused = true;
-
-    const utterance = new SpeechSynthesisUtterance("মনোযোগ দিন! আপনি মনোযোগ হারাচ্ছেন!!");
-    utterance.lang = "bn-BD";
-    utterance.rate = 0.95;
-
-    utterance.onend = () => {
-      this.aiPaused = false;
-      // If the lecture is still active and not manually paused, re-speak the interrupted sentence
-      if (this._interruptedText && lectureActive && !lecturePaused && !lectureAborted) {
-        const resumeUtt = new SpeechSynthesisUtterance(this._interruptedText);
-        if (_lectureVoice) { resumeUtt.voice = _lectureVoice; resumeUtt.lang = _lectureVoice.lang; }
-        resumeUtt.rate = 0.87;
-        resumeUtt.pitch = 1.0;
-        this.aiUtterance = resumeUtt;
-        // Resolve the pending speakWithLaser promise when done
-        resumeUtt.onend = () => {
-          this.aiUtterance = null;
-          if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
-        };
-        resumeUtt.onerror = () => {
-          this.aiUtterance = null;
-          if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
-        };
-        window.speechSynthesis.speak(resumeUtt);
-      } else {
-        // Nothing to resume — just resolve
-        if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
-      }
-      this._interruptedText = null;
-    };
-
-    utterance.onerror = () => {
-      this.aiPaused = false;
-      this._interruptedText = null;
-      if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
-    };
-
-    window.speechSynthesis.speak(utterance);
+    try {
+      await azureSpeak('মনোযোগ দিন! আপনি মনোযোগ হারাচ্ছেন!!', '-5%', '+20%');
+    } catch(e) { console.warn('[TTS.speakWarning]', e.message); }
+    this.aiPaused = false;
+    if (this._interruptedText && lectureActive && !lecturePaused && !lectureAborted) {
+      try { await azureSpeak(this._interruptedText, '-13%', '+5%'); } catch(e) {}
+    }
+    if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
+    this._interruptedText = null;
   },
 
   stop() {
-    window.speechSynthesis.cancel();
-    this.aiUtterance = null;
+    if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
     this.aiPaused = false;
     this._interruptedText = null;
-    // Don't clear _pendingResolve here — speakWithLaser's onerror will handle it
   }
 };
 
@@ -239,6 +235,8 @@ loadEnvConfig().then(cfg => {
 function geminiKey() { return _geminiConfig.GEMINI_KEY || _env.VITE_GEMINI_KEY || ''; }
 function geminiModel() { return _geminiConfig.GEMINI_MODEL || _env.VITE_GEMINI_MODEL || 'gemini-2.0-flash-lite'; }
 function geminiBase() { return _geminiConfig.GEMINI_BASE || _env.VITE_GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta/models'; }
+function azureKey() { return _config?.AZURE_SPEECH_KEY || _config?.VITE_AZURE_SPEECH_KEY || ''; }
+function azureRegion() { return _config?.AZURE_SPEECH_REGION || _config?.VITE_AZURE_SPEECH_REGION || 'southeastasia'; }
 
 // Pipeline settings
 const CHUNK_WORDS  = 300;
@@ -2418,17 +2416,9 @@ function showDiagram(videoUrl, topic) {
 // ─────────────────────────────────────────────────────
 // VOICE LOADING
 // ─────────────────────────────────────────────────────
+
 function loadLectureVoice(){
-  const assign=()=>{
-    const all=speechSynthesis.getVoices();
-    const bnBD=all.filter(v=>v.lang==='bn-BD');
-    const bnIN=all.filter(v=>v.lang==='bn-IN');
-    const bnOth=all.filter(v=>v.lang.startsWith('bn')&&v.lang!=='bn-BD'&&v.lang!=='bn-IN');
-    const bnAll=[...bnBD,...bnIN,...bnOth];
-    _lectureVoice=bnAll[0]||all.find(v=>v.lang.startsWith('hi'))||all[0]||null;
-  };
-  assign();
-  speechSynthesis.addEventListener('voiceschanged',assign);
+  // Azure TTS — no local voice loading needed
 }
 
 function splitSentences(text){
@@ -2571,54 +2561,22 @@ async function getSegment(idx, timeoutMs = 12000) {
 // ─────────────────────────────────────────────────────
 // TTS WITH LASER POINTER
 // ─────────────────────────────────────────────────────
-function speakWithLaser(sentence){
-  return new Promise(resolve=>{
-    if(!window.speechSynthesis||lectureAborted){resolve();return;}
 
-    // If a warning is mid-play, wait for it to finish (it will re-speak and resolve us)
-    if(TTS.aiPaused){
-      TTS._interruptedText = sentence;
-      TTS._pendingResolve = resolve;
-      return;
-    }
-
-    TTS.stop();
-    const utt=new SpeechSynthesisUtterance(sentence);
-    if(_lectureVoice){utt.voice=_lectureVoice;utt.lang=_lectureVoice.lang;}
-    utt.rate=0.87; utt.pitch=1.0;
-    TTS.aiUtterance=utt;
-    TTS.aiPaused=false;
-
-    // Store current sentence and resolver in case warning fires mid-speech
+async function speakWithLaser(sentence){
+  if(lectureAborted) return;
+  if(TTS.aiPaused){
     TTS._interruptedText = sentence;
-    TTS._pendingResolve = resolve;
-
-    if(_laserSpans.length>0){_laserActive=true;moveLaser(0);}
-    utt.onboundary=(event)=>{
-      if(!_laserActive||lecturePaused||event.name!=='word') return;
-      const charIdx=event.charIndex;
-      let acc=0;
-      for(let i=0;i<_laserSpans.length;i++){
-        const wlen=_laserSpans[i].textContent.length;
-        if(charIdx<=acc+wlen){moveLaser(i);break;}
-        acc+=wlen+1;
-      }
-    };
-    utt.onend=()=>{
-      TTS.aiUtterance=null;
-      TTS._interruptedText=null;
-      if(TTS._pendingResolve){TTS._pendingResolve();TTS._pendingResolve=null;}
-    };
-    utt.onerror=()=>{
-      TTS.aiUtterance=null;
-      TTS._interruptedText=null;
-      if(TTS._pendingResolve){TTS._pendingResolve();TTS._pendingResolve=null;}
-    };
-    speechSynthesis.speak(utt);
-  });
+    await new Promise(resolve => { TTS._pendingResolve = resolve; });
+    return;
+  }
+  TTS.stop();
+  TTS._interruptedText = sentence;
+  try { await azureSpeak(sentence, '-13%', '+5%'); } catch(e) { console.warn('[speakWithLaser]', e.message); }
+  TTS._interruptedText = null;
+  if(TTS._pendingResolve){ TTS._pendingResolve(); TTS._pendingResolve = null; }
 }
 
-function stopTTS(){ TTS.stop(); }
+function stopTTS(){ TTS.stop(); if(_currentAudio){_currentAudio.pause();_currentAudio=null;} }
 
 async function typewriterAppend(segEl, text, speedMs = 28) {
   // Create a new <span> for this sentence and type it character by character
@@ -2782,7 +2740,7 @@ function pauseLecture(){
   lecturePaused=!lecturePaused;
   const btn=document.getElementById('pause-btn');
   if(lecturePaused){
-    stopTTS(); hideLaser();
+    stopTTS(); if(_currentAudio){_currentAudio.pause();_currentAudio=null;} hideLaser();
     btn.textContent='▶ চালিয়ে যাও';
     document.getElementById('lecture-question-area').classList.add('open');
     document.getElementById('lecture-status-text').textContent='⏸ বিরতি';
@@ -2908,21 +2866,10 @@ ${context}
   rec.start();
 }
 
-function speakAnswer(text){
-  return new Promise(resolve=>{
-    if(!window.speechSynthesis){resolve();return;}
-    TTS.stop();
-    const utt=new SpeechSynthesisUtterance(text);
-    if(_lectureVoice){utt.voice=_lectureVoice;utt.lang=_lectureVoice.lang;}
-    utt.rate=0.88; utt.pitch=1.05;
-    TTS.aiUtterance=utt;
-    TTS.aiPaused=false;
-    utt.onend=()=>{TTS.aiUtterance=null;resolve();};
-    utt.onerror=()=>{TTS.aiUtterance=null;resolve();};
-    speechSynthesis.speak(utt);
-  });
+async function speakAnswer(text){
+  TTS.stop();
+  try { await azureSpeak(text, '-10%', '+8%'); } catch(e) { console.warn('[speakAnswer]', e.message); }
 }
-
 // ─────────────────────────────────────────────────────
 // UI HELPERS
 // ─────────────────────────────────────────────────────

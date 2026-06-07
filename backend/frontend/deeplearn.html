@@ -1633,11 +1633,10 @@ async function loadAndIndexPDF(file,onProgress){
     let agentVoiceMap      = { expert1: null, expert2: null, expert3: null };
 
     const AGENT_TTS = {
-      expert1: { voice: 'bn-BD-PradeepNeural',  rate: '-10%', pitch: '-5%'  },
+      expert1: { voice: 'bn-BD-NabanitaNeural', rate: '-10%', pitch: '-5%'  },
       expert2: { voice: 'bn-BD-NabanitaNeural', rate: '-8%',  pitch: '+10%' },
-      expert3: { voice: 'bn-IN-BashkarNeural',  rate: '-5%',  pitch: '-15%' },
+      expert3: { voice: 'bn-BD-PradeepNeural',  rate: '-5%',  pitch: '-15%' },
     };
-
     // ── DOM ───────────────────────────────────────
     const uploadScreen    = document.getElementById('upload-screen');
     const deeplearnScreen = document.getElementById('deeplearn-screen');

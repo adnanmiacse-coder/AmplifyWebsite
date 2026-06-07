@@ -62,10 +62,10 @@ const AGENTS = {
   },
   curious: {
     id:    'curious',
-    name:  'রাফি',
+    name:  'ইমন',
     role:  'কৌতূহলী শিক্ষার্থী',
     color: '#2563eb',
-    system: `তুমি রাফি — ৯ম শ্রেণির উৎসাহী ছাত্র।
+    system: `তুমি ইমন — ৯ম শ্রেণির উৎসাহী ছাত্র।
 
 কঠোর নিয়ম:
 ✗ তৃতীয় পুরুষ, ধন্যবাদ, প্রশংসা নিষিদ্ধ
@@ -104,16 +104,16 @@ const TURN_ORDER = ['teacher', 'curious', 'skeptic', 'achiever'];
 
 const ALL_NAME_PREFIXES = [
   'শিক্ষক', 'Teacher', 'teacher',
-  'রাফি', 'Rafi', 'rafi',
+  'ইমন', 'Emon', 'emon',
   'ইতি', 'Iti', 'iti', 'Eity', 'eity',
   'মেধা', 'Medha', 'medha',
 ];
 
 const AGENT_TTS = {
-  teacher: { rate: 0.87, pitch: 1.00 },
-  curious: { rate: 1.05, pitch: 1.20 },
-  skeptic: { rate: 0.88, pitch: 0.82 },
-  achiever:{ rate: 1.02, pitch: 1.25 },
+  teacher: { voice: 'bn-BD-NabanitaNeural', rate: '-13%', pitch: '+5%'  },
+  curious: { voice: 'bn-BD-PradeepNeural',  rate: '+5%',  pitch: '+15%' },
+  skeptic: { voice: 'bn-BD-NabanitaNeural', rate: '-12%', pitch: '-8%'  },
+  achiever:{ voice: 'bn-BD-NabanitaNeural', rate: '+2%',  pitch: '+12%' },
 };
 
 // ── State ─────────────────────────────────────
@@ -128,7 +128,7 @@ let timerInterval      = null;
 let currentUtterance   = null;
 let currentTurnIndex   = 0;
 let dialogueLog        = [];
-let agentVoiceMap      = { teacher: null, curious: null, skeptic: null, achiever: null };
+agentVoiceMap      = {};
 let turnLoopRunning    = false;
 let lessonStarting     = false;
 let _turnInProgress = false;
@@ -664,29 +664,9 @@ async function loadAndIndexPDF(file, onProgress) {
 //  TTS — per-agent voices with laser sync
 // ══════════════════════════════════════════════
 
+
 function loadAgentVoices() {
-  const assign = () => {
-    const all   = speechSynthesis.getVoices();
-    const bnAll = [
-      ...all.filter(v => v.lang === 'bn-BD'),
-      ...all.filter(v => v.lang === 'bn-IN'),
-    ];
-    if (!bnAll.length) return;
-
-    // Try to find Nabonita specifically for iti and achiever
-    const nabonita = bnAll.find(v => v.name.toLowerCase().includes('nabonita'))
-                  || bnAll.find(v => v.name.toLowerCase().includes('নবনীতা'));
-
-    agentVoiceMap.teacher  = bnAll[0];
-    agentVoiceMap.curious  = bnAll[1] || bnAll[0];
-    agentVoiceMap.skeptic  = nabonita || bnAll[2] || bnAll[0];
-    agentVoiceMap.achiever = nabonita || bnAll[3] || bnAll[1] || bnAll[0];
-
-    console.log('[TTS] voices:', Object.entries(agentVoiceMap)
-      .map(([k, v]) => `${k}:${v?.name}`).join(' | '));
-  };
-  assign();
-  speechSynthesis.onvoiceschanged = assign;
+  // Azure TTS — no local voice loading needed
 }
 
 // ── Global TTS lock — only ONE utterance may run at a time ──
@@ -714,121 +694,78 @@ function _releaseTtsLock() {
  * If TTS is disabled or no voice, waits a character-count-based silent delay
  * so the rest of the turn still paces correctly.
  */
+
+let _currentAudio = null;
+
 async function speak(text, agentId, useLaser = false) {
   await _acquireTtsLock();
 
   if (!ttsEnabled || !text?.trim()) {
     const wc = text ? text.trim().split(/\s+/).length : 0;
-    const silentMs = Math.max(800, wc * 220);
-    await sleep(silentMs);
+    await sleep(Math.max(800, wc * 220));
     _releaseTtsLock();
     return;
   }
 
-  let voice = agentVoiceMap[agentId];
-  if (!voice) {
-    const deadline = Date.now() + 3000;
-    while (!voice && Date.now() < deadline) {
-      await sleep(150);
-      voice = agentVoiceMap[agentId];
-    }
-  }
+  const tts    = AGENT_TTS[agentId];
+  const key    = _config?.AZURE_SPEECH_KEY || _config?.VITE_AZURE_SPEECH_KEY || '';
+  const region = _config?.AZURE_SPEECH_REGION || _config?.VITE_AZURE_SPEECH_REGION || 'southeastasia';
 
-  if (!voice) {
+  if (!key) {
+    console.warn('[Azure TTS] No key');
     const wc = text.trim().split(/\s+/).length;
     await sleep(Math.max(800, wc * 220));
     _releaseTtsLock();
     return;
   }
 
-  speechSynthesis.cancel();
-  await sleep(100);
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
 
-  return new Promise(resolve => {
-    const tts = AGENT_TTS[agentId];
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate   = tts.rate;
-    utt.pitch  = tts.pitch;
-    utt.volume = 1;
-    utt.lang   = 'bn-BD';
-    utt.voice  = voice;
-    currentUtterance = utt;
+  const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${tts.voice}'><prosody rate='${tts.rate}' pitch='${tts.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
 
-    if (ttsWave)  ttsWave.classList.add('speaking');
-    if (ttsLabel) ttsLabel.textContent = AGENTS[agentId].name + ' বলছেন...';
+  if (ttsWave)  ttsWave.classList.add('speaking');
+  if (ttsLabel) ttsLabel.textContent = AGENTS[agentId].name + ' বলছেন...';
 
-    if (useLaser && laserWordSpans.length > 0) {
-      laserActive = true;
-      moveLaserToWord(0);
-      utt.onboundary = (event) => {
-        if (!laserActive || isPaused || event.name !== 'word') return;
-        let acc = 0;
-        for (let i = 0; i < laserWordSpans.length; i++) {
-          if (event.charIndex <= acc + laserWordSpans[i].textContent.length) { moveLaserToWord(i); break; }
-          acc += laserWordSpans[i].textContent.length + 1;
-        }
-      };
-    }
+  if (useLaser && laserWordSpans.length > 0) {
+    laserActive = true;
+    moveLaserToWord(0);
+  }
 
-    let finished = false;
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      clearInterval(pollInterval);
-      clearTimeout(watchdog);
-      if (ttsWave)  ttsWave.classList.remove('speaking');
-      if (ttsLabel) ttsLabel.textContent = 'নীরব';
-      if (useLaser) hideLaser();
-      currentUtterance = null;
-      _releaseTtsLock();
-      resolve();
-    };
-
-    const wc      = text.trim().split(/\s+/).length;
-    const watchMs = Math.max(6000, Math.ceil((wc / tts.rate) * 700) + 3000);
-
-    const watchdog = setTimeout(() => {
-      console.warn(`[TTS] watchdog fired for ${agentId} after ${watchMs}ms`);
-      finish();
-    }, watchMs);
-
-    // Poll every 200ms as backup — Chrome onend is unreliable
-    const pollInterval = setInterval(() => {
-      if (finished) { clearInterval(pollInterval); return; }
-      if (!speechSynthesis.speaking && !speechSynthesis.pending) {
-        console.log(`[TTS] poll detected end for ${agentId}`);
-        finish();
+  try {
+    const res = await fetch(
+      `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+      {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': key,
+          'Content-Type': 'application/ssml+xml',
+          'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+        },
+        body: ssml,
       }
-    }, 200);
+    );
 
-    utt.onend = () => {
-      console.log(`[TTS] onend fired for ${agentId}`);
-      finish();
-    };
+    if (!res.ok) throw new Error(`Azure TTS ${res.status}`);
 
-    utt.onerror = (e) => {
-      if (e.error !== 'interrupted' && e.error !== 'canceled') {
-        console.warn('[TTS] error:', e.error, 'agent:', agentId);
-      }
-      finish();
-    };
+    const blob  = await res.blob();
+    const url   = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    _currentAudio = audio;
 
-    console.log(`[TTS] ▶ ${agentId} | ${voice.name} | ${wc}w | watchdog:${watchMs}ms`);
-    speechSynthesis.speak(utt);
+    await new Promise(resolve => {
+      audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+      audio.play();
+    });
+  } catch(e) {
+    console.warn('[Azure TTS]', e.message);
+  }
 
-    // Chrome sometimes needs a kick if speaking hasn't started after 600ms
-    setTimeout(() => {
-      if (!finished && !speechSynthesis.speaking) {
-        console.warn('[TTS] not speaking after 600ms, retrying');
-        speechSynthesis.cancel();
-        setTimeout(() => {
-          if (!finished) speechSynthesis.speak(utt);
-        }, 100);
-      }
-    }, 600);
-  });
+  if (ttsWave)  ttsWave.classList.remove('speaking');
+  if (ttsLabel) ttsLabel.textContent = 'নীরব';
+  if (useLaser) hideLaser();
+  _releaseTtsLock();
 }
-
 // ══════════════════════════════════════════════
 //  RED LASER POINTER
 // ══════════════════════════════════════════════
@@ -1013,7 +950,7 @@ async function fetchTeacherQuestion(context, topic) {
 
 এখন শিক্ষক রাফি, ইতি বা মেধার উদ্দেশ্যে একটি প্রশ্ন করবেন।
 নিয়ম:
-- "রাফি, তুমি কি..." বা "ইতি, তুমি কি..." বা "মেধা, তুমি কি..." দিয়ে শুরু করো
+- "ইমন, তুমি কি..." বা "ইতি, তুমি কি..." বা "মেধা, তুমি কি..." দিয়ে শুরু করো
 - শিক্ষক নিজেকে কখনো প্রশ্ন করবেন না
 - "আমি কি জানি", "আমি কি বুঝতে পারছি" — এগুলো সম্পূর্ণ নিষিদ্ধ
 - ঠিক ১টি বাক্য`;
@@ -1028,14 +965,14 @@ async function fetchTeacherQuestion(context, topic) {
     const cleaned = cleanReply(raw);
     // Hard reject if teacher is asking herself
     if (/^আমি কি|^আমার কি|^আমি কি/.test(cleaned)) {
-      const names = ['রাফি', 'ইতি', 'মেধা'];
+      const names = ['ইমন', 'ইতি', 'মেধা'];
       const name  = names[Math.floor(Math.random() * names.length)];
       return `${name}, তুমি কি এই বিষয়টি বুঝতে পেরেছ?`;
     }
     return cleaned;
   } catch (e) {
     console.warn('Teacher question error:', e);
-    return 'রাফি, তুমি কি এই বিষয়টি বুঝতে পেরেছ?';
+    return 'ইমন, তুমি কি এই বিষয়টি বুঝতে পেরেছ?';
   }
 }
 
@@ -1554,7 +1491,7 @@ raiseHandBtn.addEventListener('click', () => {
   const active = raiseHandBtn.classList.toggle('active');
   if (active) {
     isPaused = true;
-    speechSynthesis.cancel();
+    if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
     // Release TTS lock so speak() doesn't deadlock when user sends a message
     _ttsLocked = false; _ttsLockResolve = null;
     currentUtterance = null; laserActive = false; hideLaser();
@@ -1583,7 +1520,7 @@ function submitUserMessage() {
   if (micBtn) micBtn.disabled = true;
   raiseHandBtn.classList.remove('active'); stopMic();
   isPaused = false; if (ttsLabel) ttsLabel.textContent = 'নীরব';
-  speechSynthesis.cancel();
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
   _ttsLocked = false; _ttsLockResolve = null;
   hideLaser();
 }
@@ -1698,14 +1635,14 @@ if (ttsToggle) {
   ttsToggle.addEventListener('click', () => {
     ttsEnabled = !ttsEnabled;
     ttsToggle.textContent = ttsEnabled ? '🔊' : '🔇';
-    if (!ttsEnabled) { speechSynthesis.cancel(); hideLaser(); }
+    if (!ttsEnabled) { if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; } hideLaser(); }
   });
 }
 
 pauseBtn.addEventListener('click', () => {
   isPaused = !isPaused; pauseBtn.textContent = isPaused ? 'চালিয়ে যান' : 'বিরতি';
   if (isPaused) {
-    speechSynthesis.cancel();
+    if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
     // Release the TTS lock so the loop can resume cleanly when unpaused
     _ttsLocked = false; _ttsLockResolve = null;
     currentUtterance = null;
@@ -1733,7 +1670,7 @@ resetBtn.addEventListener('click', () => {
   if (!confirm('ক্লাস শেষ করতে চান?')) return;
   isRunning = false; lessonStarting = false; isPaused = false;
   _lessonStarted = false; 
-  stopMic(); speechSynthesis.cancel();
+  stopMic(); if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
   _ttsLocked = false; _ttsLockResolve = null;
   clearInterval(timerInterval); hideLaser();
   sessionSeconds = 0; dialogueLog = []; pdfPages = []; store.reset(); uploadedFiles = [];
