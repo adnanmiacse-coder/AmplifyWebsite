@@ -1633,9 +1633,9 @@ async function loadAndIndexPDF(file,onProgress){
     let agentVoiceMap      = { expert1: null, expert2: null, expert3: null };
 
     const AGENT_TTS = {
-      expert1: { rate: 0.85, pitch: 0.95 },
-      expert2: { rate: 0.88, pitch: 1.10 },
-      expert3: { rate: 0.92, pitch: 0.85 },
+      expert1: { voice: 'bn-BD-PradeepNeural',  rate: '-10%', pitch: '-5%'  },
+      expert2: { voice: 'bn-BD-NabanitaNeural', rate: '-8%',  pitch: '+10%' },
+      expert3: { voice: 'bn-IN-BashkarNeural',  rate: '-5%',  pitch: '-15%' },
     };
 
     // ── DOM ───────────────────────────────────────
@@ -1761,73 +1761,60 @@ async function loadAndIndexPDF(file,onProgress){
 
     // ── Voices ────────────────────────────────────
     function loadVoices() {
-      const assign = () => {
-        const all  = speechSynthesis.getVoices();
-        const bnAll = all.filter(v => v.lang.startsWith('bn'));
-        if (bnAll.length === 0) {
-          const any = all[0] || null;
-          Object.keys(EXPERTS).forEach(id => agentVoiceMap[id] = any);
-          return;
-        }
-        const MALE   = /Pradeep|Bashkar|Arnav|Ravi|male/i;
-        const FEMALE = /Nabanita|Tanishaa|Asha|Heera|Swara|female/i;
-        const males   = bnAll.filter(v => MALE.test(v.name));
-        const females = bnAll.filter(v => FEMALE.test(v.name));
-        
-        const neutral = bnAll.filter(v => !MALE.test(v.name) && !FEMALE.test(v.name));
-        console.log('[VOICES]', bnAll.map(v => v.name + ' | ' + v.lang));
-        
-        const mPool = males.length   ? males   : [...neutral, ...females];
-        const fPool = females.length ? females : [...neutral, ...males];
-        
-      
-        const bnMale   = bnAll.filter(v => /male/i.test(v.name) && !/female/i.test(v.name));
-const bnFemale = bnAll.filter(v => /female/i.test(v.name));
-const mFinal   = bnMale.length   ? bnMale   : (males.length ? males : (neutral.length ? neutral : bnAll));
-const fFinal   = bnFemale.length ? bnFemale : (females.length ? females : (neutral.length ? neutral : bnAll));
-agentVoiceMap.expert1 = mFinal[0] || bnAll[0];
-agentVoiceMap.expert2 = fFinal[0] || bnAll[0];
-agentVoiceMap.expert3 = mFinal[1] || mFinal[0] || bnAll[0];
-      };
-      assign();
-      speechSynthesis.addEventListener('voiceschanged', assign);
+      // Azure TTS — no local voice loading needed
     }
-function splitSentences(text) {
-  return text
-    .replace(/([।?!.]+)\s+/g, '$1\n')
-    .split('\n')
-    .map(s => s.trim())
-    .filter(s => s.length > 3);
-}
+
+
+    
+let _currentAudio = null;
 
 async function speak(text, expertId) {
   if (!ttsEnabled) return;
   if (!text || !text.trim()) return;
-  const tts = AGENT_TTS[expertId];
-  const sentences = splitSentences(text);
-  if (!sentences.length) return;
-  ttsWave.classList.add('speaking');
-  ttsLabel.textContent = EXPERTS[expertId].name + ' বলছেন...';
-  for (const sentence of sentences) {
-    if (!ttsEnabled) break;
+
+  const tts    = AGENT_TTS[expertId];
+  const key    = _config?.AZURE_SPEECH_KEY || '';
+  const region = _config?.AZURE_SPEECH_REGION || 'southeastasia';
+
+  if (!key) { console.warn('[Azure TTS] No key'); return; }
+
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+
+  const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${tts.voice}'><prosody rate='${tts.rate}' pitch='${tts.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
+
+  try {
+    ttsWave.classList.add('speaking');
+    ttsLabel.textContent = EXPERTS[expertId].name + ' বলছেন...';
+
+    const res = await fetch(
+      `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+      {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': key,
+          'Content-Type': 'application/ssml+xml',
+          'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+        },
+        body: ssml,
+      }
+    );
+
+    if (!res.ok) throw new Error(`Azure TTS ${res.status}`);
+
+    const blob  = await res.blob();
+    const url   = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    _currentAudio = audio;
+
     await new Promise(resolve => {
-      // Safety timeout — if onend never fires, resolve after 10s max
-      const timeout = setTimeout(() => resolve(), 10000);
-      speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance(sentence);
-      const voice = agentVoiceMap[expertId];
-      if (voice) { utt.voice = voice; utt.lang = voice.lang; }
-      else { utt.lang = 'bn-BD'; }
-      utt.rate  = tts.rate;
-      utt.pitch = tts.pitch;
-      utt.onend   = () => { clearTimeout(timeout); resolve(); };
-      utt.onerror = () => { clearTimeout(timeout); resolve(); };
-      // Edge sometimes silently drops utterances — add extra safety
-      setTimeout(() => { if (speechSynthesis.speaking === false) resolve(); }, 500);
-      speechSynthesis.speak(utt);
+      audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+      audio.play();
     });
-    await sleep(120);
+  } catch(e) {
+    console.warn('[Azure TTS]', e.message);
   }
+
   ttsWave.classList.remove('speaking');
   ttsLabel.textContent = 'নীরব';
 }
@@ -1835,7 +1822,7 @@ async function speak(text, expertId) {
       ttsEnabled = !ttsEnabled;
       ttsToggle.classList.toggle('muted', !ttsEnabled);
       if (!ttsEnabled) {
-        speechSynthesis.cancel();
+        if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
         ttsWave.classList.remove('speaking');
         ttsLabel.textContent = 'TTS বন্ধ';
       } else {
@@ -2757,7 +2744,7 @@ async function fetchKnowledgeInsert(topic, phaseId) {
       pauseBtn.textContent = isPaused ? 'চালিয়ে যান' : 'বিরতি';
       pauseInputBtn.classList.toggle('active', isPaused);
       if (isPaused) {
-        speechSynthesis.cancel();
+        if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
         ttsWave.classList.remove('speaking');
         ttsLabel.textContent = 'বিরতি';
       } else {
@@ -2780,7 +2767,7 @@ async function fetchKnowledgeInsert(topic, phaseId) {
       if (!confirm('আলোচনা শেষ করতে চান?')) return;
       isRunning = false;
       isPaused  = false;
-      speechSynthesis.cancel();
+      if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
       clearInterval(timerInterval);
       deeplearnScreen.classList.remove('active');
       uploadScreen.classList.add('active');
@@ -2859,7 +2846,7 @@ async function fetchKnowledgeInsert(topic, phaseId) {
           recognition.stop();
         } else {
           // Stop TTS before listening
-          speechSynthesis.cancel();
+          if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
           ttsWave.classList.remove('speaking');
           userInput.value = '';
           try {
