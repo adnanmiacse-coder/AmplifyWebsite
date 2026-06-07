@@ -1696,11 +1696,15 @@ async function loadSavedDocuments() {
 
   loadLocalDocuments().forEach(doc => {
     const card = document.createElement('div');
-    card.className = 'home-card';
+    card.className = 'home-pdf-card';
     card.innerHTML = `
-      <div class="home-card-title">📄 ${doc.filename}</div>
-      <div class="home-card-meta">${doc.chunkCount} অংশ · ${doc.pages} পৃষ্ঠা</div>
-      <div class="home-card-date">${new Date(doc.date).toLocaleDateString('bn-BD')}</div>`;
+      📄
+
+      ${doc.filename}
+
+      ${doc.chunkCount} অংশ · ${doc.pages} পৃষ্ঠা
+${new Date(doc.date).toLocaleDateString('bn-BD')}
+`;
     card.onclick = () => loadDocumentFromStorage(doc.docId);
     grid.insertBefore(card, grid.firstChild);
   });
@@ -2904,7 +2908,16 @@ document.addEventListener('DOMContentLoaded', async function(){
   on('attention-btn','click',toggleAttention);
   on('quiz-btn', 'click', openQuiz);
 
-on('quiz-start-btn', 'click', async function() {
+  document.getElementById('quiz-close-setup-btn')?.addEventListener('click', () => {
+    quizActive = false;
+    document.getElementById('quiz-panel').style.display = 'none';
+    document.getElementById('chat-messages').style.display = 'flex';
+    document.querySelector('.chat-input-area').style.display = 'flex';
+    document.getElementById('lecture-btn').style.display = 'flex';
+    document.getElementById('quiz-btn').style.display = 'flex';
+  });
+
+  on('quiz-start-btn', 'click', async function() {
   showQuizLoading('প্রথম প্রশ্ন তৈরি হচ্ছে…');
   try {
     const chunk = getQuizChunkForModel();
