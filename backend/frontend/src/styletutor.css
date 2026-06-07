@@ -290,11 +290,12 @@ nav {
 
 .home-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
   gap: 16px;
   max-width: 900px;
   margin: 0 auto;
   padding: 0 24px 48px;
+  justify-content: center;
 }
 
 .home-new-card {
@@ -312,6 +313,47 @@ nav {
   font-size: 0.85rem;
   font-weight: 600;
 }
+
+/* ADD THIS after .home-new-card styles */
+.home-pdf-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+  color: var(--text);
+  font-size: 0.82rem;
+  min-height: 0;
+  max-height: 140px;
+  overflow: hidden;
+}
+.home-pdf-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+.home-pdf-card .card-icon { font-size: 1.5rem; }
+.home-pdf-card .card-name {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+.home-pdf-card .card-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 .home-new-card:hover {
   border-color: var(--accent);
   color: var(--accent);

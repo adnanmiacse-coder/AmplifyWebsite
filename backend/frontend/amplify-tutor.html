@@ -193,9 +193,13 @@
 <div id="quiz-panel" style="display:none;">
 
   <!-- SETUP SCREEN -->
-  <div id="quiz-setup">
-    <div class="quiz-setup-title">📝 অ্যাডাপ্টিভ কুইজ</div>
-    <div class="quiz-setup-sub">কুইজটি তোমার বোঝার গভীরতা মূল্যায়ন করবে এবং দুর্বল বিষয়গুলো চিহ্নিত করবে।</div>
+  <!-- WITH THIS -->
+<div id="quiz-setup">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+    <div class="quiz-setup-title" style="margin-bottom:0;">📝 অ্যাডাপ্টিভ কুইজ</div>
+    <button id="quiz-close-setup-btn" style="background:none;border:1.5px solid var(--border);color:var(--text-muted);border-radius:var(--radius-sm);padding:5px 12px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all var(--dur) var(--ease);" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">✕ বন্ধ করো</button>
+  </div>
+  <div class="quiz-setup-sub">কুইজটি তোমার বোঝার গভীরতা মূল্যায়ন করবে এবং দুর্বল বিষয়গুলো চিহ্নিত করবে।</div>
     <div class="quiz-setup-row">
       <label>প্রশ্ন সংখ্যা:</label>
       <div class="quiz-count-btns">

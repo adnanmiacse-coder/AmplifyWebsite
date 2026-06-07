@@ -1094,6 +1094,7 @@ function openQuiz() {
   document.getElementById('lecture-btn').style.display = 'none';
   document.getElementById('quiz-btn').style.display = 'none';
   document.getElementById('quiz-panel').style.display = 'flex';
+  // ADD this after quiz-btn click handler setup
 
   // Reset to setup screen
   document.getElementById('quiz-setup').style.display = 'block';
@@ -2903,6 +2904,17 @@ document.addEventListener('DOMContentLoaded', async function(){
   on('chunk-modal','click',function(e){if(e.target===this) closeModal();});
   on('attention-btn','click',toggleAttention);
   on('quiz-btn', 'click', openQuiz);
+
+
+
+  document.getElementById('quiz-close-setup-btn')?.addEventListener('click', () => {
+    quizActive = false;
+    document.getElementById('quiz-panel').style.display = 'none';
+    document.getElementById('chat-messages').style.display = 'flex';
+    document.querySelector('.chat-input-area').style.display = 'flex';
+    document.getElementById('lecture-btn').style.display = 'flex';
+    document.getElementById('quiz-btn').style.display = 'flex';
+  });
 
 on('quiz-start-btn', 'click', async function() {
   showQuizLoading('প্রথম প্রশ্ন তৈরি হচ্ছে…');
