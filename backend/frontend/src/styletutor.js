@@ -1696,15 +1696,13 @@ async function loadSavedDocuments() {
 
   loadLocalDocuments().forEach(doc => {
     const card = document.createElement('div');
-    card.className = 'home-pdf-card';
+    
+    card.className = 'home-card';
     card.innerHTML = `
-      📄
-
-      ${doc.filename}
-
-      ${doc.chunkCount} অংশ · ${doc.pages} পৃষ্ঠা
-${new Date(doc.date).toLocaleDateString('bn-BD')}
-`;
+      <div class="home-card-title">📄 ${doc.filename}</div>
+      <div class="home-card-meta">${doc.chunkCount} অংশ · ${doc.pages} পৃষ্ঠা</div>
+      <div class="home-card-date">${new Date(doc.date).toLocaleDateString('bn-BD')}</div>
+    `;
     card.onclick = () => loadDocumentFromStorage(doc.docId);
     grid.insertBefore(card, grid.firstChild);
   });

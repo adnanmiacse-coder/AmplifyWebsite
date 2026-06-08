@@ -318,6 +318,7 @@ nav {
   font-weight: 600;
 }
 
+.home-card,
 .home-pdf-card {
   width: 180px;
   height: 160px;
