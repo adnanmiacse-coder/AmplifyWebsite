@@ -711,9 +711,12 @@ if FRONTEND_DIR:
             raise HTTPException(404, "icons.svg not found")
         return FileResponse(path, media_type="image/svg+xml")
 
-    @app.get("/favicon.svg")
-    async def favicon_svg():
-        path = os.path.join(public_dir, "favicon.svg")
+    @app.get("/favicon.png")
+async def favicon_png():
+    path = os.path.join(public_dir, "favicon.png")
+    if not os.path.isfile(path):
+        raise HTTPException(404, "favicon.png not found")
+    return FileResponse(path, media_type="image/png")
         if not os.path.isfile(path):
             raise HTTPException(404, "favicon.svg not found")
         return FileResponse(path, media_type="image/svg+xml")

@@ -1,9 +1,22 @@
+// Fix favicon - wait for DOM ready
 (function() {
-  const link = document.createElement('link');
-  link.rel = 'icon';
-  link.type = 'image/png';
-  link.href = '/src/assets/amplify.png';
-  document.head.appendChild(link);
+  function setFavicon() {
+    // Remove any existing favicons first
+    const existing = document.querySelectorAll('link[rel*="icon"]');
+    existing.forEach(el => el.remove());
+
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.type = 'image/png';
+    link.href = '/src/assets/amplify.png';
+    document.head.appendChild(link);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setFavicon);
+  } else {
+    setFavicon();
+  }
 })();
 
 // src/main.js

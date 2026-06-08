@@ -2778,6 +2778,8 @@ async function fetchKnowledgeInsert(topic, phaseId) {
       stageIdle.classList.remove('hidden');
       currentPhaseIdx = 0; currentPhaseRound = 0;
       updatePhaseUI();
+      einsteinToggle.style.display = 'none';
+      if (einsteinActive) disableEinsteinMode();
     });
 
 
@@ -3039,8 +3041,9 @@ function derivePersonaNames(sci) {
 }
 
 function disableEinsteinMode() {
-  // 1. Stop any Einstein TTS
+  // 1. Stop any audio
   if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
   ttsWave.classList.remove('speaking');
   ttsLabel.textContent = 'নীরব';
 
@@ -3060,28 +3063,41 @@ function disableEinsteinMode() {
   // 3. Restore stage mode badge
   const badge = document.querySelector('.stage-mode-badge');
   if (badge) badge.innerHTML = '<div class="mode-dot"></div>গভীর শিক্ষা';
+
+  // 4. Restore EXPERTS object to original Bangla config so callGroq prompt is correct
+  EXPERTS.expert1.name = 'ড. আরিফা ';
+  EXPERTS.expert2.name = 'ড. নাফিসা';
+  EXPERTS.expert3.name = 'ড. রাকিব';
 }
 
-einsteinToggle.addEventListener('click', () => {
+einsteinToggle.addEventListener('click', async () => {
   if (!isRunning) return;
-  if (einsteinActive) disableEinsteinMode();
-  else enableEinsteinMode();
+  if (einsteinActive) {
+    disableEinsteinMode();
+    // Resume loop cleanly in Bangla mode
+    if (isPaused) {
+      isPaused = false;
+      pauseBtn.textContent = 'বিরতি';
+      pauseInputBtn.classList.remove('active');
+      ttsLabel.textContent = 'নীরব';
+    }
+  } else {
+    await enableEinsteinMode();
+  }
 });
 
 // Show toggle when deep learn screen is active
 const origSwitchToDeepLearn = switchToDeepLearn;
+
 // Patch: show toggle button when session starts
+// NOTE: must come AFTER callGroq/speak overrides — do not hoist
 const _origStartDiscussion = startDiscussion;
 startDiscussion = async function() {
   einsteinToggle.style.display = 'flex';
+  // reset mode cleanly on each new session
+  if (einsteinActive) disableEinsteinMode();
   await _origStartDiscussion.apply(this, arguments);
 };
-
-resetBtn.addEventListener('click', () => {
-  // runs after confirm — hide toggle & reset
-  einsteinToggle.style.display = 'none';
-  disableEinsteinMode();
-}, true); // capture phase so it runs first
 
 
 // ── Einstein TTS (Azure, English voice) ───────────────────────
