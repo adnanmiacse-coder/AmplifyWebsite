@@ -707,21 +707,85 @@
 
     // Giphy
     const GIPHY_KEY='eI657U89m1QBfMVp4acJAWzqUFnN5R77';
-    async function fetchGif(text) {
-      try {
-        let searchTerm=sessionTopic||'science';
-        if(GROQ_KEYS.length>0){const res=await fetch(`${GROQ_BASE}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[0]}`},body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:10,temperature:0.1,messages:[{role:'user',content:`From this Bengali academic text, output ONLY 2-3 English words that would find a scientific animation on Giphy. Output the search phrase only: "${text.slice(0,200)}"`}]})});if(res.ok){const d=await res.json();const kw=d?.choices?.[0]?.message?.content?.trim().replace(/[\u0980-\u09FF]/g,'').replace(/[^\w\s]/g,'').trim();if(kw&&kw.length>1)searchTerm=kw;}}
-        const HARD_REJECT=['dragon','ball','anime','cartoon','naruto','gaming','meme','funny','lol','movie','music','dance','cat','dog'];
-        const HARD_REQUIRE=['science','biology','physics','chemistry','math','education','nasa','microscop','molecule','atom','dna','cell','neuron','protein','gene','quantum','climate','evolution','laboratory','experiment','diagram','animation','medical','brain','photosynthesis','space','planet'];
-        const url=`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(searchTerm+' animation')}&limit=25&rating=g&lang=en`;
-        const res=await fetch(url);if(!res.ok)return null;
-        const data=await res.json(),results=data?.data||[];
-        const filtered=results.filter(g=>{const combined=`${g.title||''} ${g.slug||''} ${g.username||''}`.toLowerCase();return !HARD_REJECT.some(w=>combined.includes(w))&&HARD_REQUIRE.some(w=>combined.includes(w))&&(g.title||'').trim().split(/\s+/).length>=2;});
-        if(!filtered.length)return null;
-        const pick=filtered[Math.floor(Math.random()*Math.min(filtered.length,3))];
-        return pick?.images?.fixed_height?.url||pick?.images?.fixed_height_small?.url||null;
-      } catch(e){console.warn('[Giphy]',e.message);return null;}
+   async function fetchGif(text) {
+  try {
+    // Step 1: Extract a tight scientific English search term using LLM
+    let searchTerm = 'science animation';
+    if (GROQ_KEYS.length > 0) {
+      const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[0]}` },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant', max_tokens: 15, temperature: 0.1,
+          messages: [{ role: 'user', content: `From this academic Bengali text, output ONLY 2-3 English words for a Giphy scientific animation search. Must be a hard science concept (biology, physics, chemistry, astronomy, neuroscience, genetics, etc). Do NOT output anything else, no punctuation:\n"${text.slice(0, 300)}"` }]
+        })
+      });
+      if (res.ok) {
+        const d = await res.json();
+        const kw = (d?.choices?.[0]?.message?.content || '')
+          .replace(/[\u0980-\u09FF]/g, '')   // strip Bengali
+          .replace(/[^\w\s]/g, '')
+          .trim();
+        if (kw && kw.length > 2) searchTerm = kw;
+      }
     }
+
+    // Step 2: Always append "science" to force scientific results
+    const query = `${searchTerm} science`;
+
+    // Step 3: Fetch from Giphy
+    const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(query)}&limit=50&rating=g&lang=en`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const results = data?.data || [];
+    if (!results.length) return null;
+
+    // Step 4: Strict allowlist — ONLY pass gifs whose title/slug contain a science keyword
+    const SCIENCE_KEYWORDS = [
+      'science','biology','physics','chemistry','math','education','nasa','microscop',
+      'molecule','atom','dna','cell','neuron','protein','gene','quantum','climate',
+      'evolution','laboratory','experiment','diagram','animation','medical','brain',
+      'photosynthesis','space','planet','solar','galaxy','electron','nucleus','enzyme',
+      'virus','bacteria','fossil','geology','ecosystem','neural','genome','orbit',
+      'telescope','reactor','periodic','element','compound','circuit','wave','laser',
+      'radiation','gravity','black hole','nebula','synapse','mitosis','meiosis',
+      'chromosome','vaccine','antibiotic','thermodynamic','entropy','relativity',
+      'particle','neutron','proton','isotope','reaction','catalyst','diffusion',
+      'osmosis','photon','spectrum','refraction','magnetic','electric','current',
+      'algorithm','data','computer','robot','artificial','intelligence','satellite'
+    ];
+
+    // Step 5: Hard blocklist — immediately discard anything matching these
+    const BLOCK_KEYWORDS = [
+      'anime','cartoon','naruto','gaming','meme','funny','lol','movie','music',
+      'dance','cat','dog','food','sport','celebrity','fashion','makeup','nails',
+      'baby','wedding','party','holiday','christmas','halloween','birthday',
+      'cooking','recipe','travel','nature walk','selfie','tiktok','reaction',
+      'drama','romance','kiss','love','fight','news','politics','superhero',
+      'marvel','disney','pokemon','minecraft','fortnite','gym','workout','art',
+      'drawing','painting','illustration','tattoo','hair','beauty'
+    ];
+
+    const filtered = results.filter(g => {
+      const combined = `${g.title || ''} ${g.slug || ''} ${g.username || ''}`.toLowerCase();
+      const hasBlock   = BLOCK_KEYWORDS.some(w => combined.includes(w));
+      const hasScience = SCIENCE_KEYWORDS.some(w => combined.includes(w));
+      const hasWords   = (g.title || '').trim().split(/\s+/).length >= 2;
+      return !hasBlock && hasScience && hasWords;
+    });
+
+    if (!filtered.length) return null;
+
+    // Pick randomly from top 5 matches
+    const pick = filtered[Math.floor(Math.random() * Math.min(filtered.length, 5))];
+    return pick?.images?.fixed_height?.url || pick?.images?.fixed_height_small?.url || null;
+
+  } catch (e) {
+    console.warn('[Giphy]', e.message);
+    return null;
+  }
+}
 
     async function addChatBubble(expertId, text) {
       const expert=EXPERTS[expertId];

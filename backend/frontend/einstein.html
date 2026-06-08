@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>⚛️ Einstein Mode</title>
+  <title> Einstein Mode</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23020B16'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-size='18' fill='%2300B7FF'>A</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&display=swap" rel="stylesheet"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -1105,34 +1106,65 @@ try {
   azureRegion = cfg.AZURE_SPEECH_REGION || 'southeastasia';
 } catch(e) {}
 
+
 const VOICES = [
-  'en-US-AndrewMultilingualNeural',   // slot 0 — authoritative
-  'en-US-BrianMultilingualNeural',    // slot 1 — analytical
-  'en-US-EmmaMultilingualNeural',     // slot 2 — challenging
+  'en-US-AndrewMultilingualNeural',
+  'en-US-BrianMultilingualNeural',
+  'en-US-EmmaMultilingualNeural',
 ];
 const RATES  = ['-8%', '-5%', '-3%'];
 const PITCHES = ['-12%', '+0%', '+8%'];
 
 async function speak(text, slotIdx) {
-  if (!ttsEnabled || !azureKey || !text.trim()) return;
+  if (!ttsEnabled || !text.trim()) return;
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-  const voice = VOICES[slotIdx] || VOICES[0];
-  const ssml  = `<speak version='1.0' xml:lang='en-US'><voice name='${voice}'><prosody rate='${RATES[slotIdx]||"-5%"}' pitch='${PITCHES[slotIdx]||"0%"}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
-  try {
-    ttsWave.classList.add('speaking');
-    ttsLabel.textContent = (slotIdx === 0 ? scientist.name : slotIdx === 1 ? 'Peer Reviewer' : 'Critical Theorist') + ' speaking…';
-    const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-      method:'POST',
-      headers:{'Ocp-Apim-Subscription-Key':azureKey,'Content-Type':'application/ssml+xml','X-Microsoft-OutputFormat':'audio-24khz-48kbitrate-mono-mp3'},
-      body: ssml,
-    });
-    if (!res.ok) throw new Error('TTS ' + res.status);
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    currentAudio = audio;
-    await new Promise(r => { audio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; r(); }; audio.onerror = () => { URL.revokeObjectURL(url); currentAudio = null; r(); }; audio.play(); });
-  } catch(e) { console.warn('[TTS]', e.message); }
+
+  const speakerName = slotIdx === 0 ? scientist.name : slotIdx === 1 ? 'Peer Reviewer' : 'Critical Theorist';
+
+  // Try Azure first
+  if (azureKey) {
+    const voice = VOICES[slotIdx] || VOICES[0];
+    const ssml  = `<speak version='1.0' xml:lang='en-US'><voice name='${voice}'><prosody rate='${RATES[slotIdx]||"-5%"}' pitch='${PITCHES[slotIdx]||"0%"}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
+    try {
+      ttsWave.classList.add('speaking');
+      ttsLabel.textContent = speakerName + ' speaking…';
+      const res = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+        method:'POST',
+        headers:{'Ocp-Apim-Subscription-Key':azureKey,'Content-Type':'application/ssml+xml','X-Microsoft-OutputFormat':'audio-24khz-48kbitrate-mono-mp3'},
+        body: ssml,
+      });
+      if (!res.ok) throw new Error('TTS ' + res.status);
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      currentAudio = audio;
+      await new Promise(r => { audio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; r(); }; audio.onerror = () => { URL.revokeObjectURL(url); currentAudio = null; r(); }; audio.play(); });
+      ttsWave.classList.remove('speaking');
+      ttsLabel.textContent = 'SILENT';
+      return;
+    } catch(e) { console.warn('[Azure TTS]', e.message); }
+  }
+
+  // Fallback: Web Speech API
+  if ('speechSynthesis' in window) {
+    try {
+      ttsWave.classList.add('speaking');
+      ttsLabel.textContent = speakerName + ' speaking…';
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'en-US';
+      utter.rate = slotIdx === 0 ? 0.88 : slotIdx === 1 ? 0.92 : 0.96;
+      utter.pitch = slotIdx === 0 ? 0.85 : slotIdx === 1 ? 1.0 : 1.15;
+
+      // Pick a voice per slot if available
+      const allVoices = speechSynthesis.getVoices();
+      const enVoices = allVoices.filter(v => v.lang.startsWith('en'));
+      if (enVoices.length > slotIdx) utter.voice = enVoices[slotIdx];
+      else if (enVoices.length > 0) utter.voice = enVoices[0];
+
+      await new Promise(r => { utter.onend = r; utter.onerror = r; speechSynthesis.speak(utter); });
+    } catch(e) { console.warn('[WebSpeech TTS]', e.message); }
+  }
+
   ttsWave.classList.remove('speaking');
   ttsLabel.textContent = 'SILENT';
 }
@@ -1141,7 +1173,12 @@ ttsToggleBtn.addEventListener('click', () => {
   ttsEnabled = !ttsEnabled;
   ttsToggleBtn.classList.toggle('active', ttsEnabled);
   ttsToggleBtn.textContent = ttsEnabled ? '🔊 AUDIO' : '🔇 MUTED';
-  if (!ttsEnabled && currentAudio) { currentAudio.pause(); currentAudio = null; ttsWave.classList.remove('speaking'); ttsLabel.textContent = 'MUTED'; }
+  if (!ttsEnabled) {
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    speechSynthesis.cancel();
+    ttsWave.classList.remove('speaking');
+    ttsLabel.textContent = 'MUTED';
+  }
 });
 
 // ── LLM CALL ─────────────────────────────
