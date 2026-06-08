@@ -79,6 +79,7 @@
 
 html, body {
   height: 100%;
+  overflow: hidden; 
   font-family: var(--font-body);
   background: var(--bg);
   color: var(--text);
@@ -127,9 +128,18 @@ button { font-family: inherit; }
   border-radius: 4px;
 }
 
+
 /* Screens */
-.screen { display: none; }
-.screen.active { display: flex; }
+.screen {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+.screen.active {
+  display: flex !important;
+  visibility: visible;
+  pointer-events: auto;
+}
 
 /* ══════════════════════════════════════════════════════════════
    UPLOAD SCREEN
@@ -405,21 +415,11 @@ button { font-family: inherit; }
 /* ══════════════════════════════════════════════════════════════
    CLASSROOM SCREEN
    ══════════════════════════════════════════════════════════════ */
-#classroom-screen {
-  height: 100vh;
-  display: grid;
-  grid-template-columns: 1fr 400px;
-  grid-template-rows: 1fr 60px;
-  grid-template-areas:
-    "stage right"
-    "bar   bar";
-  gap: 0;
-  overflow: hidden;
-  background: transparent;
-  position: relative;
-  z-index: 1;
+#classroom-screen.active {
+  display: grid !important;
+  grid-template-columns: auto 1fr 340px !important;
+  grid-template-rows: 1fr auto !important;
 }
-
 /* ── Stage Panel ── */
 .stage-panel {
   grid-area: stage;
