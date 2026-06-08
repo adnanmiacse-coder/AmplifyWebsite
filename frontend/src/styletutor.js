@@ -1680,7 +1680,7 @@ async function loadSavedDocuments() {
         const docs = res.results?.[0]?.data?.map(r => r.row[0]) || [];
         docs.forEach(doc => {
           const card = document.createElement('div');
-          card.className = 'home-card';
+          card.className = 'home-pdf-card';
           card.innerHTML = `
             <div class="home-card-title">📄 ${doc.filename}</div>
             <div class="home-card-meta">${doc.chunkCount} অংশ · ${doc.pages} পৃষ্ঠা</div>
@@ -1697,7 +1697,7 @@ async function loadSavedDocuments() {
 
   loadLocalDocuments().forEach(doc => {
     const card = document.createElement('div');
-    card.className = 'home-card';
+    ccard.className = 'home-pdf-card';
     card.innerHTML = `
       <div class="home-card-title">📄 ${doc.filename}</div>
       <div class="home-card-meta">${doc.chunkCount} অংশ · ${doc.pages} পৃষ্ঠা</div>

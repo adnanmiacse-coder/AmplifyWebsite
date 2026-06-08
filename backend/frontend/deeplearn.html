@@ -892,9 +892,8 @@ body::after {
     /* ══ EINSTEIN MODE ══ */
 :root {
   --einstein-bg: #000000;
-  /* Match homepage neon accent and secondary */
-  --einstein-neon-primary: #00ff88; /* homepage --accent */
-  --einstein-neon-blue: #00dd75;    /* homepage --accent-secondary */
+  --einstein-neon-primary: #00ff41;
+  --einstein-neon-blue: #00cfff;
   --einstein-neon-purple: #bf00ff;
   --einstein-neon-amber: #ffb700;
   --einstein-text: #e0ffe0;
@@ -904,8 +903,6 @@ body.einstein-mode {
   background: var(--einstein-bg) !important;
   transition: background 0.6s ease;
 }
-/* Use homepage font while Einstein mode is active */
-body.einstein-mode { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
 
 body.einstein-mode::before {
   background: radial-gradient(circle, rgba(0,255,65,0.5) 1px, transparent 1px);
@@ -958,27 +955,26 @@ body.einstein-mode .speaker-card::before { background: var(--einstein-neon-prima
 
 body.einstein-mode .speaker-text-lg {
   color: #c8ffd4 !important;
-  border-left-color: rgba(0,255,136,0.4) !important;
-  font-family: inherit !important;
+  border-left-color: rgba(0,255,65,0.4) !important;
+  font-family: 'Courier New', monospace !important;
   font-size: 1rem !important;
   line-height: 2 !important;
 }
 
-body.einstein-mode .speaker-name-lg { color: var(--einstein-neon-primary) !important; text-shadow: 0 0 12px rgba(0,255,136,0.6); }
-body.einstein-mode .speaker-role-lg { color: rgba(0,255,136,0.6) !important; }
+body.einstein-mode .speaker-name-lg { color: var(--einstein-neon-primary) !important; text-shadow: 0 0 12px rgba(0,255,65,0.6); }
+body.einstein-mode .speaker-role-lg { color: rgba(0,255,65,0.6) !important; }
 
 body.einstein-mode .bubble-expert1 .bubble-text,
 body.einstein-mode .bubble-expert2 .bubble-text,
-body.einstein-mode .bubble-expert1 .bubble-text,
-body.einstein-mode .bubble-expert2 .bubble-text,
 body.einstein-mode .bubble-expert3 .bubble-text {
-  background: rgba(0,255,136,0.05) !important;
+  background: rgba(0,255,65,0.05) !important;
   border-left-color: var(--einstein-neon-primary) !important;
   color: #c8ffd4 !important;
-  font-family: inherit !important;
+  font-family: 'Courier New', monospace !important;
 }
-/* Hide Bangla speaker name badges while in Einstein mode (they will be restored when exiting) */
-body.einstein-mode .bubble-meta { visibility: hidden !important; }
+
+body.einstein-mode .bubble-meta { color: rgba(0,255,65,0.7) !important; }
+
 body.einstein-mode .ref-card {
   background: #050505 !important;
   border-color: rgba(0,255,65,0.2) !important;
@@ -1190,13 +1186,13 @@ body.einstein-mode .einstein-scientist-banner { display: flex; }
         </div>
       </div>
 
-      <div class="einstein-scientist-banner" id="einsteinBanner">
+     <div class="einstein-scientist-banner" id="einsteinBanner">
   <div class="esb-avatar" id="einsteinEmoji">⚛️</div>
   <div>
     <div class="esb-name" id="einsteinName">Scientist Loading...</div>
     <div class="esb-desc" id="einsteinDesc">Channeling expertise...</div>
   </div>
-  <div class="esb-badge">EINSTEIN MODE</div>
+  <div class="esb-badge">⚡ EINSTEIN MODE</div>
 </div>
 
       <div class="stage-area" id="stageArea">
@@ -1774,26 +1770,20 @@ let _currentAudio = null;
 async function speak(text, expertId) {
   if (!ttsEnabled) return;
   if (!text || !text.trim()) return;
+
+  const tts    = AGENT_TTS[expertId];
   const key    = _config?.AZURE_SPEECH_KEY || '';
   const region = _config?.AZURE_SPEECH_REGION || 'southeastasia';
 
   if (!key) { console.warn('[Azure TTS] No key'); return; }
 
-  // Choose TTS settings — use Einstein voice while einsteinActive
-  let tts = AGENT_TTS[expertId] || { voice: 'bn-BD-NabanitaNeural', rate: '-10%', pitch: '0%' };
-  if (typeof einsteinActive !== 'undefined' && einsteinActive) {
-    tts = window.EINSTEIN_TTS || { voice: (_config?.EINSTEIN_VOICE || 'en-US-GuyNeural'), rate: '-5%', pitch: '0%' };
-  }
-
   if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
 
-  // Choose language tag from voice heuristic (en- vs bn-)
-  const lang = (tts.voice && tts.voice.startsWith('en-')) ? 'en-US' : 'bn-BD';
-  const ssml = `<speak version='1.0' xml:lang='${lang}'><voice name='${tts.voice}'><prosody rate='${tts.rate}' pitch='${tts.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
+  const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${tts.voice}'><prosody rate='${tts.rate}' pitch='${tts.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
 
   try {
     ttsWave.classList.add('speaking');
-    ttsLabel.textContent = (einsteinActive && einsteinScientist) ? (einsteinScientist.name + ' বলছেন...') : (EXPERTS[expertId]?.name || 'স্পিকার') + ' বলছেন...';
+    ttsLabel.textContent = EXPERTS[expertId].name + ' বলছেন...';
 
     const res = await fetch(
       `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
@@ -2973,72 +2963,103 @@ No commentary, no markdown, just the JSON.`;
   return { name:'Richard Feynman', emoji:'⚛️', field:'Physics & Curiosity', style:'playful, analogies, bottomless curiosity' };
 }
 
+
+// Store Bangla expert name snapshots to restore later
+const BANGLA_EXPERT_NAMES = {
+  expert1: { grid: 'ড. আরিফা ', role: 'বিষয় বিশেষজ্ঞ', short: 'ড.আ' },
+  expert2: { grid: 'ড. নাফিসা', role: 'বিশ্লেষক',       short: 'ড.না' },
+  expert3: { grid: 'ড. রাকিব',  role: 'সমালোচক',        short: 'ড.রা' },
+};
+
+function setExpertGridNames(e1name, e1role, e2name, e2role, e3name, e3role, e1short, e2short, e3short) {
+  // expert-card names
+  const cards = document.querySelectorAll('.expert-card');
+  const data = [
+    { name: e1name, role: e1role, short: e1short },
+    { name: e2name, role: e2role, short: e2short },
+    { name: e3name, role: e3role, short: e3short },
+  ];
+  cards.forEach((card, i) => {
+    const d = data[i];
+    if (!d) return;
+    const nameEl = card.querySelector('.expert-name');
+    const roleEl = card.querySelector('.expert-role');
+    const avatarEl = card.querySelector('.expert-avatar');
+    if (nameEl) nameEl.textContent = d.name;
+    if (roleEl) roleEl.textContent = d.role;
+    if (avatarEl) avatarEl.textContent = d.short;
+  });
+}
+
 async function enableEinsteinMode() {
+  // 1. Instantly stop all Bangla audio/TTS
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  ttsWave.classList.remove('speaking');
+  ttsLabel.textContent = '⚡ Einstein Mode';
+
   einsteinActive = true;
   document.body.classList.add('einstein-mode');
   einsteinToggle.classList.add('active');
-  einsteinToggle.innerHTML = '<div class="e-dot"></div>Einstein Mode';
-  // Immediately stop any Bangla TTS or listening
-  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
-  try { if (recognition && isListening) recognition.stop(); } catch(e){}
-  micBtn.disabled = true;
+  einsteinToggle.innerHTML = '<div class="e-dot"></div>Exit Einstein';
 
-  // Save UI/state so we can restore after exiting Einstein mode
-  window._savedExpertState = {
-    ttsEnabledBefore: ttsEnabled,
-    experts: JSON.parse(JSON.stringify(EXPERTS)),
-    domNames: Array.from(document.querySelectorAll('.expert-card')).map(c => ({ id: c.id, name: c.querySelector('.expert-name')?.textContent || '', role: c.querySelector('.expert-role')?.textContent || '', avatar: c.querySelector('.expert-avatar')?.textContent || '' }))
-  };
-
-  // Hide expert name texts in the right panel (they'll be visually removed by CSS too)
-  document.querySelectorAll('.expert-card').forEach(c => {
-    const nameEl = c.querySelector('.expert-name'); if (nameEl) nameEl.textContent = '';
-    const roleEl = c.querySelector('.expert-role'); if (roleEl) roleEl.textContent = '';
-    const avatarEl = c.querySelector('.expert-avatar'); if (avatarEl) avatarEl.textContent = '';
-  });
-
-  // Pick scientist based on current topic and show banner
-  einsteinName.textContent = '...identifying scientist...';
+  // 2. Show banner as loading
+  einsteinName.textContent = 'Identifying scientist...';
   einsteinDesc.textContent  = '';
   einsteinEmoji.textContent = '⚛️';
+
+  // 3. Pick scientist
   const sci = await pickScientist(sessionTopic || 'science');
   einsteinScientist = sci;
   einsteinName.textContent  = sci.name;
   einsteinDesc.textContent  = sci.field + ' · ' + sci.style;
   einsteinEmoji.textContent = sci.emoji;
 
-  // Ensure TTS is enabled for Einstein speech
-  ttsEnabled = true;
+  // 4. Replace Bengali expert names with scientist persona names
+  const personaNames = derivePersonaNames(sci);
+  setExpertGridNames(
+    personaNames[0].name, personaNames[0].role, personaNames[0].short,
+    personaNames[1].name, personaNames[1].role, personaNames[1].short,
+    personaNames[2].name, personaNames[2].role, personaNames[2].short,
+  );
+
+  // 5. Update stage mode badge text
+  const badge = document.querySelector('.stage-mode-badge');
+  if (badge) badge.innerHTML = '<div class="mode-dot"></div>Einstein Mode';
+}
+
+function derivePersonaNames(sci) {
+  // Give the 3 expert slots scientist-themed English names inspired by the main scientist's era
+  const era = sci.field || 'Science';
+  return [
+    { name: sci.name,                    role: era + ' — Primary',   short: sci.emoji || '⚛️' },
+    { name: 'Peer Reviewer',             role: era + ' — Analysis',  short: '🔬' },
+    { name: 'Critical Theorist',         role: era + ' — Critique',  short: '📐' },
+  ];
 }
 
 function disableEinsteinMode() {
+  // 1. Stop any Einstein TTS
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+  ttsWave.classList.remove('speaking');
+  ttsLabel.textContent = 'নীরব';
+
   einsteinActive = false;
   einsteinScientist = null;
   document.body.classList.remove('einstein-mode');
   einsteinToggle.classList.remove('active');
+  einsteinToggle.innerHTML = '<div class="e-dot"></div>Einstein Mode';
 
-  // Stop any Einstein audio
-  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+  // 2. Restore Bangla expert names
+  setExpertGridNames(
+    BANGLA_EXPERT_NAMES.expert1.grid, BANGLA_EXPERT_NAMES.expert1.role, BANGLA_EXPERT_NAMES.expert1.short,
+    BANGLA_EXPERT_NAMES.expert2.grid, BANGLA_EXPERT_NAMES.expert2.role, BANGLA_EXPERT_NAMES.expert2.short,
+    BANGLA_EXPERT_NAMES.expert3.grid, BANGLA_EXPERT_NAMES.expert3.role, BANGLA_EXPERT_NAMES.expert3.short,
+  );
 
-  // Restore expert names and UI state if we saved them
-  if (window._savedExpertState) {
-    try {
-      const saved = window._savedExpertState;
-      saved.domNames.forEach(s => {
-        const c = document.getElementById(s.id);
-        if (!c) return;
-        const nameEl = c.querySelector('.expert-name'); if (nameEl) nameEl.textContent = s.name;
-        const roleEl = c.querySelector('.expert-role'); if (roleEl) roleEl.textContent = s.role;
-        const avatarEl = c.querySelector('.expert-avatar'); if (avatarEl) avatarEl.textContent = s.avatar;
-      });
-      ttsEnabled = !!saved.ttsEnabledBefore;
-    } catch(e) { console.warn('[Einstein] restore failed', e.message); }
-    // Re-enable mic button if browser supports SpeechRecognition
-    try { micBtn.disabled = !(typeof SpeechRec !== 'undefined' && recognition); } catch(e) { micBtn.disabled = false; }
-    window._savedExpertState = null;
-  } else {
-    micBtn.disabled = false;
-  }
+  // 3. Restore stage mode badge
+  const badge = document.querySelector('.stage-mode-badge');
+  if (badge) badge.innerHTML = '<div class="mode-dot"></div>গভীর শিক্ষা';
 }
 
 einsteinToggle.addEventListener('click', () => {
@@ -3062,61 +3083,149 @@ resetBtn.addEventListener('click', () => {
   disableEinsteinMode();
 }, true); // capture phase so it runs first
 
+
+// ── Einstein TTS (Azure, English voice) ───────────────────────
+async function speakEinstein(text, scientistName) {
+  if (!ttsEnabled) return;
+  if (!text || !text.trim()) return;
+
+  const key    = _config?.AZURE_SPEECH_KEY || '';
+  const region = _config?.AZURE_SPEECH_REGION || 'southeastasia';
+  if (!key) { console.warn('[Einstein TTS] No Azure key'); return; }
+
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+
+  // Pick a distinguished English male voice — authoritative, measured
+  const voice = 'en-US-AndrewMultilingualNeural';
+  const rate  = '-8%';
+  const pitch = '-10%';
+
+  const ssml = `<speak version='1.0' xml:lang='en-US'><voice name='${voice}'><prosody rate='${rate}' pitch='${pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
+
+  try {
+    ttsWave.classList.add('speaking');
+    ttsLabel.textContent = (scientistName || 'Scientist') + ' speaking...';
+
+    const res = await fetch(
+      `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+      {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': key,
+          'Content-Type': 'application/ssml+xml',
+          'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+        },
+        body: ssml,
+      }
+    );
+
+    if (!res.ok) throw new Error(`Azure Einstein TTS ${res.status}`);
+
+    const blob  = await res.blob();
+    const url   = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    _currentAudio = audio;
+
+    await new Promise(resolve => {
+      audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+      audio.play();
+    });
+  } catch(e) {
+    console.warn('[Einstein TTS]', e.message);
+  }
+
+  ttsWave.classList.remove('speaking');
+  ttsLabel.textContent = einsteinActive ? '⚡ Einstein Mode' : 'নীরব';
+}
+
 // ── Override callGroq to inject Einstein persona when active ──
 const _origCallGroq = callGroq;
 callGroq = async function(expertId) {
   if (!einsteinActive || !einsteinScientist) return _origCallGroq(expertId);
 
-  const sci = einsteinScientist;
+  const sci   = einsteinScientist;
   const phase = getCurrentPhase();
-  const lastTwo = dialogueLog.slice(-2).map(e => `"${e.text.slice(0,80)}"`).join(' | ');
+  const lastTwo = dialogueLog.slice(-2).map(e => `"${e.text.slice(0,100)}"`).join(' | ');
 
-  const einsteinSystem = `You are ${sci.name}, the legendary ${sci.field} scientist, and you are delivering a live lecture to curious students.
+  // Role differentiation per expert slot
+  const roleVoice = {
+    expert1: `You are ${sci.name} yourself — the original mind. You draw directly from your own landmark experiments, equations, and discoveries. You think out loud, build intuition with vivid analogies from everyday life (trains, clocks, falling apples, pea plants), and use precise scientific language interleaved with awe. You challenge assumptions as you go.`,
+    expert2: `You are a distinguished contemporary colleague of ${sci.name}, deeply influenced by their work but pushing it further. You cite your own controlled experiments, compare ${sci.name}'s framework against competing theories of the era, and find the mathematical or empirical edges where the theory strains.`,
+    expert3: `You are a brilliant skeptic and rival of ${sci.name}'s school of thought. You identify the exact logical gap or unresolved anomaly in everything said so far. You pose a sharp, specific falsifiability question — the kind that took the field decades to resolve. You do not dismiss; you sharpen.`,
+  }[expertId] || `You are ${sci.name}.`;
 
-Your speaking style: ${sci.style}
+  const einsteinSystem = `${roleVoice}
 
-Topic of today's lecture: "${sessionTopic}"
+Topic under scrutiny: "${sessionTopic}"
+Current intellectual phase: ${phase.label}
 
-You speak exactly as ${sci.name} would in a real lecture — with conviction, personal anecdotes from your actual life and experiments, vivid analogies drawn from everyday things, and genuine intellectual excitement. You pause to make sure the students follow. You reference your own published works and discoveries naturally, as a professor would.
+HOW TO SPEAK — study these examples and match the register exactly:
+- Bad (generic): "I researched this area extensively and found interesting results."
+- Good (Feynman): "When I was stuck on the path integral, I went to the blackboard and drew every possible path an electron could take — and the crazy thing is, they all cancel except the classical one. Nature is not confused; we are."
+- Bad (generic): "I studied evolution and observed variation in species."  
+- Good (Darwin): "On the Galápagos, I collected thirteen finches — all finches, yet each beak had been sculpted by a different island's seeds over unimaginable time. That silence between island and island is where natural selection speaks."
+- Bad (generic): "I discovered radiation."
+- Good (Curie): "My hands were permanently stained by radium. I did not know then what I know now — that the very energy we had isolated was slowly eating through our cells. The price of discovery is sometimes paid in the body."
 
-Rules:
-- First person always ("I discovered...", "In my laboratory...", "When I was working on...")
-- Reference your real historical experiments, papers, and era
-- Use the rhetorical style of a lecture: build up an idea, use an analogy, land the point
-- Do NOT say your own name
-- English only — no Bengali, no mixed language
-- Exactly 3 sentences per turn
-- Each sentence maximum 30 words — complete, elegant sentences
-- Do NOT repeat ideas from the recent discussion: ${lastTwo || 'none yet'}
-- Start mid-thought, as if continuing a lecture — no "Hello" or introductions`;
+STRICT RULES:
+- Speak in exact character — reference your real lab, real instruments, real publications, real rivals, real era
+- Use one precise analogy drawn from something observable in daily life
+- First person always, zero hedging ("I believe" not "one might argue")
+- English only — pure, elegant scientific English
+- Exactly 2 complete sentences, each under 35 words — no fragments
+- The 2 sentences must each carry a distinct idea (setup + consequence, or claim + evidence)
+- Do NOT repeat any concept already in the recent discussion: ${lastTwo || 'none yet'}
+- Begin in medias res — no greeting, no name, no preamble — straight into the intellectual substance`;
 
-  const msgs = [{ role:'user', content: `Explain the current discussion point about "${sessionTopic}" in phase "${phase.label}". Recent discussion: ${lastTwo}. Give your ${sci.name}-style insight in 2 sentences.` }];
+  const msgs = [{
+    role: 'user',
+    content: `Advance the discussion on "${sessionTopic}" — phase: ${phase.label}. Recent exchange: ${lastTwo || 'none'}. Respond in exactly 2 sentences as your character.`,
+  }];
+
+  let reply = '';
 
   // Try Groq
   if (GROQ_KEYS.length > 0) {
     for (const model of GROQ_MODELS) {
-      for (let ki=0; ki<GROQ_KEYS.length; ki++) {
+      for (let ki = 0; ki < GROQ_KEYS.length; ki++) {
         try {
-          const res = await fetch(`${GROQ_BASE}/chat/completions`,{
-            method:'POST',
-            headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[ki]}`},
-            body: JSON.stringify({ model, max_tokens:200, temperature:0.9,
-              messages:[{role:'system',content:einsteinSystem},...msgs] }),
+          const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[ki]}` },
+            body: JSON.stringify({
+              model, max_tokens: 220, temperature: 0.92,
+              messages: [{ role: 'system', content: einsteinSystem }, ...msgs],
+            }),
           });
-          if (!res.ok){ if(res.status===429) await sleep(1200); throw new Error(`${res.status}`); }
+          if (!res.ok) { if (res.status === 429) await sleep(1200); throw new Error(`${res.status}`); }
           const d = await res.json();
-          const text = d?.choices?.[0]?.message?.content||'';
+          const text = d?.choices?.[0]?.message?.content || '';
           if (!text.trim()) throw new Error('Empty');
-          return cleanReply(text.trim());
-        } catch(e){ console.warn(`[Einstein/Groq] ${model}:`, e.message); }
+          reply = cleanReply(text.trim());
+          break;
+        } catch(e) { console.warn(`[Einstein/Groq] ${model} key${ki+1}:`, e.message); }
       }
+      if (reply) break;
     }
   }
+
   // OpenRouter fallback
-  if (OPENROUTER_KEYS.length > 0) {
-    return openRouterChat(msgs, einsteinSystem, 200, 0.9);
+  if (!reply && OPENROUTER_KEYS.length > 0) {
+    try { reply = await openRouterChat(msgs, einsteinSystem, 220, 0.92); } catch(e) { console.warn('[Einstein/OR]', e.message); }
   }
-  return _origCallGroq(expertId);
+
+  if (!reply) return _origCallGroq(expertId);
+  return reply;
+};
+
+// ── Override speak() to use Einstein TTS when mode is active ──
+const _origSpeak = speak;
+speak = async function(text, expertId) {
+  if (einsteinActive && einsteinScientist) {
+    return speakEinstein(text, einsteinScientist.name);
+  }
+  return _origSpeak(text, expertId);
 };
 
 
