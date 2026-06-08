@@ -290,14 +290,14 @@ nav {
 
 .home-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
+  grid-template-columns: repeat(auto-fill, 180px);
+  grid-auto-rows: 160px;
   gap: 16px;
   max-width: 900px;
   margin: 0 auto;
   padding: 0 24px 48px;
   justify-content: center;
 }
-
 .home-new-card {
   background: var(--bg-card);
   border: 1.5px dashed var(--border-strong);
@@ -315,6 +315,7 @@ nav {
 }
 
 /* ADD THIS after .home-new-card styles */
+.home-card,
 .home-pdf-card {
   background: var(--bg-card);
   border: 1.5px solid var(--border);
