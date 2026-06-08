@@ -1,3 +1,11 @@
+(function() {
+  const link = document.createElement('link');
+  link.rel = 'icon';
+  link.type = 'image/png';
+  link.href = '/src/assets/amplify.png';
+  document.head.appendChild(link);
+})();
+
 // src/main.js
 console.log('%c✅ Amplify loaded successfully!', 'color:#00ff88; font-weight:700; font-size:15px;');
 

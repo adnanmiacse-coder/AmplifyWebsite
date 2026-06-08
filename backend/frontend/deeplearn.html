@@ -892,8 +892,9 @@ body::after {
     /* ══ EINSTEIN MODE ══ */
 :root {
   --einstein-bg: #000000;
-  --einstein-neon-primary: #00ff41;
-  --einstein-neon-blue: #00cfff;
+  /* Match homepage neon accent and secondary */
+  --einstein-neon-primary: #00ff88; /* homepage --accent */
+  --einstein-neon-blue: #00dd75;    /* homepage --accent-secondary */
   --einstein-neon-purple: #bf00ff;
   --einstein-neon-amber: #ffb700;
   --einstein-text: #e0ffe0;
@@ -903,6 +904,8 @@ body.einstein-mode {
   background: var(--einstein-bg) !important;
   transition: background 0.6s ease;
 }
+/* Use homepage font while Einstein mode is active */
+body.einstein-mode { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
 
 body.einstein-mode::before {
   background: radial-gradient(circle, rgba(0,255,65,0.5) 1px, transparent 1px);
@@ -955,26 +958,27 @@ body.einstein-mode .speaker-card::before { background: var(--einstein-neon-prima
 
 body.einstein-mode .speaker-text-lg {
   color: #c8ffd4 !important;
-  border-left-color: rgba(0,255,65,0.4) !important;
-  font-family: 'Courier New', monospace !important;
+  border-left-color: rgba(0,255,136,0.4) !important;
+  font-family: inherit !important;
   font-size: 1rem !important;
   line-height: 2 !important;
 }
 
-body.einstein-mode .speaker-name-lg { color: var(--einstein-neon-primary) !important; text-shadow: 0 0 12px rgba(0,255,65,0.6); }
-body.einstein-mode .speaker-role-lg { color: rgba(0,255,65,0.6) !important; }
+body.einstein-mode .speaker-name-lg { color: var(--einstein-neon-primary) !important; text-shadow: 0 0 12px rgba(0,255,136,0.6); }
+body.einstein-mode .speaker-role-lg { color: rgba(0,255,136,0.6) !important; }
 
 body.einstein-mode .bubble-expert1 .bubble-text,
 body.einstein-mode .bubble-expert2 .bubble-text,
+body.einstein-mode .bubble-expert1 .bubble-text,
+body.einstein-mode .bubble-expert2 .bubble-text,
 body.einstein-mode .bubble-expert3 .bubble-text {
-  background: rgba(0,255,65,0.05) !important;
+  background: rgba(0,255,136,0.05) !important;
   border-left-color: var(--einstein-neon-primary) !important;
   color: #c8ffd4 !important;
-  font-family: 'Courier New', monospace !important;
+  font-family: inherit !important;
 }
-
-body.einstein-mode .bubble-meta { color: rgba(0,255,65,0.7) !important; }
-
+/* Hide Bangla speaker name badges while in Einstein mode (they will be restored when exiting) */
+body.einstein-mode .bubble-meta { visibility: hidden !important; }
 body.einstein-mode .ref-card {
   background: #050505 !important;
   border-color: rgba(0,255,65,0.2) !important;
@@ -1770,20 +1774,26 @@ let _currentAudio = null;
 async function speak(text, expertId) {
   if (!ttsEnabled) return;
   if (!text || !text.trim()) return;
-
-  const tts    = AGENT_TTS[expertId];
   const key    = _config?.AZURE_SPEECH_KEY || '';
   const region = _config?.AZURE_SPEECH_REGION || 'southeastasia';
 
   if (!key) { console.warn('[Azure TTS] No key'); return; }
 
+  // Choose TTS settings — use Einstein voice while einsteinActive
+  let tts = AGENT_TTS[expertId] || { voice: 'bn-BD-NabanitaNeural', rate: '-10%', pitch: '0%' };
+  if (typeof einsteinActive !== 'undefined' && einsteinActive) {
+    tts = window.EINSTEIN_TTS || { voice: (_config?.EINSTEIN_VOICE || 'en-US-GuyNeural'), rate: '-5%', pitch: '0%' };
+  }
+
   if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
 
-  const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${tts.voice}'><prosody rate='${tts.rate}' pitch='${tts.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
+  // Choose language tag from voice heuristic (en- vs bn-)
+  const lang = (tts.voice && tts.voice.startsWith('en-')) ? 'en-US' : 'bn-BD';
+  const ssml = `<speak version='1.0' xml:lang='${lang}'><voice name='${tts.voice}'><prosody rate='${tts.rate}' pitch='${tts.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
 
   try {
     ttsWave.classList.add('speaking');
-    ttsLabel.textContent = EXPERTS[expertId].name + ' বলছেন...';
+    ttsLabel.textContent = (einsteinActive && einsteinScientist) ? (einsteinScientist.name + ' বলছেন...') : (EXPERTS[expertId]?.name || 'স্পিকার') + ' বলছেন...';
 
     const res = await fetch(
       `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
@@ -2968,17 +2978,37 @@ async function enableEinsteinMode() {
   document.body.classList.add('einstein-mode');
   einsteinToggle.classList.add('active');
   einsteinToggle.innerHTML = '<div class="e-dot"></div>Einstein Mode';
+  // Immediately stop any Bangla TTS or listening
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+  try { if (recognition && isListening) recognition.stop(); } catch(e){}
+  micBtn.disabled = true;
 
-  // Pick scientist based on current topic
+  // Save UI/state so we can restore after exiting Einstein mode
+  window._savedExpertState = {
+    ttsEnabledBefore: ttsEnabled,
+    experts: JSON.parse(JSON.stringify(EXPERTS)),
+    domNames: Array.from(document.querySelectorAll('.expert-card')).map(c => ({ id: c.id, name: c.querySelector('.expert-name')?.textContent || '', role: c.querySelector('.expert-role')?.textContent || '', avatar: c.querySelector('.expert-avatar')?.textContent || '' }))
+  };
+
+  // Hide expert name texts in the right panel (they'll be visually removed by CSS too)
+  document.querySelectorAll('.expert-card').forEach(c => {
+    const nameEl = c.querySelector('.expert-name'); if (nameEl) nameEl.textContent = '';
+    const roleEl = c.querySelector('.expert-role'); if (roleEl) roleEl.textContent = '';
+    const avatarEl = c.querySelector('.expert-avatar'); if (avatarEl) avatarEl.textContent = '';
+  });
+
+  // Pick scientist based on current topic and show banner
   einsteinName.textContent = '...identifying scientist...';
   einsteinDesc.textContent  = '';
   einsteinEmoji.textContent = '⚛️';
-
   const sci = await pickScientist(sessionTopic || 'science');
   einsteinScientist = sci;
   einsteinName.textContent  = sci.name;
   einsteinDesc.textContent  = sci.field + ' · ' + sci.style;
   einsteinEmoji.textContent = sci.emoji;
+
+  // Ensure TTS is enabled for Einstein speech
+  ttsEnabled = true;
 }
 
 function disableEinsteinMode() {
@@ -2986,6 +3016,29 @@ function disableEinsteinMode() {
   einsteinScientist = null;
   document.body.classList.remove('einstein-mode');
   einsteinToggle.classList.remove('active');
+
+  // Stop any Einstein audio
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+
+  // Restore expert names and UI state if we saved them
+  if (window._savedExpertState) {
+    try {
+      const saved = window._savedExpertState;
+      saved.domNames.forEach(s => {
+        const c = document.getElementById(s.id);
+        if (!c) return;
+        const nameEl = c.querySelector('.expert-name'); if (nameEl) nameEl.textContent = s.name;
+        const roleEl = c.querySelector('.expert-role'); if (roleEl) roleEl.textContent = s.role;
+        const avatarEl = c.querySelector('.expert-avatar'); if (avatarEl) avatarEl.textContent = s.avatar;
+      });
+      ttsEnabled = !!saved.ttsEnabledBefore;
+    } catch(e) { console.warn('[Einstein] restore failed', e.message); }
+    // Re-enable mic button if browser supports SpeechRecognition
+    try { micBtn.disabled = !(typeof SpeechRec !== 'undefined' && recognition); } catch(e) { micBtn.disabled = false; }
+    window._savedExpertState = null;
+  } else {
+    micBtn.disabled = false;
+  }
 }
 
 einsteinToggle.addEventListener('click', () => {
