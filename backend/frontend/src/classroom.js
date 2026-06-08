@@ -128,7 +128,7 @@ let timerInterval      = null;
 let currentUtterance   = null;
 let currentTurnIndex   = 0;
 let dialogueLog        = [];
-agentVoiceMap      = {};
+let agentVoiceMap      = {};
 let turnLoopRunning    = false;
 let lessonStarting     = false;
 let _turnInProgress = false;
@@ -1009,35 +1009,36 @@ const sessionTimer     = document.getElementById('sessionTimer');
 
 
 
+// ══════════════════════════════════════════════
+//  UPLOAD ZONE — FIXED
+// ══════════════════════════════════════════════
+
 let uploadedFiles = [];
 
-// ══════════════════════════════════════════════
-//  UPLOAD ZONE
-// ══════════════════════════════════════════════
-
-let _handlingFiles = false;
-
-
-
-// REMOVE these two blocks entirely and replace with:
-
 uploadZone.addEventListener('click', () => {
-  fileInput.value = '';   // clear BEFORE opening picker so re-selecting same file works
   fileInput.click();
+});
+
+uploadZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadZone.classList.add('drag-over');
+});
+
+uploadZone.addEventListener('dragleave', () => {
+  uploadZone.classList.remove('drag-over');
+});
+
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const files = Array.from(e.dataTransfer.files);
+  if (files.length) handleFiles(files);
 });
 
 fileInput.addEventListener('change', () => {
   if (!fileInput.files || fileInput.files.length === 0) return;
   const files = Array.from(fileInput.files);
-  handleFiles(files);
-});
-
-
-fileInput.addEventListener('change', () => {
-  if (_handlingFiles) return;
-  if (!fileInput.files || fileInput.files.length === 0) return;
-  const files = Array.from(fileInput.files);  // copy BEFORE clearing
-  fileInput.value = '';                        // clear AFTER copying
+  fileInput.value = '';
   handleFiles(files);
 });
 
@@ -1048,16 +1049,21 @@ function handleFiles(files) {
     uploadPreviews.classList.remove('hidden');
     uploadedFiles.forEach(file => {
       if (file.type.startsWith('image/')) {
-        const img = document.createElement('img'); img.className = 'preview-thumb'; img.src = URL.createObjectURL(file); uploadPreviews.appendChild(img);
+        const img = document.createElement('img');
+        img.className = 'preview-thumb';
+        img.src = URL.createObjectURL(file);
+        uploadPreviews.appendChild(img);
       } else {
-        const box = document.createElement('div'); box.className = 'preview-file';
+        const box = document.createElement('div');
+        box.className = 'preview-file';
         box.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>${file.name.slice(0, 12)}...</span>`;
         uploadPreviews.appendChild(box);
       }
     });
-  } else { uploadPreviews.classList.add('hidden'); }
+  } else {
+    uploadPreviews.classList.add('hidden');
+  }
 }
-
 async function toBase64(file) {
   return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file); });
 }
