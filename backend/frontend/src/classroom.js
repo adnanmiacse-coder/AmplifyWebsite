@@ -1017,10 +1017,21 @@ let uploadedFiles = [];
 
 let _handlingFiles = false;
 
-uploadZone.addEventListener('click', (e) => {
-  if (e.target === fileInput) return;
+
+
+// REMOVE these two blocks entirely and replace with:
+
+uploadZone.addEventListener('click', () => {
+  fileInput.value = '';   // clear BEFORE opening picker so re-selecting same file works
   fileInput.click();
 });
+
+fileInput.addEventListener('change', () => {
+  if (!fileInput.files || fileInput.files.length === 0) return;
+  const files = Array.from(fileInput.files);
+  handleFiles(files);
+});
+
 
 fileInput.addEventListener('change', () => {
   if (_handlingFiles) return;
