@@ -1847,13 +1847,16 @@ async function loadDocumentFromNeo4j(docId, filename) {
   }
 }
 
+
 function showHomeScreen(show) {
   document.getElementById('home-screen').style.display = show ? 'flex' : 'none';
   document.querySelector('main').style.display = show ? 'none' : 'grid';
-  document.querySelector('nav').style.display = show ? 'none' : 'flex';
+  document.querySelector('nav').style.display = 'flex';
+  document.getElementById('home-back-btn').style.display = show ? 'none' : 'flex';
   const gsec = document.getElementById('graph-map-section');
   if (gsec) gsec.style.display = show ? 'none' : 'block';
 }
+
 if (typeof window !== 'undefined') {
   window.showHomeScreen = showHomeScreen;
 }
