@@ -1017,7 +1017,12 @@ let uploadedFiles = [];
 
 let _handlingFiles = false;
 
-uploadZone.addEventListener('click', () => fileInput.click());
+
+uploadZone.addEventListener('click', (e) => { 
+  if (e.target === fileInput) return;
+  fileInput.value = '';   // clear before opening so change fires even for same file
+  fileInput.click(); 
+});
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
 uploadZone.addEventListener('drop', e => { 
@@ -1027,9 +1032,12 @@ uploadZone.addEventListener('drop', e => {
   handleFiles(Array.from(e.dataTransfer.files));
   setTimeout(() => { _handlingFiles = false; }, 500);
 });
+
 fileInput.addEventListener('change', () => { 
   if (_handlingFiles) return;
-  handleFiles(Array.from(fileInput.files)); 
+  if (!fileInput.files || fileInput.files.length === 0) return;
+  handleFiles(Array.from(fileInput.files));
+  fileInput.value = '';   // reset so same file can be re-selected
 });
 
 function handleFiles(files) {
