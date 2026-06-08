@@ -1367,10 +1367,10 @@ async function loadAndRender() {
       setLoading('Neo4j থেকে ডেটা লোড হচ্ছে…', '🔵 Neo4j');
     } catch(e) {
       usingNeo4j = false;
-      setLoading('localStorage থেকে লোড হচ্ছে…', '🟣 ');
+      setLoading(' লোড হচ্ছে…', '🟣 ');
     }
   } else {
-    setLoading('localStorage থেকে লোড হচ্ছে…', '🟣 ');
+    setLoading(' লোড হচ্ছে…', '🟣 ');
   }
 
   const badge = document.getElementById('data-source-badge');
@@ -1393,6 +1393,36 @@ async function loadAndRender() {
       fetchAttentionSessions().catch(()=>null),
     ]);
 
+    // ── Dummy data fallback (Cell Biology) ──
+    const isEmpty = !concepts.length && !topics.length && !messages.length && !docs.length;
+    if (isEmpty) {
+      concepts.push(
+        { concept: 'কোষ ঝিল্লি', score: 0.82, attempts: 5, hintCount: 1 },
+        { concept: 'মাইটোকন্ড্রিয়া', score: 0.65, attempts: 4, hintCount: 2 },
+        { concept: 'কোষ বিভাজন (মাইটোসিস)', score: 0.45, attempts: 3, hintCount: 3 },
+        { concept: 'মিয়োসিস', score: 0.30, attempts: 2, hintCount: 4 },
+        { concept: 'নিউক্লিয়াস গঠন', score: 0.70, attempts: 6, hintCount: 1 },
+        { concept: 'এন্ডোপ্লাজমিক রেটিকুলাম', score: 0.20, attempts: 1, hintCount: 5 },
+      );
+      topics.push(
+        { id: 'কোষ গঠন', freq: 12, pages: [1, 2, 3] },
+        { id: 'কোষ বিভাজন', freq: 9, pages: [4, 5] },
+        { id: 'অর্গানেল', freq: 7, pages: [6, 7] },
+        { id: 'ক্রোমোজোম', freq: 5, pages: [8] },
+        { id: 'DNA প্রতিলিপি', freq: 4, pages: [9, 10] },
+      );
+      messages.push(...Array.from({ length: 14 }, (_, i) => ({
+        ts: Date.now() - i * 86400000, role: 'user'
+      })));
+      docs.push({
+        docId: 'demo_cell_biology',
+        filename: 'জীববিজ্ঞান — কোষ অধ্যায়.pdf',
+        chunkCount: 18, pages: 24,
+        date: new Date().toISOString(),
+        conceptMastery: { 'কোষ ঝিল্লি': { score: 0.82, attempts: 5 } }
+      });
+    }
+    
     const activity = messages.length ? buildActivityFromMessages(messages) : buildActivityFromDocs(docs);
     const streak = computeStreak(activity);
     const activeDays = activity.filter(d=>d.count>0).length;
