@@ -1052,26 +1052,26 @@ async function generateDiagnosis() {
     }
   }
 });
-  const prompt = `You are a Bangladeshi teacher analyzing a student's quiz performance.
+  const prompt = `তুমি একজন বাংলাদেশি শিক্ষক যিনি একজন ছাত্রের কুইজ পারফরম্যান্স বিশ্লেষণ করছেন। তুমি এই ছাত্রকে ভালো চেনো এবং তার সাথে "তুমি" সম্বোধনে কথা বলো — যেন একজন বিশ্বস্ত শিক্ষক তার প্রিয় ছাত্রকে সরাসরি বলছেন।
 
-Student model after quiz:
+ছাত্রের কুইজ-পরবর্তী মডেল:
 ${JSON.stringify(studentModel, null, 2)}
 
-Total questions: ${quizTotalQ}
-Final score: ${quizScore}/${quizTotalQ}
+মোট প্রশ্ন: ${quizTotalQ}
+চূড়ান্ত স্কোর: ${quizScore}/${quizTotalQ}
 
-Write a short diagnostic summary in Bengali (3-4 sentences):
-- What they understand well
-- What needs more work  
-- Whether they should replay the lecture or can move forward
-- Be encouraging but honest
+নিচের বিষয়গুলো মাথায় রেখে ৩-৪ বাক্যে একটি ব্যক্তিগত মূল্যায়ন লেখো:
+- তুমি কোন বিষয়গুলো ভালো বুঝেছ — সেটা স্বীকার করো এবং প্রশংসা করো
+- কোথায় আরও মনোযোগ দেওয়া দরকার — সরাসরি বলো কিন্তু হতাশ না করে
+- তোমার কি লেকচারটি আবার দেখা উচিত, নাকি সামনে এগিয়ে যেতে পারো — স্পষ্ট পরামর্শ দাও
+- কথাটা যেন একজন দরদী শিক্ষকের মতো হয় — ক্লাসরুমের ভাষায়, গল্পের ঢঙে, একটু উৎসাহ দিয়ে শেষ করো
 
-Also determine:
-- resultEmoji: 🎉 if score >= 80%, 🤔 if 50-79%, 😟 if < 50%
+এছাড়া নির্ধারণ করো:
+- resultEmoji: 🎉 যদি স্কোর ≥ ৮০%, 🤔 যদি ৫০–৭৯%, 😟 যদি < ৫০%
 - replayRecommended: true/false
 
-Respond ONLY with this JSON, no markdown:
-{"diagnosis":"বাংলায় সারসংক্ষেপ...","resultEmoji":"🎉","replayRecommended":false,"replayMessage":"বাংলায় রিপ্লে বার্তা (only if recommended)"}`;
+শুধুমাত্র এই JSON দিয়ে উত্তর দাও, কোনো markdown নয়:
+{"diagnosis":"বাংলায় ব্যক্তিগত মূল্যায়ন...","resultEmoji":"🎉","replayRecommended":false,"replayMessage":"বাংলায় রিপ্লে বার্তা (শুধুমাত্র যদি recommended হয়)"}`;
 
   const raw = await groqChat([{ role: 'user', content: prompt }],
     'Respond only with valid JSON. No markdown.', 500, 0.5);

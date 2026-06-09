@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23020B16'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-size='18' fill='%2300B7FF'>A</text></svg>">
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Amplify — শিক্ষার অগ্রগতি</title>
@@ -577,22 +576,77 @@ function neo4jRows(result,idx=0){return(result.results?.[idx]?.data||[]).map(r=>
 // ═══════════════════════════════════════════════════════════
 async function fetchDocuments(){if(_neo4jEnabled){const r=await neo4jRun('MATCH (d:Document) RETURN d ORDER BY d.date DESC');return neo4jRows(r).map(row=>row[0]);}return loadLocal();}
 async function fetchTopicNodes(){
-  if(_neo4jEnabled){const r=await neo4jRun('MATCH (t:Topic) RETURN t.id AS id,t.freq AS freq,t.pages AS pages,t.docId AS docId ORDER BY t.freq DESC LIMIT 30');return neo4jRows(r).map(([id,freq,pages,docId])=>({id,freq,pages:pages||[],docId}));}
-  const docs=loadLocal();const map={};
-  docs.forEach(doc=>{(doc.graphNodes||[]).forEach(n=>{if(!map[n.id])map[n.id]={id:n.id,freq:0,pages:[],docs:new Set()};map[n.id].freq+=n.freq;map[n.id].docs.add(doc.filename||doc.docId);});});
+  if(_neo4jEnabled){
+    try{
+      const r=await neo4jRun('MATCH (t:Topic) RETURN t.id AS id,t.freq AS freq,t.pages AS pages,t.docId AS docId ORDER BY t.freq DESC LIMIT 30');
+      const rows=neo4jRows(r).map(([id,freq,pages,docId])=>({id,freq,pages:pages||[],docId}));
+      if(rows.length) return rows;
+    }catch(e){}
+  }
+  const docs=loadLocal();
+  const map={};
+  docs.forEach(doc=>{
+    const nodes=doc.graphNodes||doc.graph_nodes||[];
+    nodes.forEach(n=>{
+      if(!n||!n.id)return;
+      if(!map[n.id])map[n.id]={id:n.id,freq:0,pages:[],docId:doc.docId};
+      map[n.id].freq+=(n.freq||n.count||1);
+      if(n.pages)map[n.id].pages=[...new Set([...map[n.id].pages,...(Array.isArray(n.pages)?n.pages:[n.pages])])];
+    });
+    if(!nodes.length){
+      (doc.keywords||doc.topics||[]).forEach(kw=>{
+        const id=typeof kw==='string'?kw:(kw.label||kw.id||kw.name||'');
+        if(!id)return;
+        if(!map[id])map[id]={id,freq:0,pages:[],docId:doc.docId};
+        map[id].freq+=(kw.freq||kw.count||1);
+      });
+    }
+  });
   return Object.values(map).sort((a,b)=>b.freq-a.freq).slice(0,30);
 }
 async function fetchConceptMastery(){
   if(_neo4jEnabled){
-    try{const r=await neo4jRun('MATCH (sc:StudentConcept) RETURN sc.concept AS concept,sc.score AS score,sc.attempts AS attempts,sc.hintCount AS hintCount,sc.docId AS docId ORDER BY sc.score ASC');const rows=neo4jRows(r);if(rows.length)return rows.map(([concept,score,attempts,hintCount,docId])=>({concept,score:score||0,attempts:attempts||0,hintCount:hintCount||0,docId}));}catch(e){}
-    try{const r=await neo4jRun('MATCH (d:Document) WHERE d.conceptMastery IS NOT NULL RETURN d.conceptMastery AS cm,d.docId AS docId');const map={};neo4jRows(r).forEach(([cm,docId])=>{const parsed=typeof cm==='string'?JSON.parse(cm):cm;if(parsed&&typeof parsed==='object'){Object.entries(parsed).forEach(([concept,data])=>{if(!map[concept])map[concept]={concept,totalScore:0,attempts:0,hintCount:0,docs:new Set()};map[concept].totalScore+=data.score||0;map[concept].attempts+=data.attempts||0;map[concept].hintCount+=data.hintCount||0;map[concept].docs.add(docId);});}});return Object.values(map).map(d=>({concept:d.concept,score:Math.min(1,d.totalScore/Math.max(1,d.docs.size)),attempts:d.attempts,hintCount:d.hintCount})).sort((a,b)=>a.score-b.score);}catch(e){}
+    try{
+      const r=await neo4jRun('MATCH (sc:StudentConcept) RETURN sc.concept AS concept,sc.score AS score,sc.attempts AS attempts,sc.hintCount AS hintCount,sc.docId AS docId ORDER BY sc.score ASC');
+      const rows=neo4jRows(r);
+      if(rows.length) return rows.map(([concept,score,attempts,hintCount,docId])=>({concept,score:score||0,attempts:attempts||0,hintCount:hintCount||0,docId}));
+    }catch(e){}
+    try{
+      const r=await neo4jRun('MATCH (d:Document) WHERE d.conceptMastery IS NOT NULL RETURN d.conceptMastery AS cm,d.docId AS docId');
+      const map={};
+      neo4jRows(r).forEach(([cm,docId])=>{
+        const parsed=typeof cm==='string'?JSON.parse(cm):cm;
+        if(parsed&&typeof parsed==='object'){
+          Object.entries(parsed).forEach(([concept,data])=>{
+            if(!map[concept])map[concept]={concept,totalScore:0,attempts:0,hintCount:0,docs:new Set()};
+            map[concept].totalScore+=data.score||0;
+            map[concept].attempts+=data.attempts||0;
+            map[concept].hintCount+=data.hintCount||0;
+            map[concept].docs.add(docId);
+          });
+        }
+      });
+      const result=Object.values(map).map(d=>({concept:d.concept,score:Math.min(1,d.totalScore/Math.max(1,d.docs.size)),attempts:d.attempts,hintCount:d.hintCount})).sort((a,b)=>a.score-b.score);
+      if(result.length) return result;
+    }catch(e){}
   }
   return aggregateConceptsFromDocs(loadLocal());
 }
 async function fetchMessages(){
-  if(_neo4jEnabled){const r=await neo4jRun('MATCH (m:Message) RETURN m.timestamp AS ts,m.role AS role ORDER BY m.timestamp DESC LIMIT 500');return neo4jRows(r).map(([ts,role])=>({ts,role}));}
-  const docs=loadLocal();const msgs=[];
-  docs.forEach(doc=>{const ts=parseInt((doc.docId||'').split('_').pop())||new Date(doc.date).getTime();(doc.chatHistory||[]).forEach(m=>msgs.push({ts,role:m.role}));});
+  if(_neo4jEnabled){
+    try{
+      const r=await neo4jRun('MATCH (m:Message) RETURN m.timestamp AS ts,m.role AS role ORDER BY m.timestamp DESC LIMIT 500');
+      const rows=neo4jRows(r).map(([ts,role])=>({ts,role}));
+      if(rows.length) return rows;
+    }catch(e){}
+  }
+  const docs=loadLocal();
+  const msgs=[];
+  docs.forEach(doc=>{
+    const ts=parseInt((doc.docId||'').split('_').pop())||new Date(doc.date||Date.now()).getTime();
+    const history=doc.chatHistory||doc.chat_history||doc.messages||[];
+    history.forEach(m=>msgs.push({ts,role:m.role||'user'}));
+  });
   return msgs;
 }
 async function fetchAttentionSessions(){
@@ -606,7 +660,34 @@ async function fetchCoOccurrenceLinks(){
   return[];
 }
 function loadLocal(){try{const raw=localStorage.getItem(LS_DOCS_KEY);const parsed=raw?JSON.parse(raw):[];return Array.isArray(parsed)?parsed:[];}catch{return[];}}
-function aggregateConceptsFromDocs(docs){const map={};docs.forEach(doc=>{const mastery=doc.conceptMastery||{};Object.entries(mastery).forEach(([concept,data])=>{if(!map[concept])map[concept]={concept,totalScore:0,attempts:0,hintCount:0,count:0};map[concept].totalScore+=data.score||0;map[concept].attempts+=data.attempts||0;map[concept].hintCount+=data.hintCount||0;map[concept].count++;});});return Object.values(map).map(d=>({concept:d.concept,score:Math.min(1,d.totalScore/Math.max(1,d.count)),attempts:d.attempts,hintCount:d.hintCount})).sort((a,b)=>a.score-b.score);}
+
+function aggregateConceptsFromDocs(docs){
+  const map={};
+  docs.forEach(doc=>{
+    const mastery=doc.conceptMastery||doc.concept_mastery||{};
+    Object.entries(mastery).forEach(([concept,data])=>{
+      if(!concept||typeof data!=='object')return;
+      if(!map[concept])map[concept]={concept,totalScore:0,attempts:0,hintCount:0,count:0};
+      map[concept].totalScore+=data.score||0;
+      map[concept].attempts+=data.attempts||0;
+      map[concept].hintCount+=data.hintCount||data.hint_count||0;
+      map[concept].count++;
+    });
+    if(!Object.keys(mastery).length){
+      (doc.quizResults||doc.quiz_results||[]).forEach(q=>{
+        const concept=q.concept||q.topic||q.question||'Unknown';
+        if(!map[concept])map[concept]={concept,totalScore:0,attempts:0,hintCount:0,count:0};
+        map[concept].totalScore+=q.correct?1:q.score!=null?q.score:0;
+        map[concept].attempts+=1;
+        map[concept].hintCount+=q.hintCount||q.hints||0;
+        map[concept].count++;
+      });
+    }
+  });
+  return Object.values(map)
+    .map(d=>({concept:d.concept,score:Math.min(1,d.totalScore/Math.max(1,d.count)),attempts:d.attempts,hintCount:d.hintCount}))
+    .sort((a,b)=>a.score-b.score);
+}
 
 // ═══════════════════════════════════════════════════════════
 // SPACED REPETITION
@@ -1393,36 +1474,6 @@ async function loadAndRender() {
       fetchAttentionSessions().catch(()=>null),
     ]);
 
-    // ── Dummy data fallback (Cell Biology) ──
-    const isEmpty = !concepts.length && !topics.length && !messages.length && !docs.length;
-    if (isEmpty) {
-      concepts.push(
-        { concept: 'কোষ ঝিল্লি', score: 0.82, attempts: 5, hintCount: 1 },
-        { concept: 'মাইটোকন্ড্রিয়া', score: 0.65, attempts: 4, hintCount: 2 },
-        { concept: 'কোষ বিভাজন (মাইটোসিস)', score: 0.45, attempts: 3, hintCount: 3 },
-        { concept: 'মিয়োসিস', score: 0.30, attempts: 2, hintCount: 4 },
-        { concept: 'নিউক্লিয়াস গঠন', score: 0.70, attempts: 6, hintCount: 1 },
-        { concept: 'এন্ডোপ্লাজমিক রেটিকুলাম', score: 0.20, attempts: 1, hintCount: 5 },
-      );
-      topics.push(
-        { id: 'কোষ গঠন', freq: 12, pages: [1, 2, 3] },
-        { id: 'কোষ বিভাজন', freq: 9, pages: [4, 5] },
-        { id: 'অর্গানেল', freq: 7, pages: [6, 7] },
-        { id: 'ক্রোমোজোম', freq: 5, pages: [8] },
-        { id: 'DNA প্রতিলিপি', freq: 4, pages: [9, 10] },
-      );
-      messages.push(...Array.from({ length: 14 }, (_, i) => ({
-        ts: Date.now() - i * 86400000, role: 'user'
-      })));
-      docs.push({
-        docId: 'demo_cell_biology',
-        filename: 'জীববিজ্ঞান — কোষ অধ্যায়.pdf',
-        chunkCount: 18, pages: 24,
-        date: new Date().toISOString(),
-        conceptMastery: { 'কোষ ঝিল্লি': { score: 0.82, attempts: 5 } }
-      });
-    }
-    
     const activity = messages.length ? buildActivityFromMessages(messages) : buildActivityFromDocs(docs);
     const streak = computeStreak(activity);
     const activeDays = activity.filter(d=>d.count>0).length;
