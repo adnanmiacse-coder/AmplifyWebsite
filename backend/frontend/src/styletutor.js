@@ -129,76 +129,117 @@ const GROQ_MODELS = [
   'llama-3.1-8b-instant',      // last resort
 ];
 
-// ── TTS MANAGER ──
+
+// ── AZURE TTS MANAGER ──
 const TTS = {
-  aiUtterance: null,
+  aiAudio: null,
   aiPaused: false,
   _pendingResolve: null,
   _interruptedText: null,
 
-  speakAI(text) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "bn-BD";
-    utterance.rate = 0.95;
-    this.aiUtterance = utterance;
-    this.aiPaused = false;
-    window.speechSynthesis.speak(utterance);
+  _azureKey: '',
+  _azureRegion: 'southeastasia',
+
+  init(config) {
+    this._azureKey    = config?.AZURE_SPEECH_KEY    || '';
+    this._azureRegion = config?.AZURE_SPEECH_REGION || 'southeastasia';
   },
 
-  speakWarning(interruptedText) {
-    // Save what was being spoken so we can re-speak it after
-    this._interruptedText = interruptedText || null;
+  async _fetchAzureAudio(text, voice = 'bn-BD-NabanitaNeural', rate = '-8%', pitch = '0%') {
+    if (!this._azureKey || !text?.trim()) return null;
+    const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${voice}'><prosody rate='${rate}' pitch='${pitch}'>${
+      text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    }</prosody></voice></speak>`;
+    const res = await fetch(
+      `https://${this._azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,
+      {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': this._azureKey,
+          'Content-Type': 'application/ssml+xml',
+          'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+        },
+        body: ssml,
+      }
+    );
+    if (!res.ok) { console.warn('[Azure TTS]', res.status); return null; }
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
 
-    // Cancel current lecture speech
-    window.speechSynthesis.cancel();
+  async speakAI(text) {
+    this.stop();
+    const url = await this._fetchAzureAudio(text, 'bn-BD-NabanitaNeural', '-10%', '0%');
+    if (!url) return;
+    const audio = new Audio(url);
+    this.aiAudio = audio;
+    this.aiPaused = false;
+    audio.onended  = () => { URL.revokeObjectURL(url); this.aiAudio = null; };
+    audio.onerror  = () => { URL.revokeObjectURL(url); this.aiAudio = null; };
+    audio.play().catch(e => console.warn('[Azure TTS play]', e.message));
+  },
+
+  async speakWarning(interruptedText) {
+    this._interruptedText = interruptedText || null;
+    this.stop();
     this.aiPaused = true;
 
-    const utterance = new SpeechSynthesisUtterance("মনোযোগ দিন! আপনি মনোযোগ হারাচ্ছেন!!");
-    utterance.lang = "bn-BD";
-    utterance.rate = 0.95;
+    const warningText = 'মনোযোগ দিন! আপনি মনোযোগ হারাচ্ছেন!!';
+    const url = await this._fetchAzureAudio(warningText, 'bn-BD-NabanitaNeural', '0%', '+15%');
+    if (!url) { this.aiPaused = false; if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; } return; }
 
-    utterance.onend = () => {
+    const audio = new Audio(url);
+    this.aiAudio = audio;
+
+    audio.onended = async () => {
+      URL.revokeObjectURL(url);
+      this.aiAudio = null;
       this.aiPaused = false;
-      // If the lecture is still active and not manually paused, re-speak the interrupted sentence
+
       if (this._interruptedText && lectureActive && !lecturePaused && !lectureAborted) {
-        const resumeUtt = new SpeechSynthesisUtterance(this._interruptedText);
-        if (_lectureVoice) { resumeUtt.voice = _lectureVoice; resumeUtt.lang = _lectureVoice.lang; }
-        resumeUtt.rate = 0.87;
-        resumeUtt.pitch = 1.0;
-        this.aiUtterance = resumeUtt;
-        // Resolve the pending speakWithLaser promise when done
-        resumeUtt.onend = () => {
-          this.aiUtterance = null;
-          if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
-        };
-        resumeUtt.onerror = () => {
-          this.aiUtterance = null;
-          if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
-        };
-        window.speechSynthesis.speak(resumeUtt);
+        await this._resumeInterrupted();
       } else {
-        // Nothing to resume — just resolve
         if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
       }
       this._interruptedText = null;
     };
-
-    utterance.onerror = () => {
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      this.aiAudio = null;
       this.aiPaused = false;
       this._interruptedText = null;
       if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
     };
+    audio.play().catch(e => console.warn('[Azure TTS warning play]', e.message));
+  },
 
-    window.speechSynthesis.speak(utterance);
+  async _resumeInterrupted() {
+    const text = this._interruptedText;
+    this._interruptedText = null;
+    const url = await this._fetchAzureAudio(text, 'bn-BD-NabanitaNeural', '-10%', '0%');
+    if (!url) { if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; } return; }
+    const audio = new Audio(url);
+    this.aiAudio = audio;
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+      this.aiAudio = null;
+      if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      this.aiAudio = null;
+      if (this._pendingResolve) { this._pendingResolve(); this._pendingResolve = null; }
+    };
+    audio.play().catch(e => console.warn('[Azure TTS resume play]', e.message));
   },
 
   stop() {
-    window.speechSynthesis.cancel();
-    this.aiUtterance = null;
+    if (this.aiAudio) {
+      this.aiAudio.pause();
+      this.aiAudio = null;
+    }
     this.aiPaused = false;
     this._interruptedText = null;
-    // Don't clear _pendingResolve here — speakWithLaser's onerror will handle it
   }
 };
 
@@ -232,8 +273,8 @@ let _geminiConfig = {};
 loadEnvConfig().then(cfg => {
   _config = cfg;
   _geminiConfig = cfg;
+  TTS.init(cfg);
 });
-
 function geminiKey() { return _geminiConfig.GEMINI_KEY || _env.VITE_GEMINI_KEY || ''; }
 function geminiModel() { return _geminiConfig.GEMINI_MODEL || _env.VITE_GEMINI_MODEL || 'gemini-2.0-flash-lite'; }
 function geminiBase() { return _geminiConfig.GEMINI_BASE || _env.VITE_GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta/models'; }
@@ -2386,53 +2427,69 @@ async function getSegment(idx, timeoutMs = 12000) {
   return await fetchSegmentText(idx);
 }
 
-// ─────────────────────────────────────────────────────
-// TTS WITH LASER POINTER
-// ─────────────────────────────────────────────────────
-function speakWithLaser(sentence){
-  return new Promise(resolve=>{
-    if(!window.speechSynthesis||lectureAborted){resolve();return;}
 
-    // If a warning is mid-play, wait for it to finish (it will re-speak and resolve us)
-    if(TTS.aiPaused){
+function speakWithLaser(sentence) {
+  return new Promise(resolve => {
+    if (lectureAborted) { resolve(); return; }
+
+    if (TTS.aiPaused) {
       TTS._interruptedText = sentence;
-      TTS._pendingResolve = resolve;
+      TTS._pendingResolve  = resolve;
       return;
     }
 
     TTS.stop();
-    const utt=new SpeechSynthesisUtterance(sentence);
-    if(_lectureVoice){utt.voice=_lectureVoice;utt.lang=_lectureVoice.lang;}
-    utt.rate=0.87; utt.pitch=1.0;
-    TTS.aiUtterance=utt;
-    TTS.aiPaused=false;
-
-    // Store current sentence and resolver in case warning fires mid-speech
     TTS._interruptedText = sentence;
-    TTS._pendingResolve = resolve;
+    TTS._pendingResolve  = resolve;
 
-    if(_laserSpans.length>0){_laserActive=true;moveLaser(0);}
-    utt.onboundary=(event)=>{
-      if(!_laserActive||lecturePaused||event.name!=='word') return;
-      const charIdx=event.charIndex;
-      let acc=0;
-      for(let i=0;i<_laserSpans.length;i++){
-        const wlen=_laserSpans[i].textContent.length;
-        if(charIdx<=acc+wlen){moveLaser(i);break;}
-        acc+=wlen+1;
+    // Show laser on first word while Azure fetches
+    if (_laserSpans.length > 0) { _laserActive = true; moveLaser(0); }
+
+    TTS._fetchAzureAudio(sentence, 'bn-BD-NabanitaNeural', '-10%', '0%').then(url => {
+      if (!url || lectureAborted) {
+        if (TTS._pendingResolve) { TTS._pendingResolve(); TTS._pendingResolve = null; }
+        return;
       }
-    };
-    utt.onend=()=>{
-      TTS.aiUtterance=null;
-      TTS._interruptedText=null;
-      if(TTS._pendingResolve){TTS._pendingResolve();TTS._pendingResolve=null;}
-    };
-    utt.onerror=()=>{
-      TTS.aiUtterance=null;
-      TTS._interruptedText=null;
-      if(TTS._pendingResolve){TTS._pendingResolve();TTS._pendingResolve=null;}
-    };
-    speechSynthesis.speak(utt);
+
+      const audio = new Audio(url);
+      TTS.aiAudio = audio;
+
+      // Laser pointer: move word by word using timeupdate
+      let wordIdx = 0;
+      audio.addEventListener('timeupdate', () => {
+        if (!_laserActive || _laserSpans.length === 0) return;
+        const progress = audio.currentTime / (audio.duration || 1);
+        const targetIdx = Math.min(
+          Math.floor(progress * _laserSpans.length),
+          _laserSpans.length - 1
+        );
+        if (targetIdx !== wordIdx) { wordIdx = targetIdx; moveLaser(wordIdx); }
+      });
+
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        TTS.aiAudio = null;
+        TTS._interruptedText = null;
+        if (TTS._pendingResolve) { TTS._pendingResolve(); TTS._pendingResolve = null; }
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        TTS.aiAudio = null;
+        TTS._interruptedText = null;
+        if (TTS._pendingResolve) { TTS._pendingResolve(); TTS._pendingResolve = null; }
+      };
+
+      audio.play().catch(e => {
+        console.warn('[Azure speakWithLaser]', e.message);
+        URL.revokeObjectURL(url);
+        TTS.aiAudio = null;
+        TTS._interruptedText = null;
+        if (TTS._pendingResolve) { TTS._pendingResolve(); TTS._pendingResolve = null; }
+      });
+    }).catch(e => {
+      console.warn('[Azure TTS fetch]', e.message);
+      if (TTS._pendingResolve) { TTS._pendingResolve(); TTS._pendingResolve = null; }
+    });
   });
 }
 
@@ -2737,18 +2794,18 @@ ${context}
   rec.start();
 }
 
-function speakAnswer(text){
-  return new Promise(resolve=>{
-    if(!window.speechSynthesis){resolve();return;}
+function speakAnswer(text) {
+  return new Promise(resolve => {
+    if (!text?.trim()) { resolve(); return; }
     TTS.stop();
-    const utt=new SpeechSynthesisUtterance(text);
-    if(_lectureVoice){utt.voice=_lectureVoice;utt.lang=_lectureVoice.lang;}
-    utt.rate=0.88; utt.pitch=1.05;
-    TTS.aiUtterance=utt;
-    TTS.aiPaused=false;
-    utt.onend=()=>{TTS.aiUtterance=null;resolve();};
-    utt.onerror=()=>{TTS.aiUtterance=null;resolve();};
-    speechSynthesis.speak(utt);
+    TTS._fetchAzureAudio(text, 'bn-BD-NabanitaNeural', '-8%', '+5%').then(url => {
+      if (!url) { resolve(); return; }
+      const audio = new Audio(url);
+      TTS.aiAudio = audio;
+      audio.onended = () => { URL.revokeObjectURL(url); TTS.aiAudio = null; resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); TTS.aiAudio = null; resolve(); };
+      audio.play().catch(e => { console.warn('[Azure speakAnswer]', e.message); resolve(); });
+    }).catch(() => resolve());
   });
 }
 
@@ -2870,6 +2927,7 @@ function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrol
 document.addEventListener('DOMContentLoaded', async function(){
   _config = await loadEnvConfig();
   refreshNeo4jConfig();
+  TTS.init(_config);  // ← ADD THIS
   if (!groqKeys().length) {
     console.warn('[Amplify Tutor] No Groq API keys. Set GROQ_KEYS in Railway variables.');
   }
@@ -3038,34 +3096,57 @@ async function tDetect(){
   }
   requestAnimationFrame(tDetect);
 }
+
+
 async function toggleAttention(){
-  const btn=document.getElementById('attention-btn');
-  const ov=document.getElementById('tracker-overlay');
-  if(trackerOn){
-    trackerOn=false;btn.classList.remove('active');ov.classList.remove('visible');
-    const v=document.getElementById('tracker-video');
-    if(v.srcObject){v.srcObject.getTracks().forEach(t=>t.stop());v.srcObject=null;}
+  const btn = document.getElementById('attention-btn');
+  const ov  = document.getElementById('tracker-overlay');
+  if (!ov) { console.warn('[Tracker] #tracker-overlay not found'); return; }
+
+  if (trackerOn) {
+    trackerOn = false;
+    btn.classList.remove('active');
+    ov.style.display = 'none';
+    const v = document.getElementById('tracker-video');
+    if (v?.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; }
     return;
   }
-  btn.classList.add('active');ov.classList.add('visible');
-  document.getElementById('tracker-loading').style.display='flex';
-  if(!mLoaded){
-    try{
+
+  btn.classList.add('active');
+  ov.style.display = 'flex';
+
+  const loadingEl = document.getElementById('tracker-loading');
+  if (loadingEl) loadingEl.style.display = 'flex';
+
+  if (!mLoaded) {
+    try {
       await Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
         faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL_URL)
       ]);
-      mLoaded=true;
-    }catch(e){document.getElementById('tracker-loading').textContent='মডেল লোড ব্যর্থ';btn.classList.remove('active');return;}
+      mLoaded = true;
+    } catch(e) {
+      if (loadingEl) loadingEl.textContent = '❌ মডেল লোড ব্যর্থ';
+      btn.classList.remove('active');
+      return;
+    }
   }
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:320},height:{ideal:240},facingMode:'user'}});
-    const v=document.getElementById('tracker-video');
-    v.srcObject=stream;
-    await new Promise(r=>v.addEventListener('loadedmetadata',r,{once:true}));
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 320 }, height: { ideal: 240 }, facingMode: 'user' }
+    });
+    const v = document.getElementById('tracker-video');
+    if (!v) return;
+    v.srcObject = stream;
+    await new Promise(r => v.addEventListener('loadedmetadata', r, { once: true }));
     await v.play();
-    document.getElementById('tracker-loading').style.display='none';
-    trackerOn=true; tDetect();
- 
-  }catch(e){document.getElementById('tracker-loading').textContent='ক্যামেরা চালু হয়নি';btn.classList.remove('active');}
+    if (loadingEl) loadingEl.style.display = 'none';
+    trackerOn = true;
+    tDetect();
+  } catch(e) {
+    console.error('[Tracker] camera error:', e);
+    if (loadingEl) loadingEl.textContent = '❌ ক্যামেরা চালু হয়নি';
+    btn.classList.remove('active');
+  }
 }

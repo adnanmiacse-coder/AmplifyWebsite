@@ -1146,19 +1146,80 @@ async function fetchAISegments(modelName) {
   }
 }
 
-function speak(text, onEnd) {
+let _voAudio = null;
+
+async function speak(text, onEnd) {
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'bn-BD';
-  const voices = window.speechSynthesis.getVoices();
-  const v = voices.find(v => v.lang.startsWith('bn'))
-         || voices.find(v => v.lang.startsWith('hi'))
-         || voices[0];
-  if (v) u.voice = v;
-  u.rate = 0.88; u.pitch = 1.05; u.volume = 1.0;
-  u.onend  = onEnd;
-  u.onerror = onEnd;
-  window.speechSynthesis.speak(u);
+  if (_voAudio) { _voAudio.pause(); _voAudio = null; }
+
+  const env    = window.AMPLIFY_ENV || {};
+  const key    = env.AZURE_SPEECH_KEY || env.VITE_AZURE_SPEECH_KEY || '';
+  const region = env.AZURE_SPEECH_REGION || env.VITE_AZURE_SPEECH_REGION || 'southeastasia';
+
+  // Fallback to Web Speech API if no Azure key
+  if (!key) {
+    console.warn('[VO] No Azure key, falling back to Web Speech API');
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'bn-BD';
+    const voices = window.speechSynthesis.getVoices();
+    const v = voices.find(v => v.lang.startsWith('bn'))
+           || voices.find(v => v.lang.startsWith('hi'))
+           || voices[0];
+    if (v) u.voice = v;
+    u.rate = 0.88; u.pitch = 1.05; u.volume = 1.0;
+    u.onend  = onEnd;
+    u.onerror = onEnd;
+    window.speechSynthesis.speak(u);
+    return;
+  }
+
+  const ssml = `<speak version='1.0' xml:lang='bn-BD'>
+    <voice name='bn-BD-NabanitaNeural'>
+      <prosody rate='-10%' pitch='+5%'>${text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')}
+      </prosody>
+    </voice>
+  </speak>`;
+
+  try {
+    const res = await fetch(
+      `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+      {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': key,
+          'Content-Type': 'application/ssml+xml',
+          'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+        },
+        body: ssml,
+      }
+    );
+
+    if (!res.ok) throw new Error(`Azure TTS ${res.status}`);
+
+    const blob  = await res.blob();
+    const url   = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    _voAudio = audio;
+
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+      _voAudio = null;
+      onEnd?.();
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      _voAudio = null;
+      onEnd?.();
+    };
+    audio.play();
+
+  } catch(e) {
+    console.warn('[Azure TTS VO]', e.message);
+    onEnd?.();
+  }
 }
 
 function zoomToSeg(seg) {
@@ -1257,6 +1318,7 @@ async function startVO() {
 function endVO() {
   _voActive = false;
   window.speechSynthesis.cancel();
+  if (_voAudio) { _voAudio.pause(); _voAudio = null; }
   voTimers.forEach(clearTimeout); voTimers = [];
   wave.classList.remove('live'); badge.classList.remove('live');
   spotlight.classList.remove('show');
