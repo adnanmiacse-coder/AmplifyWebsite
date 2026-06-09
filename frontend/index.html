@@ -6,8 +6,8 @@
     <title>Amplify — Don't Memorise, Visualise.</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23020B16'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-size='18' fill='%2300B7FF'>A</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2306060e'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-size='18' fill='%2300ff88'>A</text></svg>">
     <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
@@ -93,23 +93,59 @@
         </div>
     </section>
 
-    <!-- Supported By -->
+    <!-- Supported By / Featured In -->
     <section class="partners-section">
         <div class="container">
+
             <div class="partners-label" data-en="Supported by" data-bn="সহযোগিতায়">Supported by</div>
             <div class="partners-row" id="supportedBy">
-                <div class="partner-slot">Banglalink</div>
-                <div class="partner-slot">Applink Store</div>
-                <div class="partner-slot">hSenid Mobile</div>
-                <div class="partner-slot">AceIT</div>
+                <!--
+                    HOW TO ADD LOGOS:
+                    Replace each <span class="partner-slot-name"> with an <img> tag inside the .partner-slot div.
+                    Example:
+                        <div class="partner-slot">
+                            <img src="/assets/logos/banglalink.svg" alt="Banglalink" />
+                        </div>
+                    Recommended: SVG or PNG with transparent background, any size (CSS will fit it).
+                    The slot is 140×52px. Images auto-grayscale and restore color on hover.
+                -->
+                <div class="partner-slot">
+                    <span class="partner-slot-name">Banglalink</span>
+                </div>
+                <div class="partner-slot">
+                    <span class="partner-slot-name">Applink Store</span>
+                </div>
+                <div class="partner-slot">
+                    <span class="partner-slot-name">hSenid Mobile</span>
+                </div>
+                <div class="partner-slot">
+                    <span class="partner-slot-name">AceIT</span>
+                </div>
             </div>
+
             <div class="partners-label" style="margin-top: 48px;" data-en="Featured in" data-bn="যেখানে প্রকাশিত হয়েছে">Featured in</div>
             <div class="partners-row" id="featuredIn">
-                <div class="partner-slot">Aspire Institute</div>
-                <div class="partner-slot">Dhaka Tribune</div>
-                <div class="partner-slot">Prothom Alo</div>
-                <div class="partner-slot">The Business Standard</div>
+                <!--
+                    Same pattern — swap the <span> for an <img> when you have logos ready.
+                    Example:
+                        <div class="partner-slot">
+                            <img src="/assets/logos/dhaka-tribune.png" alt="Dhaka Tribune" />
+                        </div>
+                -->
+                <div class="partner-slot">
+                    <span class="partner-slot-name">Aspire Institute</span>
+                </div>
+                <div class="partner-slot">
+                    <span class="partner-slot-name">Dhaka Tribune</span>
+                </div>
+                <div class="partner-slot">
+                    <span class="partner-slot-name">Prothom Alo</span>
+                </div>
+                <div class="partner-slot">
+                    <span class="partner-slot-name">The Business Standard</span>
+                </div>
             </div>
+
         </div>
     </section>
 
@@ -309,7 +345,7 @@
 </button>
 
 <!-- Join Classroom Modal -->
-<div id="joinClassroomOverlay" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.72);backdrop-filter:blur(8px);z-index:9998;">
+<div id="joinClassroomOverlay" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.78);backdrop-filter:blur(8px);z-index:9998;">
     <div class="modal-box">
         <div class="modal-header">
             <div class="modal-title" data-en="Join a Classroom" data-bn="ক্লাসরুমে যোগ দিন">Join a Classroom</div>
