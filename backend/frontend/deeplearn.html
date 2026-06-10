@@ -708,67 +708,63 @@
     // Giphy
     const GIPHY_KEY='eI657U89m1QBfMVp4acJAWzqUFnN5R77';
    
+   
     async function fetchGif(text) {
   try {
     let searchTerm = 'science animation';
     if (GROQ_KEYS.length > 0) {
-      const res = await fetch(`${GROQ_BASE}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[0]}` },
-        body: JSON.stringify({
-          model: 'llama-3.1-8b-instant', max_tokens: 15, temperature: 0.1,
-          messages: [{ role: 'user', content: `From this Bengali academic text, output ONLY 2-3 English words for a science GIF search (biology/physics/chemistry/astronomy). No punctuation, no Bengali, no explanation:\n"${text.slice(0, 300)}"` }]
-        })
-      });
-      if (res.ok) {
-        const d = await res.json();
-        const kw = (d?.choices?.[0]?.message?.content || '')
-          .replace(/[\u0980-\u09FF]/g, '')
-          .replace(/[^\w\s]/g, '')
-          .trim();
-        if (kw && kw.length > 2) searchTerm = kw;
-      }
+      try {
+        const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[0]}` },
+          body: JSON.stringify({
+            model: 'llama-3.1-8b-instant', max_tokens: 12, temperature: 0.1,
+            messages: [{ role: 'user', content: `2-3 English science words for GIF search from: "${text.slice(0,200)}". Output ONLY the words:` }]
+          })
+        });
+        if (res.ok) {
+          const d = await res.json();
+          const kw = (d?.choices?.[0]?.message?.content || '')
+            .replace(/[\u0980-\u09FF]/g, '').replace(/[^\w\s]/g, '').trim();
+          if (kw && kw.length > 2) searchTerm = kw;
+        }
+      } catch(e) { /* keep default searchTerm */ }
     }
 
-    const query = encodeURIComponent(`${searchTerm} science`);
-    const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${query}&limit=25&rating=g`;
+    const query = encodeURIComponent(searchTerm + ' science');
+    const apiUrl = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${query}&limit=10&rating=g&lang=en`;
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      mode: 'cors'
-    });
-
+    const res = await fetch(apiUrl);
     if (!res.ok) throw new Error(`Giphy ${res.status}`);
     const data = await res.json();
     const results = data?.data || [];
     if (!results.length) return null;
 
-    const BLOCK = ['anime','cartoon','meme','funny','movie','music','dance','cat','dog',
-      'food','sport','celebrity','fashion','baby','wedding','party','gaming','drama',
-      'romance','kiss','love','fight','superhero','marvel','disney','pokemon'];
+    const BLOCK = ['anime','cartoon','meme','funny','movie','music','dance',
+      'cat','dog','food','sport','celebrity','fashion','baby','wedding',
+      'party','gaming','drama','romance','kiss','love','fight','superhero'];
 
     const filtered = results.filter(g => {
-      const combined = `${g.title || ''} ${g.slug || ''}`.toLowerCase();
-      return !BLOCK.some(w => combined.includes(w));
+      const s = `${g.title || ''} ${g.slug || ''}`.toLowerCase();
+      return !BLOCK.some(w => s.includes(w));
     });
 
     const pool = filtered.length ? filtered : results;
     const pick = pool[Math.floor(Math.random() * Math.min(pool.length, 5))];
 
-    // Return the downsized fixed-height WebP/GIF URL
-    return pick?.images?.fixed_height_downsampled?.url
+    // Use the media_url (direct CDN link) — no CORS issues
+    return pick?.images?.downsized_medium?.url
       || pick?.images?.fixed_height?.url
       || pick?.images?.downsized?.url
       || null;
 
-  } catch (e) {
+  } catch(e) {
     console.warn('[Giphy]', e.message);
     return null;
   }
 }
 
-    async function addChatBubble(expertId, text) {
+async function addChatBubble(expertId, text) {
   const expert = EXPERTS[expertId];
   const div = document.createElement('div');
   div.className = `chat-bubble ${expert.bubbleClass}`;
@@ -782,35 +778,19 @@
   chatMessages.appendChild(div);
   chatMessages.scrollTop = chatMessages.scrollHeight;
 
-  const gifContainer = div.querySelector('.bubble-gif');
-
   fetchGif(text).then(url => {
     if (!url) return;
+    const gifContainer = div.querySelector('.bubble-gif');
     const img = document.createElement('img');
+    img.style.cssText = 'width:100%;max-width:220px;border-radius:8px;display:block;margin-top:6px;';
     img.src = url;
-    img.referrerPolicy = 'no-referrer';
-    img.crossOrigin = 'anonymous';
-    img.style.cssText = `
-      width: 100%;
-      max-width: 220px;
-      border-radius: 8px;
-      opacity: 0;
-      transition: opacity 0.4s ease;
-      display: block;
-      margin-top: 6px;
-    `;
-    img.onload = () => {
-      img.style.opacity = '1';
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    };
-    img.onerror = () => {
-      // Fallback: try the original URL without crossOrigin
-      img.removeAttribute('crossorigin');
-      img.src = url;
-    };
+    img.onload = () => { chatMessages.scrollTop = chatMessages.scrollHeight; };
     gifContainer.appendChild(img);
   });
 }
+
+    
+
     function addUserBubble(text){const div=document.createElement('div');div.className='chat-bubble bubble-user';div.innerHTML=`<div class="bubble-meta" style="justify-content:flex-end">আপনি</div><div class="bubble-text">${text}</div>`;chatMessages.appendChild(div);chatMessages.scrollTop=chatMessages.scrollHeight;}
     function insertPhaseDivider(){const phase=DISCUSSION_PHASES[currentPhaseIdx]||{};const div=document.createElement('div');div.className='chat-phase-divider';div.innerHTML=`<div class="chat-phase-label">📍 ${phase.label||''}</div>`;chatMessages.appendChild(div);chatMessages.scrollTop=chatMessages.scrollHeight;}
 
