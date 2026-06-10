@@ -1110,14 +1110,7 @@ Respond ONLY with this exact JSON, no markdown:
 
 // ── Call 3: Final diagnosis ──
 async function generateDiagnosis() {
-  sendSessionSummaryToN8n().then(summary => {
-  if (summary) {
-    const diagEl = document.getElementById('quiz-result-diagnosis');
-    if (diagEl) {
-      diagEl.innerHTML += '<br><br><b>📋 সেশন সারসংক্ষেপ:</b><br>' + summary;
-    }
-  }
-});
+  
   const prompt = `তুমি একজন বাংলাদেশি শিক্ষক যিনি একজন ছাত্রের কুইজ পারফরম্যান্স বিশ্লেষণ করছেন। তুমি এই ছাত্রকে ভালো চেনো এবং তার সাথে "তুমি" সম্বোধনে কথা বলো।
 
 ছাত্রের কুইজ-পরবর্তী মডেল:
@@ -1172,11 +1165,11 @@ async function sendSessionSummaryToN8n() {
     studentName: 'শিক্ষার্থী',
     quizScore: quizScore,
     totalQuestions: quizTotalQ,
-    conceptMastery: quizState.conceptMastery,
-    weakConcepts: quizState.weakConcepts,
-    correctStreak: quizState.correctStreak,
-    wrongStreak: quizState.wrongStreak,
-    currentDifficulty: quizState.currentDifficulty,
+    conceptMastery: studentModel.conceptMastery,
+weakConcepts: studentModel.weakConcepts,
+correctStreak: studentModel.correctStreak,
+wrongStreak: studentModel.wrongStreak,
+currentDifficulty: studentModel.overallLevel,
     attentionLog: window._attentionLog || [],
     distractionCount: (window._attentionLog || []).filter(e => e.state === 'confused').length,
     focusedCount: (window._attentionLog || []).filter(e => e.state === 'focused').length,
@@ -1185,7 +1178,7 @@ async function sendSessionSummaryToN8n() {
 };
 
   try {
-    const response = await fetch('http://localhost:5678/webhook/session-summary', {
+    const response = await fetch('https://n8n-production-ec70.up.railway.app/webhook/session-summary', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1240,16 +1233,14 @@ function renderQuestion(data) {
   // Options
   const optContainer = document.getElementById('quiz-options');
   optContainer.innerHTML = '';
-  const letters = ['ক', 'খ', 'গ', 'ঘ'];
   data.options.forEach((opt, i) => {
     const btn = document.createElement('button');
     btn.className = 'quiz-option';
-    btn.innerHTML = `<span class="quiz-option-letter">${letters[i]}</span>${opt.slice(3)}`; // strip "A. "
+    btn.innerHTML = opt.slice(3); // strip "A. " with no letter prefix
     btn.dataset.opt = opt;
     btn.addEventListener('click', () => handleOptionClick(opt, btn));
     optContainer.appendChild(btn);
   });
-
   // Hint
   document.getElementById('quiz-hint-btn').disabled = false;
   document.getElementById('quiz-hint-text').style.display = 'none';
