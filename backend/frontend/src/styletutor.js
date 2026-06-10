@@ -1110,7 +1110,14 @@ Respond ONLY with this exact JSON, no markdown:
 
 // ── Call 3: Final diagnosis ──
 async function generateDiagnosis() {
-  
+  sendSessionSummaryToN8n().then(summary => {
+  if (summary) {
+    const diagEl = document.getElementById('quiz-result-diagnosis');
+    if (diagEl) {
+      diagEl.innerHTML += '<br><br><b>📋 সেশন সারসংক্ষেপ:</b><br>' + summary;
+    }
+  }
+});
   const prompt = `তুমি একজন বাংলাদেশি শিক্ষক যিনি একজন ছাত্রের কুইজ পারফরম্যান্স বিশ্লেষণ করছেন। তুমি এই ছাত্রকে ভালো চেনো এবং তার সাথে "তুমি" সম্বোধনে কথা বলো।
 
 ছাত্রের কুইজ-পরবর্তী মডেল:
@@ -1165,11 +1172,11 @@ async function sendSessionSummaryToN8n() {
     studentName: 'শিক্ষার্থী',
     quizScore: quizScore,
     totalQuestions: quizTotalQ,
-    conceptMastery: studentModel.conceptMastery,
-weakConcepts: studentModel.weakConcepts,
-correctStreak: studentModel.correctStreak,
-wrongStreak: studentModel.wrongStreak,
-currentDifficulty: studentModel.overallLevel,
+    conceptMastery: quizState.conceptMastery,
+    weakConcepts: quizState.weakConcepts,
+    correctStreak: quizState.correctStreak,
+    wrongStreak: quizState.wrongStreak,
+    currentDifficulty: quizState.currentDifficulty,
     attentionLog: window._attentionLog || [],
     distractionCount: (window._attentionLog || []).filter(e => e.state === 'confused').length,
     focusedCount: (window._attentionLog || []).filter(e => e.state === 'focused').length,
@@ -1178,53 +1185,19 @@ currentDifficulty: studentModel.overallLevel,
 };
 
   try {
-    const response = await fetch('https://n8n-production-ec70.up.railway.app/webhook/session-summary', {
+    const response = await fetch('http://localhost:5678/webhook/session-summary', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     const data = await response.json();
-    if (data.summary) {
-      const s = JSON.parse(localStorage.getItem('amplify_stats') || '{}');
-      s.lastSummary = data.summary;
-      localStorage.setItem('amplify_stats', JSON.stringify(s));
-    }
     return data.summary;
   } catch (e) {
     console.error('n8n summary failed:', e);
     return null;
   }
 }
-function saveQuizStatsToLocalStorage() {
-  // Load existing stats or start fresh
-  const existing = JSON.parse(localStorage.getItem('amplify_stats') || '{}');
 
-  const totalQuizzes  = (existing.totalQuizzes  || 0) + 1;
-  const totalScore    = (existing.totalScore    || 0) + quizScore;
-  const totalQuestions= (existing.totalQuestions|| 0) + quizTotalQ;
-  const overallPct    = Math.round((totalScore / totalQuestions) * 100);
-
-  // Streak: increment if quiz taken today, else reset
-  const today     = new Date().toDateString();
-  const lastQuiz  = existing.lastQuizDate || '';
-  const yesterday = new Date(Date.now() - 86400000).toDateString();
-  const streak    = (lastQuiz === today)
-    ? (existing.streak || 1)
-    : (lastQuiz === yesterday ? (existing.streak || 0) + 1 : 1);
-
-  const stats = {
-    overallPct,
-    totalQuizzes,
-    totalScore,
-    totalQuestions,
-    streak,
-    lastQuizDate:   today,
-    weakConcepts:   studentModel.weakConcepts,
-    lastSummary:    existing.lastSummary || '',
-  };
-
-  localStorage.setItem('amplify_stats', JSON.stringify(stats));
-}
 
 function closeQuiz() {
   quizActive = false;
@@ -1356,7 +1329,6 @@ async function nextQuestion() {
 
 async function finishQuiz() {
   showQuizLoading('ফলাফল তৈরি হচ্ছে…');
-  saveQuizStatsToLocalStorage(); // ← add this line
 
   let diagnosis;
   try {
