@@ -1118,24 +1118,20 @@ async function generateDiagnosis() {
     }
   }
 });
-  const prompt = `তুমি একজন বাংলাদেশি শিক্ষক যিনি একজন ছাত্রের কুইজ পারফরম্যান্স বিশ্লেষণ করছেন। তুমি এই ছাত্রকে ভালো চেনো এবং তার সাথে "তুমি" সম্বোধনে কথা বলো — যেন একজন বিশ্বস্ত শিক্ষক তার প্রিয় ছাত্রকে সরাসরি বলছেন।
+  const prompt = `তুমি একজন বাংলাদেশি শিক্ষক যিনি একজন ছাত্রের কুইজ পারফরম্যান্স বিশ্লেষণ করছেন। তুমি এই ছাত্রকে ভালো চেনো এবং তার সাথে "তুমি" সম্বোধনে কথা বলো।
 
 ছাত্রের কুইজ-পরবর্তী মডেল:
 ${JSON.stringify(studentModel, null, 2)}
 
-মোট প্রশ্ন: ${quizTotalQ}
-চূড়ান্ত স্কোর: ${quizScore}/${quizTotalQ}
-
 নিচের বিষয়গুলো মাথায় রেখে ৩-৪ বাক্যে একটি ব্যক্তিগত মূল্যায়ন লেখো:
-
-- তুমি কোন বিষয়গুলো ভালো বুঝেছ — শুধু বিষয়ের নাম উল্লেখ করো, কোনো সংখ্যা বা স্কোর বলবে না
-- কোথায় আরও মনোযোগ দেওয়া দরকার — শুধু বিষয়ের নাম বলো, সরাসরি কিন্তু হতাশ না করে
-- তোমার কি লেকচারটি আবার দেখা উচিত, নাকি সামনে এগিয়ে যেতে পারো — স্পষ্ট পরামর্শ দাও
-- কথাটা যেন একজন দরদী শিক্ষকের মতো হয় — ক্লাসরুমের ভাষায়, গল্পের ঢঙে, একটু উৎসাহ দিয়ে শেষ করো
-- গুরুত্বপূর্ণ: কোনো সংখ্যা, দশমিক, বা স্কোর (যেমন 0.2, -0.45, 1/5) উল্লেখ করবে না — শুধু বিষয়ের নাম ও পরামর্শ
+- কোন বিষয় বা টপিক ভালো বুঝেছ — সেটা উল্লেখ করো (কোনো সংখ্যা নয়, শুধু বিষয়ের নাম)
+- কোন টপিকে আরও মনোযোগ দেওয়া দরকার — স্পষ্ট বলো কিন্তু হতাশ না করে
+- লেকচারটি আবার দেখা উচিত কিনা — সরাসরি পরামর্শ দাও
+- কথাটা যেন একজন দরদী শিক্ষকের মতো হয় — ক্লাসরুমের ভাষায়, একটু উৎসাহ দিয়ে শেষ করো
+- কোনো সংখ্যা (স্কোর, শতাংশ, প্রশ্ন সংখ্যা) উল্লেখ করবে না — শুধু টপিক ও বিষয়বস্তু নিয়ে কথা বলো
 
 এছাড়া নির্ধারণ করো:
-- resultEmoji: 🎉 যদি স্কোর ≥ ৮০%, 🤔 যদি ৫০–৭৯%, 😟 যদি < ৫০%
+- resultEmoji: 🎉 যদি বেশিরভাগ সঠিক, 🤔 যদি মাঝামাঝি, 😟 যদি বেশিরভাগ ভুল
 - replayRecommended: true/false
 
 শুধুমাত্র এই JSON দিয়ে উত্তর দাও, কোনো markdown নয়:
@@ -1340,8 +1336,9 @@ async function finishQuiz() {
   try {
     diagnosis = await generateDiagnosis();
   } catch(e) {
+    
     diagnosis = {
-      diagnosis: `তুমি ${quizTotalQ}টি প্রশ্নের মধ্যে ${quizScore}টি সঠিক উত্তর দিয়েছ।`,
+      diagnosis: `কিছু বিষয় ভালো বুঝেছ, আবার কিছু টপিকে আরও মনোযোগ দেওয়া দরকার।`,
       resultEmoji: quizScore / quizTotalQ >= 0.8 ? '🎉' : quizScore / quizTotalQ >= 0.5 ? '🤔' : '😟',
       replayRecommended: quizScore / quizTotalQ < 0.5,
       replayMessage: 'দুর্বল অংশগুলো আবার শোনা উচিত।'
@@ -1362,8 +1359,10 @@ async function finishQuiz() {
   document.getElementById('quiz-result-emoji').textContent = diagnosis.resultEmoji;
   document.getElementById('quiz-result-title').textContent =
     quizScore / quizTotalQ >= 0.8 ? 'চমৎকার!' : quizScore / quizTotalQ >= 0.5 ? 'মোটামুটি ভালো!' : 'আরও পড়া দরকার।';
-  document.getElementById('quiz-result-score').textContent =
-    `${quizTotalQ}টি প্রশ্নে ${quizScore}টি সঠিক (${Math.round((quizScore/quizTotalQ)*100)}%)`;
+  
+    const pct = Math.round((quizScore/quizTotalQ)*100);
+const scoreLabel = pct >= 80 ? 'চমৎকার পারফরম্যান্স!' : pct >= 50 ? 'মোটামুটি ভালো করেছ' : 'আরও অনুশীলন দরকার';
+document.getElementById('quiz-result-score').textContent = scoreLabel;
   document.getElementById('quiz-result-diagnosis').textContent = diagnosis.diagnosis;
 
   // Replay recommendation
@@ -1395,11 +1394,8 @@ quizWeakSegIdx = Math.max(0, Math.min(quizWeakSegIdx, lectureSegments.length - 1
   }
 
   // TTS result summary
-  TTS.speakAI(
-    diagnosis.replayRecommended
-      ? `তুমি ${Math.round((quizScore/quizTotalQ)*100)} শতাংশ পেয়েছ। ${diagnosis.diagnosis}`
-      : `চমৎকার! তুমি ${Math.round((quizScore/quizTotalQ)*100)} শতাংশ পেয়েছ। ${diagnosis.diagnosis}`
-  );
+  
+  TTS.speakAI(diagnosis.diagnosis);
 }
 
 // ── Replay specific lecture segment ──
