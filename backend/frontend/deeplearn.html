@@ -707,9 +707,9 @@
 
     // Giphy
     const GIPHY_KEY='eI657U89m1QBfMVp4acJAWzqUFnN5R77';
-   async function fetchGif(text) {
+   
+    async function fetchGif(text) {
   try {
-    // Step 1: Extract a tight scientific English search term using LLM
     let searchTerm = 'science animation';
     if (GROQ_KEYS.length > 0) {
       const res = await fetch(`${GROQ_BASE}/chat/completions`, {
@@ -717,69 +717,50 @@
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[0]}` },
         body: JSON.stringify({
           model: 'llama-3.1-8b-instant', max_tokens: 15, temperature: 0.1,
-          messages: [{ role: 'user', content: `From this academic Bengali text, output ONLY 2-3 English words for a Giphy scientific animation search. Must be a hard science concept (biology, physics, chemistry, astronomy, neuroscience, genetics, etc). Do NOT output anything else, no punctuation:\n"${text.slice(0, 300)}"` }]
+          messages: [{ role: 'user', content: `From this Bengali academic text, output ONLY 2-3 English words for a science GIF search (biology/physics/chemistry/astronomy). No punctuation, no Bengali, no explanation:\n"${text.slice(0, 300)}"` }]
         })
       });
       if (res.ok) {
         const d = await res.json();
         const kw = (d?.choices?.[0]?.message?.content || '')
-          .replace(/[\u0980-\u09FF]/g, '')   // strip Bengali
+          .replace(/[\u0980-\u09FF]/g, '')
           .replace(/[^\w\s]/g, '')
           .trim();
         if (kw && kw.length > 2) searchTerm = kw;
       }
     }
 
-    // Step 2: Always append "science" to force scientific results
-    const query = `${searchTerm} science`;
+    const query = encodeURIComponent(`${searchTerm} science`);
+    const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${query}&limit=25&rating=g`;
 
-    // Step 3: Fetch from Giphy
-    const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(query)}&limit=50&rating=g&lang=en`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      mode: 'cors'
+    });
+
+    if (!res.ok) throw new Error(`Giphy ${res.status}`);
     const data = await res.json();
     const results = data?.data || [];
     if (!results.length) return null;
 
-    // Step 4: Strict allowlist — ONLY pass gifs whose title/slug contain a science keyword
-    const SCIENCE_KEYWORDS = [
-      'science','biology','physics','chemistry','math','education','nasa','microscop',
-      'molecule','atom','dna','cell','neuron','protein','gene','quantum','climate',
-      'evolution','laboratory','experiment','diagram','animation','medical','brain',
-      'photosynthesis','space','planet','solar','galaxy','electron','nucleus','enzyme',
-      'virus','bacteria','fossil','geology','ecosystem','neural','genome','orbit',
-      'telescope','reactor','periodic','element','compound','circuit','wave','laser',
-      'radiation','gravity','black hole','nebula','synapse','mitosis','meiosis',
-      'chromosome','vaccine','antibiotic','thermodynamic','entropy','relativity',
-      'particle','neutron','proton','isotope','reaction','catalyst','diffusion',
-      'osmosis','photon','spectrum','refraction','magnetic','electric','current',
-      'algorithm','data','computer','robot','artificial','intelligence','satellite'
-    ];
-
-    // Step 5: Hard blocklist — immediately discard anything matching these
-    const BLOCK_KEYWORDS = [
-      'anime','cartoon','naruto','gaming','meme','funny','lol','movie','music',
-      'dance','cat','dog','food','sport','celebrity','fashion','makeup','nails',
-      'baby','wedding','party','holiday','christmas','halloween','birthday',
-      'cooking','recipe','travel','nature walk','selfie','tiktok','reaction',
-      'drama','romance','kiss','love','fight','news','politics','superhero',
-      'marvel','disney','pokemon','minecraft','fortnite','gym','workout','art',
-      'drawing','painting','illustration','tattoo','hair','beauty'
-    ];
+    const BLOCK = ['anime','cartoon','meme','funny','movie','music','dance','cat','dog',
+      'food','sport','celebrity','fashion','baby','wedding','party','gaming','drama',
+      'romance','kiss','love','fight','superhero','marvel','disney','pokemon'];
 
     const filtered = results.filter(g => {
-      const combined = `${g.title || ''} ${g.slug || ''} ${g.username || ''}`.toLowerCase();
-      const hasBlock   = BLOCK_KEYWORDS.some(w => combined.includes(w));
-      const hasScience = SCIENCE_KEYWORDS.some(w => combined.includes(w));
-      const hasWords   = (g.title || '').trim().split(/\s+/).length >= 2;
-      return !hasBlock && hasScience && hasWords;
+      const combined = `${g.title || ''} ${g.slug || ''}`.toLowerCase();
+      return !BLOCK.some(w => combined.includes(w));
     });
 
-    if (!filtered.length) return null;
+    const pool = filtered.length ? filtered : results;
+    const pick = pool[Math.floor(Math.random() * Math.min(pool.length, 5))];
 
-    // Pick randomly from top 5 matches
-    const pick = filtered[Math.floor(Math.random() * Math.min(filtered.length, 5))];
-    return pick?.images?.fixed_height?.url || pick?.images?.fixed_height_small?.url || null;
+    // Return the downsized fixed-height WebP/GIF URL
+    return pick?.images?.fixed_height_downsampled?.url
+      || pick?.images?.fixed_height?.url
+      || pick?.images?.downsized?.url
+      || null;
 
   } catch (e) {
     console.warn('[Giphy]', e.message);
@@ -788,16 +769,48 @@
 }
 
     async function addChatBubble(expertId, text) {
-      const expert=EXPERTS[expertId];
-      const div=document.createElement('div');
-      div.className=`chat-bubble ${expert.bubbleClass}`;
-      div.innerHTML=`<div class="bubble-meta"><span class="bubble-dot" style="background:${expert.color}"></span>${expert.name}</div><div class="bubble-text">${text}</div><div class="bubble-gif" style="margin-top:8px;min-height:0px"></div>`;
-      chatMessages.appendChild(div);
-      chatMessages.scrollTop=chatMessages.scrollHeight;
-      const gifContainer=div.querySelector('.bubble-gif');
-      fetchGif(text).then(url=>{if(!url)return;const img=document.createElement('img');img.src=url;img.style.cssText='width:100%;max-width:220px;border-radius:8px;opacity:0;transition:opacity 0.4s ease;display:block;margin-top:4px;';img.onload=()=>{img.style.opacity='1';chatMessages.scrollTop=chatMessages.scrollHeight;};gifContainer.appendChild(img);});
-    }
+  const expert = EXPERTS[expertId];
+  const div = document.createElement('div');
+  div.className = `chat-bubble ${expert.bubbleClass}`;
+  div.innerHTML = `
+    <div class="bubble-meta">
+      <span class="bubble-dot" style="background:${expert.color}"></span>${expert.name}
+    </div>
+    <div class="bubble-text">${text}</div>
+    <div class="bubble-gif"></div>
+  `;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 
+  const gifContainer = div.querySelector('.bubble-gif');
+
+  fetchGif(text).then(url => {
+    if (!url) return;
+    const img = document.createElement('img');
+    img.src = url;
+    img.referrerPolicy = 'no-referrer';
+    img.crossOrigin = 'anonymous';
+    img.style.cssText = `
+      width: 100%;
+      max-width: 220px;
+      border-radius: 8px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      display: block;
+      margin-top: 6px;
+    `;
+    img.onload = () => {
+      img.style.opacity = '1';
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    };
+    img.onerror = () => {
+      // Fallback: try the original URL without crossOrigin
+      img.removeAttribute('crossorigin');
+      img.src = url;
+    };
+    gifContainer.appendChild(img);
+  });
+}
     function addUserBubble(text){const div=document.createElement('div');div.className='chat-bubble bubble-user';div.innerHTML=`<div class="bubble-meta" style="justify-content:flex-end">আপনি</div><div class="bubble-text">${text}</div>`;chatMessages.appendChild(div);chatMessages.scrollTop=chatMessages.scrollHeight;}
     function insertPhaseDivider(){const phase=DISCUSSION_PHASES[currentPhaseIdx]||{};const div=document.createElement('div');div.className='chat-phase-divider';div.innerHTML=`<div class="chat-phase-label">📍 ${phase.label||''}</div>`;chatMessages.appendChild(div);chatMessages.scrollTop=chatMessages.scrollHeight;}
 

@@ -825,13 +825,37 @@ async function groqChat(messages, system, maxTokens=400, temperature=0.72) {
         return await groqCallModel(model, messages, system, maxTokens, temperature, groqKeys()[ki]);
       } catch(e) {
         console.warn(`[Groq] key ${ki+1} model ${model} error: ${e.message}`);
-        continue; // try next key regardless of error type
+        continue;
       }
     }
     console.warn(`[Groq] All keys exhausted for ${model}, trying next model`);
   }
   throw new Error('সব মডেল ও API কী রেট লিমিটে আছে। ১ মিনিট পরে আবার চেষ্টা করুন।');
 }
+
+// Groq-only chat — used by quiz engine to avoid OpenRouter quota burn
+async function groqOnlyChat(messages, system, maxTokens=400, temperature=0.72) {
+  for (let mi = 0; mi < GROQ_MODELS.length; mi++) {
+    const model = GROQ_MODELS[mi];
+    for (let ki = 0; ki < groqKeys().length; ki++) {
+      try {
+        console.log(`[QuizGroq] model: ${model} | key: ${ki+1}`);
+        return await groqCallModel(model, messages, system, maxTokens, temperature, groqKeys()[ki]);
+      } catch(e) {
+        if (e.is429) {
+          console.warn(`[QuizGroq] 429 on key ${ki+1} model ${model}, rotating`);
+          await sleep(800);
+        } else {
+          console.warn(`[QuizGroq] key ${ki+1} model ${model}: ${e.message}`);
+        }
+        continue;
+      }
+    }
+    console.warn(`[QuizGroq] All keys exhausted for ${model}, trying next model`);
+  }
+  throw new Error('সব Groq কী রেট লিমিটে আছে। ১ মিনিট পরে আবার চেষ্টা করুন।');
+}
+
 async function groqVisionOCR(base64Img, pageNum) {
   for (let ki = 0; ki < groqKeys().length; ki++) {
     let attempts = 0;
@@ -1040,7 +1064,8 @@ Create ONE multiple-choice question. Rules:
 Respond ONLY with this exact JSON, no markdown:
 {"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","hint":"...","concept":"...","difficulty":"${level}"}`;
 
-  const raw = await groqChat([{ role: 'user', content: prompt }],
+  
+const raw = await groqOnlyChat([{ role: 'user', content: prompt }],
     'Respond only with valid JSON. No explanation. No markdown backticks.', 500, 0.4);
 
   const clean = raw.replace(/```json|```/g, '').trim();
@@ -1076,7 +1101,7 @@ Rules for updating:
 Respond ONLY with this exact JSON, no markdown:
 {"updatedModel":{...},"feedback":"বাংলায় এক লাইন ফিডব্যাক","isCorrect":${isCorrect}}`;
 
-  const raw = await groqChat([{ role: 'user', content: prompt }],
+  const raw = await groqOnlyChat([{ role: 'user', content: prompt }],
     'Respond only with valid JSON. No markdown. No explanation.', 600, 0.25);
 
   const clean = raw.replace(/```json|```/g, '').trim();
@@ -1114,7 +1139,7 @@ ${JSON.stringify(studentModel, null, 2)}
 শুধুমাত্র এই JSON দিয়ে উত্তর দাও, কোনো markdown নয়:
 {"diagnosis":"বাংলায় ব্যক্তিগত মূল্যায়ন...","resultEmoji":"🎉","replayRecommended":false,"replayMessage":"বাংলায় রিপ্লে বার্তা (শুধুমাত্র যদি recommended হয়)"}`;
 
-  const raw = await groqChat([{ role: 'user', content: prompt }],
+  const raw = await groqOnlyChat([{ role: 'user', content: prompt }],
     'Respond only with valid JSON. No markdown.', 500, 0.5);
 
   const clean = raw.replace(/```json|```/g, '').trim();

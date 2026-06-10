@@ -1040,17 +1040,45 @@ window.sendAiQuestion = sendAiQuestion;
 console.log('[ENV CHECK]', JSON.stringify(window.AMPLIFY_ENV));
 function getAPI() {
   const env = window.AMPLIFY_ENV || {};
-  if (env.CEREBRAS_KEY || env.CEREBRAS_API_KEY) {
-    return { key: env.CEREBRAS_KEY || env.CEREBRAS_API_KEY, base: env.CEREBRAS_BASE || env.CEREBRAS_API_BASE_URL || 'https://api.cerebras.ai/v1', model: 'llama-3.3-70b' };
-  }
-  const orKey = (env.OPENROUTER_KEYS || [])[0] || '';
-  if (orKey) {
-    return { key: orKey, base: env.OPENROUTER_BASE || 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' };
-  }
-  const groqKey = (env.GROQ_KEYS || [])[0] || env.GROQ_KEY || '';
+
+  // Groq first — most reliable for Bengali generation
+  const rawGroq = env.GROQ_KEYS || env.VITE_GROQ_KEYS || env.GROQ_API_KEY || env.VITE_GROQ_API_KEY || '';
+  const groqKeys = Array.isArray(rawGroq)
+    ? rawGroq
+    : String(rawGroq).split(',').map(k => k.trim()).filter(Boolean);
+  const groqKey = groqKeys[0] || '';
   if (groqKey) {
-    return { key: groqKey, base: env.GROQ_BASE || 'https://api.groq.com/openai/v1', model: 'llama-3.1-8b-instant' };
+    return {
+      key:   groqKey,
+      base:  env.GROQ_BASE || env.VITE_GROQ_BASE || 'https://api.groq.com/openai/v1',
+      model: 'llama-3.3-70b-versatile'
+    };
   }
+
+  // OpenRouter fallback
+  const rawOR = env.OPENROUTER_API_KEYS || env.OPENROUTER_KEYS || env.VITE_OPENROUTER_KEYS || '';
+  const orKeys = Array.isArray(rawOR)
+    ? rawOR
+    : String(rawOR).split(',').map(k => k.trim()).filter(Boolean);
+  const orKey = orKeys[0] || '';
+  if (orKey) {
+    return {
+      key:   orKey,
+      base:  env.OPENROUTER_BASE || env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+      model: 'meta-llama/llama-3.3-70b-instruct:free'
+    };
+  }
+
+  // Cerebras last
+  const cerebrasKey = env.CEREBRAS_KEY || env.CEREBRAS_API_KEY || '';
+  if (cerebrasKey) {
+    return {
+      key:   cerebrasKey,
+      base:  env.CEREBRAS_BASE || env.CEREBRAS_API_BASE_URL || 'https://api.cerebras.ai/v1',
+      model: 'llama-3.3-70b'
+    };
+  }
+
   return null;
 }
 
@@ -1148,17 +1176,34 @@ async function fetchAISegments(modelName) {
 
 let _voAudio = null;
 
+function getAzureCreds() {
+  const env = window.AMPLIFY_ENV || {};
+  // Try every common key name your Railway env might use
+  const key =
+    env.AZURE_SPEECH_KEY ||
+    env.VITE_AZURE_SPEECH_KEY ||
+    env.AZURE_COGNITIVE_KEY ||
+    env.AZURE_TTS_KEY ||
+    '';
+  const region =
+    env.AZURE_SPEECH_REGION ||
+    env.VITE_AZURE_SPEECH_REGION ||
+    env.AZURE_REGION ||
+    'southeastasia';
+  return { key, region };
+}
+
 async function speak(text, onEnd) {
   window.speechSynthesis.cancel();
   if (_voAudio) { _voAudio.pause(); _voAudio = null; }
 
-  const env    = window.AMPLIFY_ENV || {};
-  const key    = env.AZURE_SPEECH_KEY || env.VITE_AZURE_SPEECH_KEY || '';
-  const region = env.AZURE_SPEECH_REGION || env.VITE_AZURE_SPEECH_REGION || 'southeastasia';
+  const { key, region } = getAzureCreds();
 
-  // Fallback to Web Speech API if no Azure key
+  console.log('[VO TTS] Azure key present:', !!key, '| region:', region);
+
   if (!key) {
-    console.warn('[VO] No Azure key, falling back to Web Speech API');
+    console.warn('[VO] No Azure key found in AMPLIFY_ENV — falling back to Web Speech API');
+    console.log('[VO] Available env keys:', Object.keys(window.AMPLIFY_ENV || {}));
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'bn-BD';
     const voices = window.speechSynthesis.getVoices();
@@ -1173,15 +1218,12 @@ async function speak(text, onEnd) {
     return;
   }
 
-  const ssml = `<speak version='1.0' xml:lang='bn-BD'>
-    <voice name='bn-BD-NabanitaNeural'>
-      <prosody rate='-10%' pitch='+5%'>${text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')}
-      </prosody>
-    </voice>
-  </speak>`;
+  const safeText = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='bn-BD-NabanitaNeural'><prosody rate='-10%' pitch='+5%'>${safeText}</prosody></voice></speak>`;
 
   try {
     const res = await fetch(
@@ -1197,28 +1239,30 @@ async function speak(text, onEnd) {
       }
     );
 
-    if (!res.ok) throw new Error(`Azure TTS ${res.status}`);
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Azure TTS HTTP ${res.status}: ${errText}`);
+    }
 
     const blob  = await res.blob();
     const url   = URL.createObjectURL(blob);
     const audio = new Audio(url);
-    _voAudio = audio;
+    _voAudio    = audio;
 
-    audio.onended = () => {
-      URL.revokeObjectURL(url);
-      _voAudio = null;
+    audio.onended = () => { URL.revokeObjectURL(url); _voAudio = null; onEnd?.(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); _voAudio = null; onEnd?.(); };
+    audio.play().catch(e => {
+      console.warn('[VO] audio.play() blocked:', e.message);
       onEnd?.();
-    };
-    audio.onerror = () => {
-      URL.revokeObjectURL(url);
-      _voAudio = null;
-      onEnd?.();
-    };
-    audio.play();
+    });
 
   } catch(e) {
-    console.warn('[Azure TTS VO]', e.message);
-    onEnd?.();
+    console.warn('[Azure TTS VO] failed, falling back to Web Speech:', e.message);
+    // Graceful fallback so voiceover doesn't silently freeze
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'bn-BD'; u.rate = 0.88;
+    u.onend = onEnd; u.onerror = onEnd;
+    window.speechSynthesis.speak(u);
   }
 }
 
@@ -1277,6 +1321,7 @@ function getCurrentModelInfo() {
 }
 
 async function startVO() {
+  console.log('[VO startVO] AMPLIFY_ENV:', JSON.stringify(window.AMPLIFY_ENV));
   const { id, name } = getCurrentModelInfo();
   _voActive = true; voSegIdx = 0;
   hud.classList.add('active');
