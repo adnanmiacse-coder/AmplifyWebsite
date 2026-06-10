@@ -1184,13 +1184,47 @@ currentDifficulty: studentModel.overallLevel,
       body: JSON.stringify(payload)
     });
     const data = await response.json();
+    if (data.summary) {
+      const s = JSON.parse(localStorage.getItem('amplify_stats') || '{}');
+      s.lastSummary = data.summary;
+      localStorage.setItem('amplify_stats', JSON.stringify(s));
+    }
     return data.summary;
   } catch (e) {
     console.error('n8n summary failed:', e);
     return null;
   }
 }
+function saveQuizStatsToLocalStorage() {
+  // Load existing stats or start fresh
+  const existing = JSON.parse(localStorage.getItem('amplify_stats') || '{}');
 
+  const totalQuizzes  = (existing.totalQuizzes  || 0) + 1;
+  const totalScore    = (existing.totalScore    || 0) + quizScore;
+  const totalQuestions= (existing.totalQuestions|| 0) + quizTotalQ;
+  const overallPct    = Math.round((totalScore / totalQuestions) * 100);
+
+  // Streak: increment if quiz taken today, else reset
+  const today     = new Date().toDateString();
+  const lastQuiz  = existing.lastQuizDate || '';
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  const streak    = (lastQuiz === today)
+    ? (existing.streak || 1)
+    : (lastQuiz === yesterday ? (existing.streak || 0) + 1 : 1);
+
+  const stats = {
+    overallPct,
+    totalQuizzes,
+    totalScore,
+    totalQuestions,
+    streak,
+    lastQuizDate:   today,
+    weakConcepts:   studentModel.weakConcepts,
+    lastSummary:    existing.lastSummary || '',
+  };
+
+  localStorage.setItem('amplify_stats', JSON.stringify(stats));
+}
 
 function closeQuiz() {
   quizActive = false;
@@ -1322,6 +1356,7 @@ async function nextQuestion() {
 
 async function finishQuiz() {
   showQuizLoading('ফলাফল তৈরি হচ্ছে…');
+  saveQuizStatsToLocalStorage(); // ← add this line
 
   let diagnosis;
   try {
