@@ -467,36 +467,36 @@ body {
     background: linear-gradient(90deg, rgba(0,255,136,0.12), transparent);
 }
 
+
 .partners-row {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 8px;
     align-items: center;
 }
 
 .partner-slot {
     width: 140px;
     height: 52px;
-    border: 1px solid rgba(0,255,136,0.12);
+    border: none;
     border-radius: 10px;
-    background: rgba(0,255,136,0.03);
+    background: rgba(255, 255, 255, 0.07);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    transition: border-color 0.25s, background 0.25s;
+    transition: background 0.25s;
 }
 .partner-slot:hover {
-    border-color: rgba(0,255,136,0.28);
-    background: rgba(0,255,136,0.06);
+    background: rgba(255, 255, 255, 0.13);
 }
 .partner-slot img {
     max-width: 110px;
-    max-height: 36px;
+    max-height: 34px;
     object-fit: contain;
-    filter: grayscale(1) brightness(1.2);
-    opacity: 0.65;
+    filter: grayscale(1) brightness(10);
+    opacity: 0.55;
     transition: filter 0.25s, opacity 0.25s;
 }
 .partner-slot:hover img { filter: grayscale(0) brightness(1); opacity: 1; }
