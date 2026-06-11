@@ -450,25 +450,21 @@ body {
 }
 
 
+
 .partners-label {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #999;
-    margin-bottom: 20px;
+    color: #111;
+    margin-bottom: 28px;
     opacity: 1;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: block;
+    text-align: center;
     font-family: var(--font-body);
 }
-.partners-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, #ddd, transparent);
-}
+.partners-label::after { display: none; }
+
 
 
 
@@ -477,8 +473,9 @@ body {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 48px;
+    gap: 56px;
     align-items: center;
+    justify-content: center;
 }
 
 
