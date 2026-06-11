@@ -469,18 +469,20 @@ body {
 
 
 
+
 .partners-row {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 32px;
+    gap: 48px;
     align-items: center;
 }
 
 
+
 .partner-slot {
     width: auto;
-    height: 44px;
+    height: 52px;
     border: none;
     border-radius: 0;
     background: transparent;
@@ -488,31 +490,29 @@ body {
     align-items: center;
     justify-content: center;
     overflow: visible;
-    padding: 0 8px;
-    transition: opacity 0.25s;
+    padding: 0;
 }
 .partner-slot:hover {
     background: transparent;
-    opacity: 1;
 }
 .partner-slot img {
-    max-width: 120px;
-    max-height: 36px;
+    max-width: 140px;
+    max-height: 48px;
     object-fit: contain;
-    filter: grayscale(1) brightness(10);
-    opacity: 0.45;
-    transition: filter 0.25s, opacity 0.25s;
+    filter: none;
+    opacity: 1;
+    transition: opacity 0.2s;
 }
 .partner-slot:hover img {
-    filter: grayscale(0) brightness(1);
-    opacity: 1;
+    filter: none;
+    opacity: 0.8;
 }
 .partner-slot-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.4);
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.75);
     font-family: var(--font-body);
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
 }
 
 /* ─── Section Shared ─────────────────────────────────────────── */
