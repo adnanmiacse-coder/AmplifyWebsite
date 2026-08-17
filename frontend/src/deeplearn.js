@@ -15,11 +15,11 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 const OPENROUTER_MODELS = ['openrouter/free'];
-const GROQ_MODELS        = ['llama-3.3-70b-versatile', 'qwen/qwen3.6-27b'];
+const GROQ_MODELS        = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b'];
 const VISION_MODEL       = 'qwen/qwen3.6-27b';
 
 // ── Expert Config ──────────────────────────────
-const MODEL_FALLBACK = 'llama-3.3-70b-versatile';
+const MODEL_FALLBACK = 'openai/gpt-oss-120b';
 
 
 // ══════════════════════════════════════════════
@@ -208,7 +208,7 @@ const EXPERTS = {
     name:  'ড. আরিফ',
     nameShort: 'ড.আ',
     role:  'বিষয় বিশেষজ্ঞ ও সংশ্লেষক',
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     color: '#5b21b6',
     avatarClass: 'expert1-avatar',
     bubbleClass: 'bubble-expert1',
@@ -244,7 +244,7 @@ const EXPERTS = {
     name:  'ড. রাকিব',
     nameShort: 'ড.রা',
     role:  'সমালোচক ও প্রশ্নকর্তা',
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-20b',
     color: '#b45309',
     avatarClass: 'expert3-avatar',
     bubbleClass: 'bubble-expert3',
@@ -720,7 +720,10 @@ async function callGroq(expertId, modelOverride) {
           temperature: 0.8,
           messages: [{ role: 'system', content: expert.system }, ...messages],
         };
-        if (model.includes('gpt-oss')) payload.reasoning_effort = 'low';
+        if (model.includes('gpt-oss') || model.includes('qwen/')) {
+          payload.reasoning_effort = 'low';
+          if (model.includes('qwen/')) payload.max_tokens = Math.max(payload.max_tokens, 600);
+        }
 
         const res = await fetch(`${groqBase()}/chat/completions`, {
           method: 'POST',
@@ -758,9 +761,10 @@ async function fetchKnowledgeInsert(topic, phaseId) {
         'Authorization': `Bearer ${groqKeys()[0] || ''}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         max_tokens: 300,
         temperature: 0.5,
+        reasoning_effort: 'low',
         response_format: { type: 'json_object' },
         messages: [{ role: 'user', content: prompt }],
       }),

@@ -23,7 +23,8 @@ const GROQ_WHISPER_MODEL = 'whisper-large-v3';
 const VISION_MODEL       = 'qwen/qwen3.6-27b';
 const OPENROUTER_VISION_MODEL = 'meta-llama/llama-4-maverick:free';
 const GROQ_MODELS = [
-  'llama-3.3-70b-versatile',
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
   'qwen/qwen3.6-27b',
 ];
 
@@ -408,15 +409,21 @@ async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId 
     const model = GROQ_MODELS[modelIdx];
     for (let ki = 0; ki < groqKeys().length; ki++) {
       try {
+        const payload = {
+          model,
+          max_tokens: maxTokens,
+          temperature: temp,
+          messages: [{ role: 'system', content: system }, ...messages],
+        };
+        if (model.includes('gpt-oss') || model.includes('qwen/')) {
+          payload.reasoning_effort = 'low';
+          if (model.includes('qwen/')) payload.max_tokens = Math.max(payload.max_tokens, 600);
+        }
+
         const res = await fetch(`${groqBase()}/chat/completions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKeys()[ki]}` },
-          body: JSON.stringify({
-            model,
-            max_tokens: maxTokens,
-            temperature: temp,
-            messages: [{ role: 'system', content: system }, ...messages],
-          }),
+          body: JSON.stringify(payload),
         });
         if (res.status === 429) { await sleep(400); continue; }
         if (!res.ok) {

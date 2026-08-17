@@ -190,9 +190,9 @@ EXPERT_NAMES = {
 }
 
 EXPERT_MODELS = {
-  'expert1': 'llama-3.3-70b-versatile',
+  'expert1': 'openai/gpt-oss-120b',
   'expert2': 'qwen/qwen3.6-27b',
-  'expert3': 'llama-3.3-70b-versatile',
+  'expert3': 'openai/gpt-oss-20b',
 }
 
 # ── State definition ──────────────────────────
@@ -229,7 +229,7 @@ def build_expert_prompt(state: DiscussionState) -> str:
 def make_expert_node(expert_id: str):
     def node(state: DiscussionState) -> dict:
         primary_model = EXPERT_MODELS[expert_id]
-        fallback_models = ['llama-3.3-70b-versatile', 'qwen/qwen3.6-27b']
+        fallback_models = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b']
         models_to_try = [primary_model] + [m for m in fallback_models if m != primary_model]
         prompt_text = build_expert_prompt(state)
         messages = [
@@ -240,8 +240,11 @@ def make_expert_node(expert_id: str):
         for model in models_to_try:
             for key in get_groq_keys():
                 try:
-                    llm = ChatGroq(api_key=key, model=model, max_tokens=400, temperature=0.8)
-                    
+                    llm_kwargs = {"api_key": key, "model": model, "max_tokens": 400, "temperature": 0.8}
+                    if model.startswith('openai/gpt-oss') or model.startswith('qwen/'):
+                        llm_kwargs['reasoning_effort'] = 'low'
+                    llm = ChatGroq(**llm_kwargs)
+
                     reply = strip_intro(llm.invoke(messages).content.strip(), expert_id)
                     if reply:
                         return {

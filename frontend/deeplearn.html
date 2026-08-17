@@ -1306,7 +1306,7 @@ async function loadAndIndexPDF(file,onProgress){
   onProgress?.(`প্রস্তুত! (${store.chunks.length} অংশ)`);
 }
     // ── Expert Config ──────────────────────────────
-    const MODEL_FALLBACK = 'llama-3.3-70b-versatile';
+    const MODEL_FALLBACK = 'openai/gpt-oss-120b';
 
     const EXPERTS = {
       expert1: {
@@ -1314,7 +1314,7 @@ async function loadAndIndexPDF(file,onProgress){
         name:  'ড. আরিফা ',
         nameShort: 'ড.আ',
         role:  'বিষয় বিশেষজ্ঞ ও সংশ্লেষক',
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         color: '#5b21b6',
         avatarClass: 'expert1-avatar',
         bubbleClass: 'bubble-expert1',
@@ -1350,7 +1350,7 @@ async function loadAndIndexPDF(file,onProgress){
         name:  'ড. রাকিব',
         nameShort: 'ড.রা',
         role:  'সমালোচক ও প্রশ্নকর্তা',
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-20b',
         color: '#b45309',
         avatarClass: 'expert3-avatar',
         bubbleClass: 'bubble-expert3',
@@ -2023,9 +2023,10 @@ async function callGroq(expertId) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
           body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
+            model: 'openai/gpt-oss-120b',
             max_tokens: 300,
             temperature: 0.5,
+            reasoning_effort: 'low',
             response_format: { type: 'json_object' },
             messages: [{ role: 'user', content: prompt }],
           }),
