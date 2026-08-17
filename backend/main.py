@@ -647,6 +647,7 @@ async def get_config():
                 break
 
     openrouter_keys = parse_env_list('OPENROUTER_API_KEYS')
+    print(f"[/api/config] GROQ_KEYS count: {len(groq_keys)}, OPENROUTER_KEYS count: {len(openrouter_keys)}")
 
     return {
         "GROQ_API_KEY": groq_keys[0] if groq_keys else '',

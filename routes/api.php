@@ -40,6 +40,8 @@ Route::get('/config', function (Request $request) {
         $openRouterKeys = $parseEnvList(env('OPENROUTER_KEYS'));
     }
 
+    error_log('[/api/config] GROQ_KEYS count: ' . count($groqKeys) . ', OPENROUTER_KEYS count: ' . count($openRouterKeys));
+
     // Serve API keys and configuration from server, not from client bundle
     return response()->json([
         'GROQ_API_KEY'        => $groqKeys[0] ?? '',
