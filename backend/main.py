@@ -175,9 +175,9 @@ EXPERT_NAMES = {
 }
 
 EXPERT_MODELS = {
-  'expert1': 'llama-3.3-70b-versatile',
-  'expert2': 'gemma2-9b-it',
-  'expert3': 'llama3-70b-8192',
+  'expert1': 'openai/gpt-oss-120b',
+  'expert2': 'qwen/qwen3.6-27b',
+  'expert3': 'openai/gpt-oss-120b',
 }
 
 # ── State definition ──────────────────────────
@@ -214,7 +214,7 @@ def build_expert_prompt(state: DiscussionState) -> str:
 def make_expert_node(expert_id: str):
     def node(state: DiscussionState) -> dict:
         primary_model = EXPERT_MODELS[expert_id]
-        fallback_models = ['gemma2-9b-it', 'llama3-70b-8192', 'llama-3.1-8b-instant']
+        fallback_models = ['qwen/qwen3.6-27b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b']
         models_to_try = [primary_model] + [m for m in fallback_models if m != primary_model]
         prompt_text = build_expert_prompt(state)
         messages = [

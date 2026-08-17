@@ -14,12 +14,7 @@ function openRouterKeys() { return getOpenRouterKeys(_config, _env); }
 function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
-const OPENROUTER_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'deepseek/deepseek-r1-0528:free',
-  'google/gemma-3n-e4b-it:free',
-  'tngtech/deepseek-r1t-chimera:free',
-];
+const OPENROUTER_MODELS = ['openrouter/free'];
 const GROQ_MODELS        = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b'];
 const VISION_MODEL       = 'qwen/qwen3.6-27b';
 
@@ -249,7 +244,7 @@ const EXPERTS = {
     name:  'ড. রাকিব',
     nameShort: 'ড.রা',
     role:  'সমালোচক ও প্রশ্নকর্তা',
-    model: 'llama3-70b-8192',
+    model: 'openai/gpt-oss-120b',
     color: '#b45309',
     avatarClass: 'expert3-avatar',
     bubbleClass: 'bubble-expert3',

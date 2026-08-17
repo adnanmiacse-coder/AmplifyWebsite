@@ -17,12 +17,7 @@ function openRouterKeys() { return getOpenRouterKeys(_config, _env); }
 function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
-const OPENROUTER_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'deepseek/deepseek-r1-0528:free',
-  'google/gemma-3n-e4b-it:free',
-  'tngtech/deepseek-r1t-chimera:free',
-];
+const OPENROUTER_MODELS = ['openrouter/free'];
 // ── Groq (fallback chat + Whisper STT + Vision OCR) ──
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
 const VISION_MODEL       = 'qwen/qwen3.6-27b';
