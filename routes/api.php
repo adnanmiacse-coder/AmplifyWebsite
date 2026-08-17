@@ -55,6 +55,8 @@ Route::get('/config', function (Request $request) {
         'GEMINI_KEY'          => env('GEMINI_API_KEY', ''),
         'GEMINI_MODEL'        => env('GEMINI_MODEL', 'gemini-2.0-flash-lite'),
         'GEMINI_BASE'         => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta/models'),
+        'AZURE_SPEECH_KEY'    => env('AZURE_SPEECH_KEY', ''),
+        'AZURE_SPEECH_REGION' => env('AZURE_SPEECH_REGION', 'southeastasia'),
     ]);
 });
 

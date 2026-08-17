@@ -42,6 +42,8 @@
       window.AMPLIFY_ENV.GEMINI_KEY = config.GEMINI_KEY || '';
       window.AMPLIFY_ENV.GEMINI_MODEL = config.GEMINI_MODEL || 'gemini-2.0-flash-lite';
       window.AMPLIFY_ENV.GEMINI_BASE = config.GEMINI_BASE || 'https://generativelanguage.googleapis.com/v1beta/models';
+      window.AMPLIFY_ENV.AZURE_SPEECH_KEY = config.AZURE_SPEECH_KEY || '';
+      window.AMPLIFY_ENV.AZURE_SPEECH_REGION = config.AZURE_SPEECH_REGION || '';
       console.log('[AmplifyEnv] Config loaded from server');
     } else {
       console.warn('[AmplifyEnv] Failed to load config:', response.status);
