@@ -625,9 +625,11 @@ async def get_config():
     """Provide API configuration to frontend"""
     groq_keys = parse_env_list('GROQ_KEYS')
     if not groq_keys:
-        single = os.getenv('GROQ_KEY', '').strip()
-        if single:
-            groq_keys = [single]
+        for env_name in ('GROQ_API_KEY', 'GROQ_KEY'):
+            single = os.getenv(env_name, '').strip()
+            if single:
+                groq_keys = [single]
+                break
 
     openrouter_keys = parse_env_list('OPENROUTER_API_KEYS')
 

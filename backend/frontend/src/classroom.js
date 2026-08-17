@@ -26,6 +26,7 @@ const OPENROUTER_MODELS = [
 // ── Groq (fallback chat + Whisper STT + Vision OCR) ──
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
 const VISION_MODEL       = 'qwen/qwen3.6-27b';
+const OPENROUTER_VISION_MODEL = 'meta-llama/llama-4-maverick:free';
 const GROQ_MODELS = [
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
@@ -420,7 +421,11 @@ async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId 
           }),
         });
         if (res.status === 429) { await sleep(400); continue; }
-        if (!res.ok) continue;
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '');
+          console.warn(`[Groq fallback] model:${model} key:${ki + 1}: ${res.status} ${errBody.slice(0, 240)}`);
+          continue;
+        }
         const d = await res.json();
         const text = d?.choices?.[0]?.message?.content || '';
         if (!text.trim()) continue;
@@ -476,8 +481,12 @@ async function drainOCRQueue() {
 }
 
 async function groqVisionOCR(base64Img, pageNum) {
-  // Use a dedicated key for OCR to avoid competing with agent calls
-  const ocrKeys = [...groqKeys()]; // all keys as fallback
+  const ocrKeys = [...groqKeys()];
+
+  if (!ocrKeys.length && !openRouterKeys().length) {
+    console.error('[OCR] No API keys configured. Set GROQ_KEYS or OPENROUTER_API_KEYS.');
+    return '';
+  }
 
   for (let ki = 0; ki < ocrKeys.length; ki++) {
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -499,15 +508,61 @@ async function groqVisionOCR(base64Img, pageNum) {
           await sleep(wait);
           continue;
         }
-        if (!res.ok) break;
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '');
+          console.warn(`[OCR] Groq key ${ki + 1} error ${res.status}: ${errBody.slice(0, 240)}`);
+          break;
+        }
         const d = await res.json();
-        return d.choices?.[0]?.message?.content || '';
+        const text = d.choices?.[0]?.message?.content || '';
+        if (text.trim()) return text;
       } catch (e) {
         console.warn(`[OCR] key ${ki+1} attempt ${attempt+1}: ${e.message}`);
         await sleep(2000);
       }
     }
   }
+
+  console.warn(`[OCR] Groq failed for page ${pageNum}, trying OpenRouter`);
+  for (let i = 0; i < openRouterKeys().length; i++) {
+    try {
+      const res = await fetch(`${openRouterBase()}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openRouterKeys()[i]}`,
+          'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'http://localhost',
+          'X-Title': 'AI Classroom',
+        },
+        body: JSON.stringify({
+          model: OPENROUTER_VISION_MODEL,
+          max_tokens: 2048,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
+              { type: 'text', text: 'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.' }
+            ],
+          }],
+        }),
+      });
+      if (res.status === 429) { await sleep(4000); continue; }
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        console.warn(`[OCR] OpenRouter key ${i + 1} error ${res.status}: ${errBody.slice(0, 240)}`);
+        continue;
+      }
+      const d = await res.json();
+      const text = d.choices?.[0]?.message?.content || '';
+      if (text.trim()) {
+        console.log(`[OCR] OpenRouter key ${i + 1} succeeded for page ${pageNum}`);
+        return text;
+      }
+    } catch (e) {
+      console.warn(`[OCR] OpenRouter key ${i + 1}: ${e.message}`);
+    }
+  }
+
   console.error(`[OCR] all keys failed for page ${pageNum}, falling back to text extraction`);
   return '';
 }
@@ -1187,8 +1242,17 @@ async function startLesson() {
   if (lessonStarting) return;
   lessonStarting = true;
   _config = await loadEnvConfig();
-  if (!groqKeys().length) {
-    console.warn('[Amplify] No Groq API keys found. Set GROQ_KEYS or GROQ_KEY in Railway variables.');
+  const hasGroq = groqKeys().length > 0;
+  const hasOR   = openRouterKeys().length > 0;
+  if (!hasGroq && !hasOR) {
+    console.warn('[Amplify] No API keys found. Set GROQ_KEYS or OPENROUTER_API_KEYS in server environment.');
+    alert('API keys not configured. Set GROQ_KEYS or OPENROUTER_API_KEYS in your server environment (Railway/Vercel).');
+    lessonStarting = false;
+    _lessonStarted = false;
+    return;
+  }
+  if (!hasGroq) {
+    console.warn('[Amplify] No Groq keys — using OpenRouter only.');
   }
   isRunning = false; turnLoopRunning = false;
   _turnInProgress = false;   // ← ADD THIS

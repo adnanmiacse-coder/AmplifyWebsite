@@ -8,15 +8,48 @@ use Illuminate\Support\Facades\Route;
 
 // ── Public API config endpoint ────────────────────────────────────────────────
 Route::get('/config', function (Request $request) {
+    $parseEnvList = function (?string $value): array {
+        if ($value === null) {
+            return [];
+        }
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return [];
+        }
+        $decoded = json_decode($trimmed, true);
+        if (is_array($decoded)) {
+            return array_values(array_filter(array_map('strval', $decoded)));
+        }
+
+        return array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', $trimmed))));
+    };
+
+    $groqKeys = $parseEnvList(env('GROQ_KEYS'));
+    if ($groqKeys === []) {
+        foreach (['GROQ_API_KEY', 'GROQ_KEY'] as $envKey) {
+            $single = trim((string) env($envKey, ''));
+            if ($single !== '') {
+                $groqKeys = [$single];
+                break;
+            }
+        }
+    }
+
+    $openRouterKeys = $parseEnvList(env('OPENROUTER_API_KEYS'));
+    if ($openRouterKeys === []) {
+        $openRouterKeys = $parseEnvList(env('OPENROUTER_KEYS'));
+    }
+
     // Serve API keys and configuration from server, not from client bundle
-    // This way keys are never exposed in the front-end code
     return response()->json([
-        'GROQ_API_KEY'        => env('GROQ_API_KEY', ''),
-        'GROQ_API_BASE_URL'   => env('GROQ_API_BASE_URL', 'https://api.groq.com/openai/v1'),
+        'GROQ_API_KEY'        => $groqKeys[0] ?? '',
+        'GROQ_KEYS'           => $groqKeys,
+        'GROQ_API_BASE_URL'   => env('GROQ_API_BASE_URL', env('GROQ_BASE', 'https://api.groq.com/openai/v1')),
         'CEREBRAS_API_KEY'    => env('CEREBRAS_API_KEY', ''),
         'CEREBRAS_API_BASE'   => env('CEREBRAS_API_BASE_URL', 'https://api.cerebras.ai/v1'),
-        'OPENROUTER_KEYS'     => explode(',', env('OPENROUTER_KEYS', '')),
-        'OPENROUTER_BASE'     => env('OPENROUTER_BASE', 'https://openrouter.ai/api/v1'),
+        'OPENROUTER_KEYS'     => $openRouterKeys,
+        'OPENROUTER_API_KEYS' => $openRouterKeys,
+        'OPENROUTER_BASE'     => env('OPENROUTER_BASE', env('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1')),
         'GEMINI_KEY'          => env('GEMINI_API_KEY', ''),
         'GEMINI_MODEL'        => env('GEMINI_MODEL', 'gemini-2.0-flash-lite'),
         'GEMINI_BASE'         => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta/models'),
