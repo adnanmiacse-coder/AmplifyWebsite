@@ -23,8 +23,7 @@ const GROQ_WHISPER_MODEL = 'whisper-large-v3';
 const VISION_MODEL       = 'qwen/qwen3.6-27b';
 const OPENROUTER_VISION_MODEL = 'meta-llama/llama-4-maverick:free';
 const GROQ_MODELS = [
-  'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b',
+  'llama-3.3-70b-versatile',
   'qwen/qwen3.6-27b',
 ];
 

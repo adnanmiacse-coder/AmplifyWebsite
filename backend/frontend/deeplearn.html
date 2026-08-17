@@ -516,16 +516,16 @@
 
     // ── Expert Config ──────────────────────────────
     const OPENROUTER_MODELS = ['meta-llama/llama-3.3-70b-instruct:free','deepseek/deepseek-r1-0528:free','google/gemma-3n-e4b-it:free','tngtech/deepseek-r1t-chimera:free'];
-    const GROQ_MODELS  = ['openai/gpt-oss-120b','openai/gpt-oss-20b','qwen/qwen3.6-27b'];
+    const GROQ_MODELS  = ['llama-3.3-70b-versatile','qwen/qwen3.6-27b'];
 
     const EXPERTS = {
-      expert1: { id:'expert1', name:'ড. আরিফা', nameShort:'ড.আ', role:'বিষয় বিশেষজ্ঞ ও সংশ্লেষক', model:'openai/gpt-oss-120b', color:'#5b21b6', avatarClass:'expert1-avatar', bubbleClass:'bubble-expert1',
+      expert1: { id:'expert1', name:'ড. আরিফা', nameShort:'ড.আ', role:'বিষয় বিশেষজ্ঞ ও সংশ্লেষক', model:'llama-3.3-70b-versatile', color:'#5b21b6', avatarClass:'expert1-avatar', bubbleClass:'bubble-expert1',
         system:`তুমি ড. আরিফা, একজন অভিজ্ঞ বিষয় বিশেষজ্ঞ ও সংশ্লেষক। তুমি সরাসরি বাংলায় কথা বলছ। কঠোর নিয়ম: প্রথম পুরুষে কথা বলো। "ড. আরিফা বলেছেন" বা তৃতীয় পুরুষের বর্ণনা সম্পূর্ণ নিষিদ্ধ। প্রতিটি বক্তব্যে গভীর ধারণা, বৈজ্ঞানিক ব্যাখ্যা, এবং বাস্তব প্রাসঙ্গিকতা উল্লেখ করো। তথ্য উল্লেখ করো কিন্তু কোনো প্রতিষ্ঠানের নাম বা ব্যক্তির নাম ব্যবহার করো না। ৩ টি বাক্যে বিস্তারিত বলো। অন্য বিশেষজ্ঞদের কথায় সরাসরি সাড়া দাও।`,
       },
       expert2: { id:'expert2', name:'ড. নাফিসা', nameShort:'ড.না', role:'বিশ্লেষক ও গবেষক', model:'qwen/qwen3.6-27b', color:'#0369a1', avatarClass:'expert2-avatar', bubbleClass:'bubble-expert2',
         system:`তুমি ড. নাফিসা, একজন তীক্ষ্ণ বিশ্লেষক ও গবেষক। তুমি সরাসরি বাংলায় কথা বলছ। কঠোর নিয়ম: প্রথম পুরুষে কথা বলো। তুলনামূলক বিশ্লেষণ করো, তথ্য-ভিত্তিক যুক্তি দাও। কোনো প্রতিষ্ঠানের নাম বা ব্যক্তির নাম ব্যবহার করো না। ৩ টি বাক্যে বিস্তারিত বলো।`,
       },
-      expert3: { id:'expert3', name:'ড. রাকিব', nameShort:'ড.রা', role:'সমালোচক ও প্রশ্নকর্তা', model:'llama3-70b-8192', color:'#b45309', avatarClass:'expert3-avatar', bubbleClass:'bubble-expert3',
+      expert3: { id:'expert3', name:'ড. রাকিব', nameShort:'ড.রা', role:'সমালোচক ও প্রশ্নকর্তা', model:'llama-3.3-70b-versatile', color:'#b45309', avatarClass:'expert3-avatar', bubbleClass:'bubble-expert3',
         system:`তুমি ড. রাকিব, একজন তীব্র সমালোচক ও প্রশ্নকর্তা। তুমি সরাসরি বাংলায় কথা বলছ। কঠোর নিয়ম: প্রথম পুরুষে কথা বলো। বিদ্যমান বক্তব্যকে চ্যালেঞ্জ করো, বিকল্প দৃষ্টিভঙ্গি তুলে ধরো, গুরুত্বপূর্ণ প্রশ্ন করো। বিতর্কমূলক হও কিন্তু তথ্যভিত্তিক থাকো। কোনো প্রতিষ্ঠানের নাম বা ব্যক্তির নাম ব্যবহার করো না। ৩ টি বাক্যে বিস্তারিত বলো।`,
       },
     };
@@ -880,7 +880,7 @@ async function addChatBubble(expertId, text) {
     async function fetchKnowledgeInsert(topic,phaseId){
       if(phaseId!=='analysis'&&phaseId!=='debate')return null;
       const prompt=`বিষয়: "${topic}"\nএই বিষয়ে ২-৩টি গুরুত্বপূর্ণ তথ্যবিন্দু বাংলায় দাও। শুধু JSON রিটার্ন করো: {"insight":"বাংলায় ২-৩ বাক্য","sources":["উৎস ধরন ১","উৎস ধরন ২"]}`;
-      try{if(!GROQ_KEYS.length)return null;const res=await fetch(`${GROQ_BASE}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[0]}`},body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:300,temperature:0.5,response_format:{type:'json_object'},messages:[{role:'user',content:prompt}]})});const data=await res.json();if(!res.ok)return null;return JSON.parse(data.choices?.[0]?.message?.content||'{}');}catch(e){return null;}
+      try{if(!GROQ_KEYS.length)return null;const res=await fetch(`${GROQ_BASE}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[0]}`},body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:300,temperature:0.5,response_format:{type:'json_object'},messages:[{role:'user',content:prompt}]})});const data=await res.json();if(!res.ok)return null;return JSON.parse(data.choices?.[0]?.message?.content||'{}');}catch(e){return null;}
     }
 
     function showKnowledgeInsert(insight,sources){

@@ -15,11 +15,11 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 const OPENROUTER_MODELS = ['openrouter/free'];
-const GROQ_MODELS        = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b'];
+const GROQ_MODELS        = ['llama-3.3-70b-versatile', 'qwen/qwen3.6-27b'];
 const VISION_MODEL       = 'qwen/qwen3.6-27b';
 
 // ── Expert Config ──────────────────────────────
-const MODEL_FALLBACK = 'qwen/qwen3.6-27b';
+const MODEL_FALLBACK = 'llama-3.3-70b-versatile';
 
 
 // ══════════════════════════════════════════════
@@ -208,7 +208,7 @@ const EXPERTS = {
     name:  'ড. আরিফ',
     nameShort: 'ড.আ',
     role:  'বিষয় বিশেষজ্ঞ ও সংশ্লেষক',
-    model: 'openai/gpt-oss-120b',
+    model: 'llama-3.3-70b-versatile',
     color: '#5b21b6',
     avatarClass: 'expert1-avatar',
     bubbleClass: 'bubble-expert1',
@@ -244,7 +244,7 @@ const EXPERTS = {
     name:  'ড. রাকিব',
     nameShort: 'ড.রা',
     role:  'সমালোচক ও প্রশ্নকর্তা',
-    model: 'openai/gpt-oss-120b',
+    model: 'llama-3.3-70b-versatile',
     color: '#b45309',
     avatarClass: 'expert3-avatar',
     bubbleClass: 'bubble-expert3',
@@ -714,11 +714,18 @@ async function callGroq(expertId, modelOverride) {
   for (const model of models) {
     for (let ki = 0; ki < groqKeys().length; ki++) {
       try {
+        const payload = {
+          model,
+          max_tokens: 900,
+          temperature: 0.8,
+          messages: [{ role: 'system', content: expert.system }, ...messages],
+        };
+        if (model.includes('gpt-oss')) payload.reasoning_effort = 'low';
+
         const res = await fetch(`${groqBase()}/chat/completions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKeys()[ki]}` },
-          body: JSON.stringify({ model, max_tokens: 600, temperature: 0.8,
-            messages: [{ role: 'system', content: expert.system }, ...messages] }),
+          body: JSON.stringify(payload),
         });
         if (res.status === 429) { await sleep(400); continue; }
         if (!res.ok) continue;
@@ -751,7 +758,7 @@ async function fetchKnowledgeInsert(topic, phaseId) {
         'Authorization': `Bearer ${groqKeys()[0] || ''}`,
       },
       body: JSON.stringify({
-        model: 'openai/gpt-oss-120b',
+        model: 'llama-3.3-70b-versatile',
         max_tokens: 300,
         temperature: 0.5,
         response_format: { type: 'json_object' },

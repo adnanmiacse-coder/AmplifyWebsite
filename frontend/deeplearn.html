@@ -1140,7 +1140,7 @@ const OPENROUTER_MODELS = [
   'google/gemma-3n-e4b-it:free',
   'tngtech/deepseek-r1t-chimera:free',
 ];
-const GROQ_MODELS  = ['openai/gpt-oss-120b','openai/gpt-oss-20b','qwen/qwen3.6-27b'];
+const GROQ_MODELS  = ['llama-3.3-70b-versatile','qwen/qwen3.6-27b'];
 const VISION_MODEL = 'qwen/qwen3.6-27b';
 
     if (!GROQ_KEYS.length) {
@@ -1306,7 +1306,7 @@ async function loadAndIndexPDF(file,onProgress){
   onProgress?.(`প্রস্তুত! (${store.chunks.length} অংশ)`);
 }
     // ── Expert Config ──────────────────────────────
-    const MODEL_FALLBACK = 'qwen/qwen3.6-27b';
+    const MODEL_FALLBACK = 'llama-3.3-70b-versatile';
 
     const EXPERTS = {
       expert1: {
@@ -1314,7 +1314,7 @@ async function loadAndIndexPDF(file,onProgress){
         name:  'ড. আরিফা ',
         nameShort: 'ড.আ',
         role:  'বিষয় বিশেষজ্ঞ ও সংশ্লেষক',
-        model: 'openai/gpt-oss-120b',
+        model: 'llama-3.3-70b-versatile',
         color: '#5b21b6',
         avatarClass: 'expert1-avatar',
         bubbleClass: 'bubble-expert1',
@@ -1350,7 +1350,7 @@ async function loadAndIndexPDF(file,onProgress){
         name:  'ড. রাকিব',
         nameShort: 'ড.রা',
         role:  'সমালোচক ও প্রশ্নকর্তা',
-        model: 'llama3-70b-8192',
+        model: 'llama-3.3-70b-versatile',
         color: '#b45309',
         avatarClass: 'expert3-avatar',
         bubbleClass: 'bubble-expert3',
@@ -2023,7 +2023,7 @@ async function callGroq(expertId) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
           body: JSON.stringify({
-            model: 'openai/gpt-oss-120b',
+            model: 'llama-3.3-70b-versatile',
             max_tokens: 300,
             temperature: 0.5,
             response_format: { type: 'json_object' },
