@@ -15,11 +15,11 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 const OPENROUTER_MODELS = ['openrouter/free'];
-const GROQ_MODELS        = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b'];
+const GROQ_MODELS        = ['qwen/qwen3.6-27b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
 const VISION_MODEL       = 'qwen/qwen3.6-27b';
 
 // ── Expert Config ──────────────────────────────
-const MODEL_FALLBACK = 'openai/gpt-oss-120b';
+const MODEL_FALLBACK = 'qwen/qwen3.6-27b';
 
 
 // ══════════════════════════════════════════════
