@@ -787,8 +787,8 @@ const OPENROUTER_KEYS = KEYS.or;
   if (k && !GROQ_KEYS.includes(k)) GROQ_KEYS.unshift(k);
 })();
 
-const GROQ_MODELS = ['openai/gpt-oss-120b','openai/gpt-oss-20b','qwen/qwen3.6-27b'];
-const OR_MODELS   = ['meta-llama/llama-3.3-70b-instruct:free','deepseek/deepseek-r1-0528:free','google/gemma-3n-e4b-it:free'];
+const GROQ_MODELS = ['openai/gpt-oss-120b','openai/gpt-oss-20b','llama-3.3-70b-versatile'];
+const OR_MODELS   = ['openrouter/free'];
 
 // ── SCIENTIST DATABASE ───────────────────
 const SCIENTIST_DB = {
@@ -942,7 +942,7 @@ No markdown, no commentary, just the JSON object.`;
     if (!text && OPENROUTER_KEYS.length > 0) {
       const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
         method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${OPENROUTER_KEYS[0]}`,'HTTP-Referer':'http://localhost','X-Title':'Einstein'},
-        body: JSON.stringify({ model:'google/gemma-3n-e4b-it:free', max_tokens:120, temperature:0.2, messages:[{role:'user',content:prompt}] }),
+        body: JSON.stringify({ model:'openrouter/free', max_tokens:120, temperature:0.2, messages:[{role:'user',content:prompt}] }),
       });
       if (res.ok) { const d = await res.json(); text = d?.choices?.[0]?.message?.content?.trim()||''; }
     }

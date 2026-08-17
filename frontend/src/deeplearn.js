@@ -15,11 +15,11 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 const OPENROUTER_MODELS = ['openrouter/free'];
-const GROQ_MODELS        = ['qwen/qwen3.6-27b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
-const VISION_MODEL       = 'qwen/qwen3.6-27b';
+const GROQ_MODELS        = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile'];
+const VISION_MODEL       = 'qwen/qwen3-32b';
 
 // ── Expert Config ──────────────────────────────
-const MODEL_FALLBACK = 'qwen/qwen3.6-27b';
+const MODEL_FALLBACK = 'llama-3.3-70b-versatile';
 
 
 // ══════════════════════════════════════════════
@@ -226,7 +226,7 @@ const EXPERTS = {
     name:  'ড. নাফিসা',
     nameShort: 'ড.না',
     role:  'বিশ্লেষক ও গবেষক',
-    model: 'qwen/qwen3.6-27b',
+    model: 'llama-3.3-70b-versatile',
     color: '#0369a1',
     avatarClass: 'expert2-avatar',
     bubbleClass: 'bubble-expert2',

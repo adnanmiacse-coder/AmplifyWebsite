@@ -18,14 +18,14 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 const OPENROUTER_MODELS = ['openrouter/free'];
-// ── Groq (fallback chat + Whisper STT + Vision OCR) ──
+// ── Groq (primary chat + Whisper STT + Vision OCR) ──
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
-const VISION_MODEL       = 'qwen/qwen3.6-27b';
-const OPENROUTER_VISION_MODEL = 'meta-llama/llama-4-maverick:free';
+const VISION_MODEL       = 'qwen/qwen3-32b';
+const OPENROUTER_VISION_MODEL = 'openrouter/free';
 const GROQ_MODELS = [
-  'qwen/qwen3.6-27b',
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
+  'llama-3.3-70b-versatile',
 ];
 
 // ── PDF Pipeline Config ───────────────────────
@@ -396,15 +396,7 @@ async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
   }
   throw new Error('All OpenRouter keys failed');
 }
-async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId = null) {
-  // Try OpenRouter first
-  try {
-    return await openRouterChat(messages, system, maxTokens, temp);
-  } catch (e) {
-    console.warn('[groqChat] OpenRouter failed, falling back to Groq:', e.message);
-  }
-
-  // Groq fallback — rotate models × keys
+async function groqOnlyChat(messages, system, maxTokens = 500, temp = 0.78) {
   for (let modelIdx = 0; modelIdx < GROQ_MODELS.length; modelIdx++) {
     const model = GROQ_MODELS[modelIdx];
     for (let ki = 0; ki < groqKeys().length; ki++) {
@@ -415,10 +407,7 @@ async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId 
           temperature: temp,
           messages: [{ role: 'system', content: system }, ...messages],
         };
-        if (model.includes('gpt-oss') || model.includes('qwen/')) {
-          payload.reasoning_effort = 'low';
-          if (model.includes('qwen/')) payload.max_tokens = Math.max(payload.max_tokens, 600);
-        }
+        if (model.includes('gpt-oss')) payload.reasoning_effort = 'low';
 
         const res = await fetch(`${groqBase()}/chat/completions`, {
           method: 'POST',
@@ -428,20 +417,36 @@ async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId 
         if (res.status === 429) { await sleep(400); continue; }
         if (!res.ok) {
           const errBody = await res.text().catch(() => '');
-          console.warn(`[Groq fallback] model:${model} key:${ki + 1}: ${res.status} ${errBody.slice(0, 240)}`);
+          console.warn(`[Groq] model:${model} key:${ki + 1}: ${res.status} ${errBody.slice(0, 240)}`);
           continue;
         }
         const d = await res.json();
         const text = d?.choices?.[0]?.message?.content || '';
         if (!text.trim()) continue;
-        console.log(`[Groq fallback] ✓ model:${model} key:${ki + 1}`);
+        console.log(`[Groq] ✓ model:${model} key:${ki + 1}`);
         return _stripThinking(text.trim());
       } catch (e) {
-        console.warn(`[Groq fallback] model:${model} key:${ki + 1}: ${e.message}`);
+        console.warn(`[Groq] model:${model} key:${ki + 1}: ${e.message}`);
       }
     }
   }
-  throw new Error('সব OpenRouter ও Groq কী ব্যর্থ।');
+  throw new Error('All Groq models failed');
+}
+
+async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId = null) {
+  try {
+    return await groqOnlyChat(messages, system, maxTokens, temp);
+  } catch (e) {
+    console.warn('[groqChat] Groq failed, falling back to OpenRouter:', e.message);
+  }
+
+  try {
+    return await openRouterChat(messages, system, maxTokens, temp);
+  } catch (e) {
+    console.warn('[groqChat] OpenRouter also failed:', e.message);
+  }
+
+  throw new Error('সব Groq ও OpenRouter কী ব্যর্থ।');
 }
 
 /**

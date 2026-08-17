@@ -18,14 +18,14 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 const OPENROUTER_MODELS = ['openrouter/free'];
-// ── Groq (fallback chat + Whisper STT + Vision OCR) ──
+// ── Groq (primary chat + Whisper STT + Vision OCR) ──
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
-const VISION_MODEL       = 'qwen/qwen3.6-27b';
-const OPENROUTER_VISION_MODEL = 'meta-llama/llama-4-maverick:free';
+const VISION_MODEL       = 'qwen/qwen3-32b';
+const OPENROUTER_VISION_MODEL = 'openrouter/free';
 const GROQ_MODELS = [
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
-  'qwen/qwen3.6-27b',
+  'llama-3.3-70b-versatile',
 ];
 
 // ── PDF Pipeline Config ───────────────────────
@@ -411,10 +411,7 @@ async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId 
           temperature: temp,
           messages: [{ role: 'system', content: system }, ...messages],
         };
-        if (model.includes('gpt-oss') || model.includes('qwen/')) {
-          payload.reasoning_effort = 'low';
-          if (model.includes('qwen/')) payload.max_tokens = Math.max(payload.max_tokens, 600);
-        }
+        if (model.includes('gpt-oss')) payload.reasoning_effort = 'low';
 
         const res = await fetch(`${groqBase()}/chat/completions`, {
           method: 'POST',

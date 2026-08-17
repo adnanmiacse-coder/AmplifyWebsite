@@ -1526,7 +1526,7 @@ async function callGroq(messages){
     method: 'POST',
     headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + (window.AMPLIFY_ENV?.GROQ_KEY || '') },
     body: JSON.stringify({
-      model: 'qwen/qwen3.6-27b',
+      model: 'openai/gpt-oss-120b',
       max_tokens: 500,
       tools: AGENT_TOOLS.map(t => ({ type:'function', function: t })),
       tool_choice: 'auto',

@@ -208,7 +208,7 @@ Return only the JSON array.`
         'Authorization': `Bearer ${GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3.6-27b',
+        model: 'openai/gpt-oss-120b',
         max_tokens: 8000,
         temperature: 0.4,
         messages: [{ role: 'user', content: messageContent }]

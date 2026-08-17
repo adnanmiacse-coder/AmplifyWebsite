@@ -1134,14 +1134,9 @@ body::after {
     //  Deep Learn — deeplearn.html (inline)
     //  3 Expert Agents · Groq · Bangla Deep Discussion
     // ══════════════════════════════════════════════
-const OPENROUTER_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'deepseek/deepseek-r1-0528:free',
-  'google/gemma-3n-e4b-it:free',
-  'tngtech/deepseek-r1t-chimera:free',
-];
-const GROQ_MODELS  = ['llama-3.3-70b-versatile','qwen/qwen3.6-27b'];
-const VISION_MODEL = 'qwen/qwen3.6-27b';
+const OPENROUTER_MODELS = ['openrouter/free'];
+const GROQ_MODELS  = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile'];
+const VISION_MODEL = 'qwen/qwen3-32b';
 
     if (!GROQ_KEYS.length) {
       console.warn('[DeepLearn] No Groq API keys. Set GROQ_KEYS in Railway variables.');
@@ -1332,7 +1327,7 @@ async function loadAndIndexPDF(file,onProgress){
         name:  'ড. নাফিসা',
         nameShort: 'ড.না',
         role:  'বিশ্লেষক ও গবেষক',
-        model: 'qwen/qwen3.6-27b',
+        model: 'llama-3.3-70b-versatile',
         color: '#0369a1',
         avatarClass: 'expert2-avatar',
         bubbleClass: 'bubble-expert2',

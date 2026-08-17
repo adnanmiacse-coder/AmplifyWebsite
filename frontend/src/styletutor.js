@@ -118,13 +118,13 @@ async function initNeo4j() {
 
 
 const OPENROUTER_MODEL = 'openrouter/auto';
-const VISION_MODEL = 'qwen/qwen3.6-27b';
+const VISION_MODEL = 'qwen/qwen3-32b';
 
 // Primary model for all lecture + chat generation
 const GROQ_MODELS = [
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
-  'qwen/qwen3.6-27b',
+  'llama-3.3-70b-versatile',
 ];
 
 // ── TTS MANAGER ──
@@ -857,7 +857,7 @@ async function groqVisionOCR(base64Img, pageNum) {
             'X-Title': 'Amplify'
           },
           body: JSON.stringify({
-            model: 'meta-llama/llama-4-maverick:free',
+            model: 'openrouter/free',
             max_tokens: 2048,
             messages: [{
               role: 'user',
