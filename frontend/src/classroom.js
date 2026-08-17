@@ -472,6 +472,7 @@ async function drainOCRQueue() {
 }
 
 async function groqVisionOCR(base64Img, pageNum) {
+  console.log('[OCR] using model:', VISION_MODEL);
   const ocrKeys = [...groqKeys()];
 
   if (!ocrKeys.length && !openRouterKeys().length) {
