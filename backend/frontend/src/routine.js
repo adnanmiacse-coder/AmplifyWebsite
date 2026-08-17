@@ -208,7 +208,7 @@ Return only the JSON array.`
         'Authorization': `Bearer ${GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        model: 'qwen/qwen3.6-27b',
         max_tokens: 8000,
         temperature: 0.4,
         messages: [{ role: 'user', content: messageContent }]

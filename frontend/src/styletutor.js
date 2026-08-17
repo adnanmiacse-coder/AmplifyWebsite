@@ -118,15 +118,13 @@ async function initNeo4j() {
 
 
 const OPENROUTER_MODEL = 'openrouter/auto';
-const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+const VISION_MODEL = 'qwen/qwen3.6-27b';
 
 // Primary model for all lecture + chat generation
-// llama-3.3-70b-versatile gives the best instruction following and natural language
 const GROQ_MODELS = [
-  'llama-3.3-70b-versatile',   // best quality — try first
-  'llama-3.3-70b-specdec',     // fallback if 429
-  'gemma2-9b-it',              // fallback
-  'llama-3.1-8b-instant',      // last resort
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+  'qwen/qwen3.6-27b',
 ];
 
 // ── TTS MANAGER ──

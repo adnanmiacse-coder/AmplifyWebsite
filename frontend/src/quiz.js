@@ -146,7 +146,7 @@ Return only the JSON array.`;
         'Authorization': `Bearer ${GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        model: 'qwen/qwen3.6-27b',
         temperature: 0.4,
         max_tokens: 4000,
         response_format: { type: 'json_object' },

@@ -25,12 +25,11 @@ const OPENROUTER_MODELS = [
 ];
 // ── Groq (fallback chat + Whisper STT + Vision OCR) ──
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
-const VISION_MODEL       = 'meta-llama/llama-4-scout-17b-16e-instruct';
+const VISION_MODEL       = 'qwen/qwen3.6-27b';
 const GROQ_MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama-3.3-70b-specdec',
-  'gemma2-9b-it',
-  'llama-3.1-8b-instant',
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+  'qwen/qwen3.6-27b',
 ];
 
 // ── PDF Pipeline Config ───────────────────────

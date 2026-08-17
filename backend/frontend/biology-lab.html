@@ -922,7 +922,7 @@ function getChatAPI() {
   const orKey = (env.OPENROUTER_KEYS || [])[0] || '';
   if (orKey) return { key: orKey, base: env.OPENROUTER_BASE || 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' };
   const groqKey = (env.GROQ_KEYS || [])[0] || env.GROQ_KEY || '';
-  if (groqKey) return { key: groqKey, base: env.GROQ_BASE || 'https://api.groq.com/openai/v1', model: 'llama-3.1-8b-instant' };
+  if (groqKey) return { key: groqKey, base: env.GROQ_BASE || 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b' };
   return null;
 }
 
@@ -1049,7 +1049,7 @@ function getAPI() {
   }
   const groqKey = (env.GROQ_KEYS || [])[0] || env.GROQ_KEY || '';
   if (groqKey) {
-    return { key: groqKey, base: env.GROQ_BASE || 'https://api.groq.com/openai/v1', model: 'llama-3.1-8b-instant' };
+    return { key: groqKey, base: env.GROQ_BASE || 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b' };
   }
   return null;
 }

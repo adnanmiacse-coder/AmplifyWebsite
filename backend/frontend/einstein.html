@@ -787,7 +787,7 @@ const OPENROUTER_KEYS = KEYS.or;
   if (k && !GROQ_KEYS.includes(k)) GROQ_KEYS.unshift(k);
 })();
 
-const GROQ_MODELS = ['llama-3.3-70b-versatile','llama-3.3-70b-specdec','gemma2-9b-it','llama-3.1-8b-instant'];
+const GROQ_MODELS = ['openai/gpt-oss-120b','openai/gpt-oss-20b','qwen/qwen3.6-27b'];
 const OR_MODELS   = ['meta-llama/llama-3.3-70b-instruct:free','deepseek/deepseek-r1-0528:free','google/gemma-3n-e4b-it:free'];
 
 // ── SCIENTIST DATABASE ───────────────────
@@ -935,7 +935,7 @@ No markdown, no commentary, just the JSON object.`;
     if (GROQ_KEYS.length > 0) {
       const res = await fetch(`${GROQ_BASE}/chat/completions`, {
         method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[0]}`},
-        body: JSON.stringify({ model:'llama-3.1-8b-instant', max_tokens:120, temperature:0.2, messages:[{role:'user',content:prompt}] }),
+        body: JSON.stringify({ model:'openai/gpt-oss-120b', max_tokens:120, temperature:0.2, messages:[{role:'user',content:prompt}] }),
       });
       if (res.ok) { const d = await res.json(); text = d?.choices?.[0]?.message?.content?.trim()||''; }
     }
@@ -1410,7 +1410,7 @@ async function fetchRefs() {
     if (GROQ_KEYS.length > 0) {
       const r = await fetch(`${GROQ_BASE}/chat/completions`, {
         method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[0]}`},
-        body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:20,temperature:0.1,messages:[{role:'user',content:`Extract 3 English academic keywords from: "${topic}". Output ONLY the keywords, nothing else.`}]}),
+        body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:20,temperature:0.1,messages:[{role:'user',content:`Extract 3 English academic keywords from: "${topic}". Output ONLY the keywords, nothing else.`}]}),
       });
       if (r.ok) { const d=await r.json(); const t=d?.choices?.[0]?.message?.content?.trim().replace(/[\u0980-\u09FF]/g,'').replace(/[^\w\s]/g,'').trim(); if(t&&t.length>2) kw=t; }
     }
