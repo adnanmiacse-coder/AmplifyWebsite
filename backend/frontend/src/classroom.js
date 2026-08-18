@@ -1198,7 +1198,7 @@ function buildMessages(agentId) {
 async function callAgent(agentId) {
   const agent     = AGENTS[agentId];
   const isTeacher = agentId === 'teacher';
-  const maxTok    = isTeacher ? 500 : 180;
+  const maxTok    = isTeacher ? 220 : 180;
 
   const pdfRule = store.chunks.length > 0
     ? '\n\nকঠোর নিয়ম: শুধুমাত্র প্রদত্ত ডকুমেন্টের তথ্য ব্যবহার করো। ডকুমেন্টে উল্লেখ নেই এমন কোনো তথ্য, ধারণা বা উদাহরণ দেওয়া সম্পূর্ণ নিষিদ্ধ।'
@@ -1206,7 +1206,9 @@ async function callAgent(agentId) {
 
   const system = agent.system + pdfRule +
   '\n\nCRITICAL: Output ONLY your final Bangla response. No reasoning, no English, no meta-commentary, no repeating instructions. Start teaching immediately.' + '\n\nYou HAVE been given the document content above in the user message. It is there. Read it and teach from it. Never say you cannot access it.' +
-  (isTeacher ? '' : '\n\nHARD LIMIT: Exactly ONE sentence only. Stop after first । or ?');
+  (isTeacher
+    ? '\n\nHARD LIMIT: Maximum TWO short sentences only. Stop after the second । or ?. This is a fast-paced group discussion — keep it brief so students can jump in.'
+    : '\n\nHARD LIMIT: Exactly ONE sentence only. Stop after first । or ?');
 
   const raw  = await groqChat(buildMessages(agentId), system, maxTok, 0.78, agentId);
   let reply  = cleanReply(raw);
@@ -1214,6 +1216,12 @@ async function callAgent(agentId) {
   if (!isTeacher) {
     const match = reply.match(/^[^।?!]+[।?!]/);
     reply = match ? match[0].trim() : reply.split(/[।?!]/)[0].trim() + '।';
+  } else {
+    // Cap teacher at 2 sentences even if the model overruns
+    const sentences = reply.match(/[^।?!]+[।?!]/g);
+    if (sentences && sentences.length > 2) {
+      reply = sentences.slice(0, 2).join(' ').trim();
+    }
   }
 
   return reply;
