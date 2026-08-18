@@ -457,13 +457,10 @@
     const _env = getViteEnv();
     let _azureKey    = '';
     let _azureRegion = 'southeastasia';
-    loadEnvConfig().then(cfg => {
-      _config = cfg;
-      _azureKey    = cfg.AZURE_SPEECH_KEY    || '';
-      _azureRegion = cfg.AZURE_SPEECH_REGION || 'southeastasia';
-      console.log('[DeepLearn HTML Azure] config loaded | key present:', !!_azureKey, '| key length:', _azureKey.length, '| region:', _azureRegion);
-    });
     _config = await loadEnvConfig();
+    _azureKey    = _config.AZURE_SPEECH_KEY    || '';
+    _azureRegion = _config.AZURE_SPEECH_REGION || 'southeastasia';
+    console.log('[DeepLearn HTML Azure] config loaded | key present:', !!_azureKey, '| key length:', _azureKey.length, '| region:', _azureRegion);
 
     function groqKeys() { return getGroqKeys(_config, _env); }
     function groqBase() { return getGroqBase(_config, _env); }
@@ -556,7 +553,7 @@
     ];
     const STANCE_LABELS = { discuss:{label:'💬 আলোচনা',class:'stance-discuss'}, debate:{label:'⚔️ বিতর্ক',class:'stance-debate'}, critique:{label:'🔍 সমালোচনা',class:'stance-critique'}, synthesis:{label:'🔗 সংশ্লেষণ',class:'stance-synthesis'} };
     const TURN_ORDER = ['expert1','expert2','expert3'];
-    const ALL_EXPERT_PREFIXES = ['ড. আরিফা','Dr. Arifa','ড.আরিফা','ড. নাফিসা','Dr. Nafisa','ড.নাফিসা','ড. রাকিব','Dr. Rakib','ড.রাকিব','আরিফা','নাফিসা','রাকিব'];
+    const ALL_EXPERT_PREFIXES = ['ড. আরিফ','Dr. Arif','ড.আরিফ','ড. নাফিসা','Dr. Nafisa','ড.নাফিসা','ড. রাকিব','Dr. Rakib','ড.রাকিব','আরিফা','নাফিসা','রাকিব'];
     //ok
     // State
     let sessionTopic='', sessionRefs={papers:[],videos:[]}, isRunning=false, isPaused=false, ttsEnabled=true;
@@ -673,7 +670,8 @@
     // TTS
     let _currentAudio = null;
     async function speakAzureSentence(sentence, expertId) {
-      if (!_azureKey) return false;
+      console.log('[DeepLearn HTML Azure] speakAzureSentence called | expertId:', expertId, '| _azureKey present:', !!_azureKey, '| sentence:', sentence?.slice(0,30));
+      if (!_azureKey) { console.warn('[DeepLearn HTML Azure] _azureKey falsy at call time!'); return false; }
       const cfg = EXPERT_AZURE_VOICES[expertId];
       const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${cfg.voice}'><prosody rate='${cfg.rate}' pitch='${cfg.pitch}'>${sentence.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
       try {
@@ -684,19 +682,21 @@
         });
         if (!res.ok) {
           const errBody = await res.text().catch(() => '');
-          console.error(`[DeepLearn Backend Azure] HTTP ${res.status} | region:${_azureRegion} | key prefix:${_azureKey.slice(0,6)} | body:`, errBody.slice(0, 300));
+          console.error(`[DeepLearn HTML Azure] HTTP ${res.status} | region:${_azureRegion} | key prefix:${_azureKey.slice(0,6)} | body:`, errBody.slice(0, 300));
           return false;
         }
+        console.log('[DeepLearn HTML Azure] fetch succeeded, got audio blob, about to play');
         const blob = await res.blob(), url = URL.createObjectURL(blob), audio = new Audio(url);
         _currentAudio = audio;
+        console.log('[DeepLearn HTML Azure] audio object created, attempting play()');
         await new Promise(resolve => {
-          audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
-          audio.onerror = (e) => { console.error('[DeepLearn Backend Azure] playback error:', e); URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
-          audio.play().catch(e => { console.error('[DeepLearn Backend Azure] play() rejected:', e.message); resolve(); });
+          audio.onended = () => { console.log('[DeepLearn HTML Azure] playback ended normally'); URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+          audio.onerror = (e) => { console.error('[DeepLearn HTML Azure] playback error:', e); URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+          audio.play().then(() => console.log('[DeepLearn HTML Azure] play() promise resolved OK')).catch(e => { console.error('[DeepLearn HTML Azure] play() rejected:', e.message, e.name); resolve(); });
         });
         return true;
       } catch (e) {
-        console.error('[DeepLearn Backend Azure] fetch threw:', e.message);
+        console.error('[DeepLearn HTML Azure] fetch threw:', e.message);
         return false;
       }
     }
