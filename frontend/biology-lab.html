@@ -675,12 +675,37 @@ const MODELS = [
 
 const canvas    = document.getElementById('threeCanvas');
 const wrap      = canvas.parentElement;
-const renderer  = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.setClearColor(0x05080f, 1);
+let renderer = null;
+let rendererReady = false;
+
+function setupRenderer() {
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setClearColor(0x05080f, 1);
+    rendererReady = true;
+    return true;
+  } catch (error) {
+    console.error('[BIOLOGY LAB] WebGL context creation failed:', error);
+    rendererReady = false;
+    const overlay = document.getElementById('errorOverlay');
+    if (overlay) {
+      overlay.classList.add('show');
+      const pathEl = document.getElementById('errorPath');
+      if (pathEl) {
+        pathEl.textContent = 'WebGL unavailable. Use a modern desktop browser with hardware acceleration enabled.';
+      }
+    }
+    return false;
+  }
+}
+
+if (!setupRenderer()) {
+  console.warn('[BIOLOGY LAB] 3D view disabled because WebGL could not be created.');
+}
 
 const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.001, 1000);
@@ -705,6 +730,7 @@ let targetSpherical = { theta:0, phi:Math.PI/2 };
 let targetPan      = new THREE.Vector3();
 
 function resize() {
+  if (!renderer || !wrap) return;
   const w = wrap.clientWidth, h = wrap.clientHeight;
   renderer.setSize(w, h);
   camera.aspect = w / h;
@@ -760,6 +786,11 @@ function loadGLTFLoader(cb) {
 }
 
 function loadModel(modelData) {
+  if (!rendererReady || !renderer) {
+    showError('3D model preview is unavailable because this browser could not create a WebGL context.');
+    return;
+  }
+
   document.getElementById('viewerName').textContent = modelData.name;
   document.getElementById('viewerSub').textContent  = modelData.category.toUpperCase()+' · 3D MODEL';
   document.getElementById('infoBody').textContent   = modelData.desc;
@@ -819,6 +850,7 @@ function loadModel(modelData) {
 
 const clock = new THREE.Clock();
 function animate() {
+  if (!rendererReady || !renderer) return;
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
   const lerpF = 1-Math.pow(0.01,dt*60*0.12);
@@ -834,7 +866,7 @@ function animate() {
   camera.lookAt(panOffset.x,panOffset.y,panOffset.z);
   renderer.render(scene,camera);
 }
-animate();
+if (rendererReady) animate();
 
 function resetCamera()     { targetDistance=3; targetSpherical={theta:0,phi:Math.PI/2}; targetPan.set(0,0,0); }
 function toggleAutoRotate(){ autoRotate=!autoRotate; document.getElementById('autoRotateBtn').classList.toggle('active',autoRotate); }
