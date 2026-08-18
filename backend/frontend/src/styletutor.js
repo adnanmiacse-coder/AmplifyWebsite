@@ -2713,16 +2713,20 @@ function pauseLecture(){
   const btn=document.getElementById('pause-btn');
   if(lecturePaused){
     stopTTS(); hideLaser();
-    btn.textContent='▶ চালিয়ে যাও';
-    document.getElementById('lecture-question-area').classList.add('open');
-    document.getElementById('lecture-status-text').textContent='⏸ বিরতি';
+    if(btn) btn.textContent='▶ চালিয়ে যাও';
+    document.getElementById('lecture-question-area')?.classList.add('open');
+    const statusEl = document.getElementById('lecture-status-text');
+    if(statusEl) statusEl.textContent='⏸ বিরতি';
     resetVoiceQA();
   }else{
-    btn.textContent='⏸ বিরতি ও প্রশ্ন';
-    document.getElementById('lecture-question-area').classList.remove('open');
-    document.getElementById('lq-answer').style.display='none';
-    document.getElementById('lq-transcript').textContent='';
-    document.getElementById('lecture-status-text').textContent='লেকচার চলছে…';
+    if(btn) btn.textContent='⏸ বিরতি ও প্রশ্ন';
+    document.getElementById('lecture-question-area')?.classList.remove('open');
+    const answerEl = document.getElementById('lq-answer');
+    if(answerEl) answerEl.style.display='none';
+    const transcriptEl = document.getElementById('lq-transcript');
+    if(transcriptEl) transcriptEl.textContent='';
+    const statusEl2 = document.getElementById('lecture-status-text');
+    if(statusEl2) statusEl2.textContent='লেকচার চলছে…';
     stopVoiceListening();
   }
 }
