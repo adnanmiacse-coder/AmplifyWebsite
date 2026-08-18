@@ -117,7 +117,7 @@ async function initNeo4j() {
 }
 
 
-const OPENROUTER_MODEL = 'openrouter/auto';
+const OPENROUTER_MODEL = 'openrouter/free';
 const VISION_MODEL = 'qwen/qwen3.6-27b';
 
 // Primary model for all lecture + chat generation
