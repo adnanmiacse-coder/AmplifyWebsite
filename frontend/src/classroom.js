@@ -65,6 +65,7 @@ const AGENTS = {
 কঠোর নিয়ম:
 ✗ তৃতীয় পুরুষ, ধন্যবাদ, প্রশংসা নিষিদ্ধ
 ✗ আগে যা বলা হয়েছে তা আবার বলা নিষিদ্ধ
+✗ "ডকুমেন্টে বলা আছে" জাতীয় বাক্যাংশ নিষিদ্ধ
 ✓ ঠিক ১টি বাক্য `,
   },
   skeptic: {
@@ -77,6 +78,7 @@ const AGENTS = {
 কঠোর নিয়ম:
 ✗ তৃতীয় পুরুষ, ধন্যবাদ, প্রশংসা নিষিদ্ধ
 ✗ আগে যা বলা হয়েছে তা আবার বলা নিষিদ্ধ
+✗ "ডকুমেন্টে বলা আছে" জাতীয় বাক্যাংশ নিষিদ্ধ
 ✓ ঠিক ১টি বাক্য 
 ✓ "কিন্তু", "তাহলে কি", "ধরি যদি" দিয়ে শুরু করো`,
   },
@@ -90,6 +92,7 @@ const AGENTS = {
 কঠোর নিয়ম:
 ✗ তৃতীয় পুরুষ, ধন্যবাদ, প্রশংসা নিষিদ্ধ
 ✗ আগে যা বলা হয়েছে তা আবার বলা নিষিদ্ধ
+✗ "ডকুমেন্টে বলা আছে" জাতীয় বাক্যাংশ নিষিদ্ধ
 ✓ ঠিক ১টি বাক্য — আগের আলোচনায় নতুন কিছু যোগ করো
 ✓ "এটা আসলে", "বাস্তবে", "এর সাথে যোগ করলে" দিয়ে শুরু করো`,
   },
@@ -1201,12 +1204,29 @@ startBtn?.addEventListener('click', async () => {
 //  AGENT PROMPT BUILDING
 // ══════════════════════════════════════════════
 
+function getInitialDocContext(maxChars = 3000) {
+  // Used only for the very first turn, when there's no dialogue yet to build
+  // a meaningful retrieval query from. Just take the start of the document
+  // directly instead of doing a similarity search that has nothing to match.
+  if (!pdfPages.length) return '';
+  let out = '', chars = 0;
+  for (const p of pdfPages) {
+    const block = `[পৃষ্ঠা ${p.page}]\n${p.text}`;
+    if (chars + block.length > maxChars) break;
+    out += block + '\n\n';
+    chars += block.length;
+  }
+  return out.trim();
+}
+
 function buildMessages(agentId) {
   const agent = AGENTS[agentId];
 
   const recentLog  = dialogueLog.slice(-4);
   const recentText = recentLog.map(e => e.text).join(' ');
-  const ctx        = getRelevantContext(recentText + ' ' + sessionTopic, 3000);
+  const ctx = dialogueLog.length === 0
+    ? (getInitialDocContext(3000) || getRelevantContext(sessionTopic, 3000))
+    : getRelevantContext(recentText + ' ' + sessionTopic, 3000);
 
   // If no PDF context available at all, warn
   if (!ctx && store.chunks.length === 0) {
@@ -1214,17 +1234,17 @@ function buildMessages(agentId) {
   }
 
   const docBlock = ctx
-    ? `নিচের ডকুমেন্টের তথ্য ছাড়া অন্য কোনো তথ্য ব্যবহার করা সম্পূর্ণ নিষিদ্ধ:\n\n--- ডকুমেন্ট ---\n${ctx}\n---\n\n`
+    ? `--- প্রসঙ্গ (এই তথ্যের বাইরে কিছু বলবে না, কিন্তু এটাকে "ডকুমেন্ট" বলে উল্লেখ করবে না — নিজের জ্ঞান হিসেবে সরাসরি শেখাও) ---\n${ctx}\n---\n\n`
     : '';
 
   if (dialogueLog.length === 0) {
-  return [{
-    role: 'user',
-    content: docBlock +
-      `বিষয়: ${sessionTopic}\n\n` +
-      `উপরের ডকুমেন্ট থেকে পাঠ শুরু করো। প্রথম বাক্য দিয়ে সরাসরি পড়ানো শুরু করো।`
-  }];
-}
+    return [{
+      role: 'user',
+      content: docBlock +
+        `বিষয়: ${sessionTopic}\n\n` +
+        `উপরের প্রসঙ্গ থেকে পাঠ শুরু করো। প্রথম বাক্য দিয়ে সরাসরি পড়ানো শুরু করো।`
+    }];
+  }
 
   const transcript = recentLog.map(e => `[${e.name}]: ${e.text}`).join('\n');
 
@@ -1239,7 +1259,7 @@ function buildMessages(agentId) {
     content: docBlock +
       `বিষয়: ${sessionTopic}\n\n` +
       `সর্বশেষ কথোপকথন:\n${transcript}\n\n` +
-      `নির্দেশ: শুধুমাত্র উপরের ডকুমেন্টের তথ্য ব্যবহার করো। ডকুমেন্টে নেই এমন কিছু বলা সম্পূর্ণ নিষিদ্ধ।` +
+      `নির্দেশ: শুধুমাত্র উপরের প্রসঙ্গের তথ্য ব্যবহার করো, এর বাইরে কিছু বলা নিষিদ্ধ। কিন্তু "ডকুমেন্টে" শব্দটি বা এই ধরনের কোনো উল্লেখ কখনো করবে না — এটা যেন তোমার নিজের পাঠদান, প্রাকৃতিক ক্লাসরুম কথোপকথনের মতো শোনায়।` +
       depthNote,
   }];
 }
@@ -1250,15 +1270,17 @@ function buildMessages(agentId) {
 async function callAgent(agentId) {
   const agent     = AGENTS[agentId];
   const isTeacher = agentId === 'teacher';
-  const maxTok    = isTeacher ? 500 : 180;
+  const maxTok    = isTeacher ? 220 : 180;
 
   const pdfRule = store.chunks.length > 0
-    ? '\n\nকঠোর নিয়ম: শুধুমাত্র প্রদত্ত ডকুমেন্টের তথ্য ব্যবহার করো। ডকুমেন্টে উল্লেখ নেই এমন কোনো তথ্য, ধারণা বা উদাহরণ দেওয়া সম্পূর্ণ নিষিদ্ধ।'
+    ? '\n\nকঠোর নিয়ম: শুধুমাত্র প্রদত্ত তথ্য ব্যবহার করো, এর বাইরে কোনো তথ্য বা উদাহরণ দেওয়া নিষিদ্ধ। কিন্তু কখনো "ডকুমেন্টে বলা আছে", "ডকুমেন্ট অনুযায়ী", "ডকুমেন্টে উল্লেখ আছে", "উপকরণে দেখা যায়" — এই ধরনের বাক্যাংশ ব্যবহার করবে না। এই তথ্য যেন তোমার নিজের জ্ঞান, সরাসরি বিষয়টি ব্যাখ্যা করো — যেমন একজন শিক্ষক ক্লাসে নিজের ভাষায় পড়ান।'
     : '';
 
   const system = agent.system + pdfRule +
   '\n\nCRITICAL: Output ONLY your final Bangla response. No reasoning, no English, no meta-commentary, no repeating instructions. Start teaching immediately.' + '\n\nYou HAVE been given the document content above in the user message. It is there. Read it and teach from it. Never say you cannot access it.' +
-  (isTeacher ? '' : '\n\nHARD LIMIT: Exactly ONE sentence only. Stop after first । or ?');
+  (isTeacher
+    ? '\n\nHARD LIMIT: Maximum TWO short sentences only. Stop after the second । or ?. This is a fast-paced group discussion — keep it brief so students can jump in.'
+    : '\n\nHARD LIMIT: Exactly ONE sentence only. Stop after first । or ?');
 
   const raw  = await groqChat(buildMessages(agentId), system, maxTok, 0.78, agentId);
   let reply  = cleanReply(raw);
