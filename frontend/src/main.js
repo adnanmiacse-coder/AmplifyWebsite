@@ -54,10 +54,9 @@ window.addEventListener('scroll', () => {
 
 // ─── Utilities ───────────────────────────────────────────────
 function showDownloadAlert() {
-    const msg = currentLang === 'bn'
-        ? 'অ্যাম্প্লিফাই ডাউনলোড করুন\n\nআপনার আগ্রহের জন্য ধন্যবাদ!\n(এটি একটি ডেমো বোতাম — আসল ডাউনলোড শীঘ্রই আসছে)'
-        : 'Download Amplify\n\nThank you for your interest!\n(Demo button — real download coming soon)';
-    alert(msg);
+    const apkUrl = 'https://github.com/Adnann07/AmplifyApp---Release/releases/download/Amplify/Amplify.apk';
+    window.open(apkUrl, '_blank', 'noopener,noreferrer');
+    return false;
 }
 
 function stopVoice() {

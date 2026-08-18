@@ -970,7 +970,9 @@ async function sendAiQuestion() {
   try {
     if (!GROQ_API_KEY) throw new Error('Missing GROQ API key.');
     const selectedModel=document.getElementById('viewerName')?.textContent?.trim()||'Biology model';
-    const prompt=`You are an expert biology tutor. The user is viewing the ${selectedModel} model. Answer clearly and concisely. Question: ${question}`;
+    const prompt=`You are an expert biology tutor. The user is viewing the ${selectedModel} model. Answer clearly and concisely. Question: ${question}
+
+Important: If you respond in Bengali, use these spelling rules: spell "হল" as "হলো", "বল" as "বলো", "কর" as "করো".`;
     const response=await fetch('https://api.cerebras.ai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_API_KEY}`},
@@ -1160,7 +1162,7 @@ async function fetchAiSegmentsForModel(modelName) {
 - কোনো হাইফেন বা ড্যাশ চিহ্ন ব্যবহার করবে না
 - সংক্ষিপ্ত রূপ ব্যবহার করবে না, সবসময় পূর্ণ শব্দ লিখবে
 - "বড়" লিখবে না, "বড়ো" লিখবে। "ছোট" লিখবে না, "ছোটো" লিখবে
-- "হলো" লিখবে, "হল" লিখবে না। "করো" লিখবে, "কর" লিখবে না
+- "হলো" লিখবে, "হল" লিখবে না। "করো" লিখবে, "কর" লিখবে না। "বলো" লিখবে, "বল" লিখবে না।
 - সংখ্যা সবসময় বাংলা অক্ষরে লিখবে (যেমন: ১০ লক্ষ, ৩০ কোটি)
 - বাক্য সহজ, স্পষ্ট এবং বাংলা TTS-এ সঠিকভাবে উচ্চারণযোগ্য হতে হবে
 - কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না, সম্পূর্ণ বাংলায় লিখবে
