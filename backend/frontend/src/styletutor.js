@@ -1043,6 +1043,80 @@ function difficultyClass(level) {
   return '';
 }
 
+function safeParseJsonModel(raw) {
+  const samples = [];
+  const text = String(raw ?? '').replace(/```json|```/gi, '').trim();
+  if (!text) throw new Error('Empty model response');
+  samples.push(text);
+
+  const firstBrace = text.indexOf('{');
+  const firstBracket = text.indexOf('[');
+  const start = firstBrace === -1 ? firstBracket : firstBracket === -1 ? firstBrace : Math.min(firstBrace, firstBracket);
+  if (start !== -1) {
+    const lastBrace = text.lastIndexOf('}');
+    const lastBracket = text.lastIndexOf(']');
+    const end = Math.max(lastBrace, lastBracket);
+    if (end > start) samples.push(text.slice(start, end + 1));
+  }
+
+  for (const sample of samples) {
+    try {
+      return JSON.parse(sample);
+    } catch (err) {
+      // Try a light repair pass: trim trailing garbage and fix stray quote marks inside strings.
+    }
+  }
+
+  const repaired = (() => {
+    const candidate = samples.find(Boolean) || text;
+    let out = '';
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < candidate.length; i++) {
+      const ch = candidate[i];
+      if (inString) {
+        if (escaped) {
+          out += ch;
+          escaped = false;
+          continue;
+        }
+        if (ch === '\\') {
+          out += ch;
+          escaped = true;
+          continue;
+        }
+        if (ch === '"') {
+          const nextText = candidate.slice(i + 1);
+          const nextNonSpace = nextText.match(/\S/);
+          const nextChar = nextNonSpace ? nextNonSpace[0] : '';
+          if (nextChar && !['}', ',', ']', ':'].includes(nextChar)) {
+            out += '\\"';
+            continue;
+          }
+          inString = false;
+          out += ch;
+          continue;
+        }
+        out += ch;
+        continue;
+      }
+      if (ch === '"') {
+        inString = true;
+        out += ch;
+        continue;
+      }
+      out += ch;
+    }
+    return out;
+  })();
+
+  try {
+    return JSON.parse(repaired);
+  } catch (err) {
+    throw new Error(`Invalid JSON from model: ${err.message}`);
+  }
+}
+
 // ── Call 1: Generate one MCQ ──
 async function generateQuestion(chunk) {
   const level = studentModel.overallLevel;
@@ -1073,8 +1147,7 @@ Respond ONLY with this exact JSON, no markdown:
 const raw = await groqOnlyChat([{ role: 'user', content: prompt }],
     'Respond only with valid JSON. No explanation. No markdown backticks.', 500, 0.4);
 
-  const clean = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+  return safeParseJsonModel(raw);
 }
 
 // ── Call 2: Assess answer, update student model ──
@@ -1109,8 +1182,7 @@ Respond ONLY with this exact JSON, no markdown:
   const raw = await groqOnlyChat([{ role: 'user', content: prompt }],
     'Respond only with valid JSON. No markdown. No explanation.', 600, 0.25);
 
-  const clean = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+  return safeParseJsonModel(raw);
 }
 
 // ── Call 3: Final diagnosis ──
@@ -1145,8 +1217,7 @@ ${JSON.stringify(studentModel, null, 2)}
   const raw = await groqOnlyChat([{ role: 'user', content: prompt }],
     'Respond only with valid JSON. No markdown.', 500, 0.5);
 
-  const clean = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+  return safeParseJsonModel(raw);
 }
 
 // ── UI: Show/hide quiz panel ──
@@ -2196,8 +2267,10 @@ async function fetchSlideSpec(teacherText,topic){
   const prompt=`A Bangla teacher just said: "${teacherText}"\nTopic: ${topic}\n\nChoose ONE visual aid:\n- "table" → comparing items\n- "mermaid" → process/flow (graph TD, Bangla labels, max 6 nodes)\n- "cards" → 2-5 key terms\n- "none" → no clear visual\n\nReturn ONLY valid JSON:\ntable → {"type":"table","caption":"বাংলা","data":[["col1","col2"],["v1","v2"]]}\nmermaid→ {"type":"mermaid","caption":"বাংলা","code":"graph TD\\n  A[বাংলা] --> B[বাংলা]"}\ncards → {"type":"cards","caption":"বাংলা","items":[{"term":"শব্দ","definition":"সংজ্ঞা"}]}\nnone → {"type":"none"}`;
   const timeoutP=new Promise(r=>setTimeout(()=>r({type:'none'}),8000));
   const fetchP=(async()=>{
-    try{const raw=await groqChat([{role:'user',content:prompt}],'Return only valid JSON. No markdown.',300,0.25);
-    const clean=raw.replace(/```json|```/g,'').trim();return JSON.parse(clean);}
+    try{
+      const raw=await groqChat([{role:'user',content:prompt}],'Return only valid JSON. No markdown.',300,0.25);
+      return safeParseJsonModel(raw);
+    }
     catch(e){return{type:'none'};}
   })();
   return Promise.race([fetchP,timeoutP]);
