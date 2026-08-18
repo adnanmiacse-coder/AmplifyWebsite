@@ -728,7 +728,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKeys()[0]}` },
         body: JSON.stringify({
-          model: 'openai/gpt-oss-120b', max_tokens: 20, temperature: 0.1,
+          model: 'openai/gpt-oss-120b', max_tokens: 150, temperature: 0.1, reasoning_effort: 'low',
           messages: [{ role: 'user', content:
             `From this scientific discussion snippet, extract 2-3 English keywords naming a SPECIFIC, CONCRETE, VISUALIZABLE scientific phenomenon, process, or object (e.g. "DNA replication", "neuron firing", "chemical bond", "black hole", "cell division", "atom structure").
 Snippet: "${text.slice(0,300)}"
@@ -846,7 +846,7 @@ async function addChatBubble(expertId, text) {
             const res=await fetch(`${groqBase()}/chat/completions`,{
               method:'POST',
               headers:{'Content-Type':'application/json','Authorization':`Bearer ${groqKeys()[0]}`},
-              body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:40,temperature:0,messages:[{role:'user',content:`Translate this topic into 2-4 English academic search keywords suitable for searching a research paper database: "${topic}"
+              body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:200,temperature:0,reasoning_effort:'low',messages:[{role:'user',content:`Translate this topic into 2-4 English academic search keywords suitable for searching a research paper database: "${topic}"
 
 Rules:
 - Output ONLY English words separated by spaces
@@ -899,7 +899,7 @@ Rules:
             const res=await fetch(`${groqBase()}/chat/completions`,{
               method:'POST',
               headers:{'Content-Type':'application/json','Authorization':`Bearer ${groqKeys()[0]}`},
-              body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:30,temperature:0.1,messages:[{role:'user',content:`Extract 3-5 English keywords for a YouTube/Khan Academy search from this topic: "${topic}". Output ONLY English keywords suitable for educational video search.`}]})
+              body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:150,temperature:0.1,reasoning_effort:'low',messages:[{role:'user',content:`Extract 3-5 English keywords for a YouTube/Khan Academy search from this topic: "${topic}". Output ONLY English keywords suitable for educational video search.`}]})
             });
             if(res.ok){
               const d=await res.json();

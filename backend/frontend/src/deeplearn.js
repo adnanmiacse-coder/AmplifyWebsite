@@ -765,6 +765,7 @@ async function fetchKnowledgeInsert(topic, phaseId) {
         model: 'openai/gpt-oss-120b',
         max_tokens: 300,
         temperature: 0.5,
+        reasoning_effort: 'low',
         response_format: { type: 'json_object' },
         messages: [{ role: 'user', content: prompt }],
       }),
