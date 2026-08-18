@@ -144,7 +144,11 @@ const TTS = {
   },
 
   async _fetchAzureAudio(text, voice = 'bn-BD-NabanitaNeural', rate = '-8%', pitch = '0%') {
-    if (!this._azureKey || !text?.trim()) return null;
+    if (!text?.trim()) return null;
+    if (!this._azureKey) {
+      console.error('[Azure TTS] No key loaded client-side. window.AMPLIFY_ENV:', window.AMPLIFY_ENV, '| _config passed to TTS.init:', { key: this._azureKey, region: this._azureRegion });
+      return null;
+    }
     const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${voice}'><prosody rate='${rate}' pitch='${pitch}'>${
       text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     }</prosody></voice></speak>`;
@@ -160,7 +164,11 @@ const TTS = {
         body: ssml,
       }
     );
-    if (!res.ok) { console.warn('[Azure TTS]', res.status); return null; }
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error('[Azure TTS] HTTP', res.status, '| region:', this._azureRegion, '| key prefix:', this._azureKey?.slice(0,6), '| body:', errBody);
+      return null;
+    }
     const blob = await res.blob();
     return URL.createObjectURL(blob);
   },
