@@ -2379,11 +2379,16 @@ function showDiagram(videoUrl, topic) {
 function loadLectureVoice(){
   const assign=()=>{
     const all=speechSynthesis.getVoices();
-    const bnBD=all.filter(v=>v.lang==='bn-BD');
-    const bnIN=all.filter(v=>v.lang==='bn-IN');
-    const bnOth=all.filter(v=>v.lang.startsWith('bn')&&v.lang!=='bn-BD'&&v.lang!=='bn-IN');
-    const bnAll=[...bnBD,...bnIN,...bnOth];
-    _lectureVoice=bnAll[0]||all.find(v=>v.lang.startsWith('hi'))||all[0]||null;
+    // Prefer Edge's Natural/Online Bangla voices over the legacy default
+    _lectureVoice =
+      all.find(v=>v.lang==='bn-BD'&&v.name.includes('Bashkar')) ||   // bn-BD male, Natural
+      all.find(v=>v.lang==='bn-BD'&&v.name.includes('Nabanita')) ||  // bn-BD female, Natural
+      all.find(v=>v.lang==='bn-IN'&&v.name.includes('Tanishaa')) ||  // bn-IN female, Natural
+      all.find(v=>v.lang==='bn-BD') ||
+      all.find(v=>v.lang==='bn-IN') ||
+      all.find(v=>v.lang.startsWith('bn')) ||
+      all.find(v=>v.lang.startsWith('hi')) ||
+      all[0] || null;
   };
   assign();
   speechSynthesis.addEventListener('voiceschanged',assign);
