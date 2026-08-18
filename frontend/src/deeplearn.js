@@ -720,9 +720,10 @@ async function callGroq(expertId, modelOverride) {
           temperature: 0.8,
           messages: [{ role: 'system', content: expert.system }, ...messages],
         };
-        if (model.includes('gpt-oss') || model.includes('qwen/')) {
+        if (model.includes('gpt-oss')) {
           payload.reasoning_effort = 'low';
-          if (model.includes('qwen/')) payload.max_tokens = Math.max(payload.max_tokens, 600);
+        } else if (model.includes('qwen/')) {
+          payload.reasoning_effort = 'none';
         }
 
         const res = await fetch(`${groqBase()}/chat/completions`, {

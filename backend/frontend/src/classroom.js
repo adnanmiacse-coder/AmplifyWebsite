@@ -412,6 +412,7 @@ async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId 
           messages: [{ role: 'system', content: system }, ...messages],
         };
         if (model.includes('gpt-oss')) payload.reasoning_effort = 'low';
+        else if (model.includes('qwen/')) payload.reasoning_effort = 'none';
 
         const res = await fetch(`${groqBase()}/chat/completions`, {
           method: 'POST',

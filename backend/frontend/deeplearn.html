@@ -846,14 +846,26 @@ async function addChatBubble(expertId, text) {
             const res=await fetch(`${groqBase()}/chat/completions`,{
               method:'POST',
               headers:{'Content-Type':'application/json','Authorization':`Bearer ${groqKeys()[0]}`},
-              body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:30,temperature:0.1,messages:[{role:'user',content:`Extract 2-4 English academic search keywords from this topic: "${topic}". Output ONLY the English keywords, nothing else.`}]})
+              body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:40,temperature:0,messages:[{role:'user',content:`Translate this topic into 2-4 English academic search keywords suitable for searching a research paper database: "${topic}"
+
+Rules:
+- Output ONLY English words separated by spaces
+- No Bangla script, no punctuation, no explanation, no quotes
+- Example: for "কোষ বিভাজন" output: cell division mitosis`}]})
             });
             if(res.ok){
               const d=await res.json();
-              const cleaned=(d?.choices?.[0]?.message?.content?.trim()||'').replace(/[\u0980-\u09FF]/g,'').replace(/[^\w\s]/g,'').trim();
-              if(cleaned.length>2) searchTerm=cleaned;
+              const rawOutput=(d?.choices?.[0]?.message?.content?.trim()||'');
+              const cleaned=rawOutput.replace(/[\u0980-\u09FF]/g,'').replace(/[^\w\s]/g,'').trim();
+              console.log(`[OpenAlex] Groq raw output: "${rawOutput}" → cleaned: "${cleaned}"`);
+              if(cleaned.length>2){
+                searchTerm=cleaned;
+              } else {
+                console.warn(`[OpenAlex] Cleaned keyword too short/empty (model likely responded in Bangla or refused) — falling back to raw topic "${topic}"`);
+              }
             } else {
-              console.warn('[OpenAlex] Groq keyword extraction failed, HTTP', res.status);
+              const errText = await res.text().catch(()=> '');
+              console.warn(`[OpenAlex] Groq keyword extraction HTTP ${res.status}: ${errText.slice(0,200)}`);
             }
           } catch(e){ console.warn('[OpenAlex] Groq keyword extraction exception:', e.message); }
         } else {
@@ -957,7 +969,8 @@ async function addChatBubble(expertId, text) {
         for(let ki=0;ki<keys.length;ki++){
           try{
             const payload={model,max_tokens:900,temperature:0.85,messages:[{role:'system',content:system},...messages]};
-            if(model.includes('gpt-oss')||model.includes('qwen/')){payload.reasoning_effort='low';if(model.includes('qwen/'))payload.max_tokens=Math.max(payload.max_tokens,900);}
+            if(model.includes('gpt-oss')){payload.reasoning_effort='low';}
+            else if(model.includes('qwen/')){payload.reasoning_effort='none';}
             const res=await fetch(`${groqBase()}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${keys[ki]}`},body:JSON.stringify(payload)});
             if(!res.ok){const errText=await res.text().catch(()=> '');console.warn(`[Groq] ${model} key${ki+1} HTTP ${res.status}: ${errText.slice(0,200)}`);if(res.status===429)await sleep(1200);continue;}
             const d=await res.json();
