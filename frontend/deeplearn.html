@@ -1122,25 +1122,23 @@ body::after {
 
   <script src="/amplify-env-bootstrap.js"></script>
   <script type="module">
-    import { loadEnvConfig, getGroqKeys, getOpenRouterKeys, getGroqBase, getOpenRouterBase, parseEnvList } from '/src/env-config.js';
+    import { loadEnvConfig, getGroqKeys, getGroqBase, getViteEnv } from '/src/env-config.js';
 
-    const _config = await loadEnvConfig();
-    const GROQ_KEYS = getGroqKeys(_config);
-    const OPENROUTER_KEYS = getOpenRouterKeys(_config);
-    const OPENROUTER_BASE = getOpenRouterBase(_config);
-    const GROQ_BASE = getGroqBase(_config);
+    let _config = {};
+    const _env = getViteEnv();
+    loadEnvConfig().then(cfg => { _config = cfg; });
+    _config = await loadEnvConfig();
+
+    function groqKeys() { return getGroqKeys(_config, _env); }
+    function groqBase() { return getGroqBase(_config, _env); }
 
     // ══════════════════════════════════════════════
     //  Deep Learn — deeplearn.html (inline)
     //  3 Expert Agents · Groq · Bangla Deep Discussion
     // ══════════════════════════════════════════════
-const OPENROUTER_MODELS = ['openrouter/free'];
-const GROQ_MODELS  = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile'];
+const GROQ_MODELS = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile'];
 const VISION_MODEL = 'qwen/qwen3-32b';
 
-    if (!GROQ_KEYS.length) {
-      console.warn('[DeepLearn] No Groq API keys. Set GROQ_KEYS in Railway variables.');
-    }
     function getGroqKey() {
       try {
         const meta = document.querySelector('meta[name="groq-key"]');
@@ -1148,7 +1146,8 @@ const VISION_MODEL = 'qwen/qwen3-32b';
         const params = new URLSearchParams(location.search);
         if (params.get('k')) return params.get('k');
       } catch(e){}
-      return GROQ_KEYS[0];
+      const keys = groqKeys();
+      return keys[0] || '';
     }
     let GROQ_KEY = getGroqKey();
 
@@ -1258,11 +1257,13 @@ async function detectPDFMode(doc){
   return (total/n)<50?'image':'text';
 }
 async function groqVisionOCR(base64Img){
-  for(let ki=0;ki<GROQ_KEYS.length;ki++){
+  const keys = groqKeys();
+  const base = groqBase();
+  for(let ki=0;ki<keys.length;ki++){
     try{
-      const res=await fetch(`${GROQ_BASE}/chat/completions`,{
+      const res=await fetch(`${base}/chat/completions`,{
         method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[ki]}`},
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${keys[ki]}`},
         body:JSON.stringify({model:VISION_MODEL,max_tokens:2048,messages:[{role:'user',content:[
           {type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64Img}`}},
           {type:'text',text:'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.'}
@@ -1946,61 +1947,48 @@ async function speak(text, expertId) {
     }
 
     // ── Groq API call ─────────────────────────────
-    async function openRouterChat(messages, system, maxTokens=600, temp=0.8) {
-  for (const model of OPENROUTER_MODELS) {
-    for (let i=0; i<OPENROUTER_KEYS.length; i++) {
-      try {
-        const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json','Authorization':`Bearer ${OPENROUTER_KEYS[i]}`,'HTTP-Referer':'http://localhost','X-Title':'DeepLearn'},
-          body: JSON.stringify({model, max_tokens:maxTokens, temperature:temp,
-            messages:[{role:'system',content:system},...messages]}),
-        });
-        if (!res.ok){if(res.status===429) await sleep(1000); throw new Error(`${res.status}`);}
-        const d = await res.json();
-        const text = d?.choices?.[0]?.message?.content||'';
-        if (!text.trim()) throw new Error('Empty');
-        return cleanReply(text.trim());
-      } catch(e){ console.warn(`[OpenRouter] ${model} key${i+1}: ${e.message}`); }
-    }
-  }
-  throw new Error('All OpenRouter keys failed');
-}
+    async function callGroq(expertId) {
+      const expert = EXPERTS[expertId], phase = getCurrentPhase();
+      const messages = buildMessagesForExpert(expertId);
+      if (!messages[0]?.content || messages[0].content === 'null') { await sleep(800); return callGroq(expertId); }
+      const recentTurns = dialogueLog.slice(-5).map(e => `"${e.text.slice(0,80)}"`).join(' | ');
+      const system = `তুমি ${expert.name} — ${expert.role}। শুধু বাংলায় কথা বলো।\nবর্তমান পর্যায়: ${phase.label}।\nসাম্প্রতিক বক্তব্য (এগুলো পুনরাবৃত্তি করা নিষিদ্ধ): ${recentTurns || 'কিছু নেই'}\nকঠোর নিয়ম:\n- ঠিক ২টি সম্পূর্ণ বাক্য লেখো, প্রতিটি "." দিয়ে শেষ করো\n- প্রতিটি বাক্য সর্বোচ্চ ২০ শব্দ\n- উপরের সাম্প্রতিক বক্তব্যে যা বলা হয়েছে তার কোনো শব্দ বা ধারণা পুনরাবৃত্তি করো না\n- সম্পূর্ণ নতুন তথ্য বা বিপরীত দৃষ্টিভঙ্গি আনো\n- কোনো নাম, সম্বোধন, বা পরিচয় ছাড়া সরাসরি শুরু করো\n- তথ্যসূত্রের নাম নয়, শুধু "গবেষণায় দেখা গেছে" বা "পরিসংখ্যান অনুযায়ী" বলো`;
 
-async function callGroq(expertId) {
-  const phase = getCurrentPhase();
-  try {
-    const base = window.AMPLIFY_ENV?.BACKEND_URL || '';
-    const url = base ? `${base.replace(/\/$/, '')}/turn` : '/turn';
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        topic:       sessionTopic,
-        phase:       phase.label,
-        expert_id:   expertId,
-        pdf_context: (() => {
-  const full = pdfPages.map(p => `[পৃষ্ঠা ${p.page}]\n${p.text}`).join('\n\n');
-  const cut = full.slice(0, 3000);
-  const lastBreak = Math.max(cut.lastIndexOf('।'), cut.lastIndexOf('\n'));
-  return lastBreak > 2000 ? cut.slice(0, lastBreak + 1) : cut;
-})(),
-        dialogue:    dialogueLog.slice(-12),
-      }),
-    });
-    if (!res.ok) throw new Error(`Server error: ${res.status}`);
-    const data = await res.json();
-    return cleanReply(data.reply);
-  } catch(err) {
-    console.warn('[callGroq fallback]', err.message);
-    const FALLBACKS = {
-      expert1: 'কোষ বিভাজন জীববিজ্ঞানের অন্যতম মৌলিক প্রক্রিয়া। মাইটোসিসে একটি কোষ থেকে দুটি অভিন্ন অপত্য কোষ তৈরি হয়, যা দেহের বৃদ্ধি ও ক্ষতিপূরণে কাজ করে। মিয়োসিসে চারটি অর্ধ-ক্রোমোসোমযুক্ত কোষ তৈরি হয়, যা যৌন প্রজননের ভিত্তি। প্রতিটি বিভাজনে ডিএনএ প্রতিলিপি, ক্রোমোসোম বিভাজন এবং সাইটোকাইনেসিস — এই তিনটি ধাপ সুশৃঙ্খলভাবে ঘটে।',
-      expert2: 'কোষ চক্রকে আমরা চারটি ধাপে ভাগ করতে পারি এস দশায় ডিএনএ সংশ্লেষণ ঘটে এবং ক্রোমোসোমের সংখ্যা দ্বিগুণ হয়। গবেষণা দেখাচ্ছে যে কোষ চক্র নিয়ন্ত্রণের ত্রুটি ক্যান্সারের অন্যতম প্রধান কারণ। সাইক্লিন ও CDK প্রোটিনগুলো এই প্রক্রিয়ার মূল নিয়ন্ত্রক হিসেবে কাজ করে।',
-      expert3: 'আমার প্রশ্ন হলো — কোষ বিভাজনের এই "নিখুঁত" প্রক্রিয়া আসলে কতটা নির্ভুল? প্রতিটি বিভাজনে মিউটেশনের সম্ভাবনা থাকে এবং বয়সের সাথে এই ত্রুটির হার বাড়ে। টেলোমিয়ার ক্ষয়ের কারণে কোষ বিভাজনের সীমা তৈরি হয় — এটি কি বার্ধক্যের মূল কারণ? এই প্রশ্নগুলোর উত্তর না খুঁজলে কোষ বিভাজনের আলোচনা অসম্পূর্ণ থাকবে।',
-    };
-    return FALLBACKS[expertId] || 'সংযোগ সমস্যার কারণে এই মুহূর্তে উত্তর দেওয়া সম্ভব হচ্ছে না।';
-  }
-}
+      const keys = groqKeys();
+      if (!keys.length) throw new Error('No Groq API keys available');
+
+      const models = [expert.model, ...GROQ_MODELS.filter(m => m !== expert.model)];
+      for (const model of models) {
+        for (let ki = 0; ki < keys.length; ki++) {
+          try {
+            const payload = { model, max_tokens: 900, temperature: 0.85, messages: [{ role: 'system', content: system }, ...messages] };
+            if (model.includes('gpt-oss') || model.includes('qwen/')) {
+              payload.reasoning_effort = 'low';
+              if (model.includes('qwen/')) payload.max_tokens = Math.max(payload.max_tokens, 900);
+            }
+            const res = await fetch(`${groqBase()}/chat/completions`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${keys[ki]}` },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+              const errText = await res.text().catch(() => '');
+              console.warn(`[Groq] ${model} key${ki+1} HTTP ${res.status}: ${errText.slice(0,200)}`);
+              if (res.status === 429) await sleep(1200);
+              continue;
+            }
+            const d = await res.json();
+            const text = d?.choices?.[0]?.message?.content || '';
+            if (!text.trim()) continue;
+            console.log(`[Groq] ✓ model:${model} key:${ki+1}`);
+            return cleanReply(text.trim());
+          } catch (e) {
+            console.warn(`[Groq] ${model} key${ki+1} exception: ${e.message}`);
+          }
+        }
+      }
+      throw new Error('All Groq keys/models failed');
+    }
 
     // ── Knowledge fetch (web-simulated enrichment) ─
     async function fetchKnowledgeInsert(topic, phaseId) {

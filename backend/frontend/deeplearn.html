@@ -451,29 +451,15 @@
 
   <script src="/amplify-env-bootstrap.js"></script>
   <script type="module">
-    import { loadEnvConfig, getGroqKeys, getOpenRouterKeys, getGroqBase, getOpenRouterBase, parseEnvList } from '/src/env-config.js';
-    const _config = await loadEnvConfig();
+    import { loadEnvConfig, getGroqKeys, getGroqBase, getViteEnv } from '/src/env-config.js';
 
-    function parseEnvKeys(val) {
-      if (!val || val === 'undefined') return [];
-      return val.split(',').map(k => k.trim()).filter(Boolean);
-    }
-    const GROQ_KEYS = (
-      getGroqKeys(_config).length          ? getGroqKeys(_config)          :
-      parseEnvKeys(_config?.GROQ_KEYS).length ? parseEnvKeys(_config?.GROQ_KEYS) :
-      parseEnvKeys(_config?.VITE_GROQ_KEYS).length ? parseEnvKeys(_config?.VITE_GROQ_KEYS) :
-      parseEnvKeys(_config?.GROQ_API_KEY).length ? parseEnvKeys(_config?.GROQ_API_KEY)  :
-      parseEnvKeys(_config?.VITE_GROQ_API_KEY).length ? parseEnvKeys(_config?.VITE_GROQ_API_KEY) :
-      []
-    );
-    const OPENROUTER_KEYS = (
-      getOpenRouterKeys(_config).length              ? getOpenRouterKeys(_config)              :
-      parseEnvKeys(_config?.OPENROUTER_API_KEYS).length ? parseEnvKeys(_config?.OPENROUTER_API_KEYS) :
-      parseEnvKeys(_config?.VITE_OPENROUTER_KEYS).length ? parseEnvKeys(_config?.VITE_OPENROUTER_KEYS) :
-      []
-    );
-    const OPENROUTER_BASE = getOpenRouterBase(_config) || _config?.OPENROUTER_BASE_URL || _config?.VITE_OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
-    const GROQ_BASE       = getGroqBase(_config)       || _config?.VITE_GROQ_BASE      || 'https://api.groq.com/openai/v1';
+    let _config = {};
+    const _env = getViteEnv();
+    loadEnvConfig().then(cfg => { _config = cfg; });
+    _config = await loadEnvConfig();
+
+    function groqKeys() { return getGroqKeys(_config, _env); }
+    function groqBase() { return getGroqBase(_config, _env); }
 
     // ── PDF Pipeline ──────────────────────────────
     const CHUNK_WORDS = 150, CHUNK_OVERLAP = 30, MAX_PAGES = 60, TOP_K = 6, PAGE_SCALE = 2.0, IMG_QUALITY = 0.85;
@@ -511,12 +497,36 @@
     async function extractPageText(page){const tc=await page.getTextContent();return tc.items.map(i=>i.str).join(' ').trim();}
     async function pageToBase64(page){const vp=page.getViewport({scale:PAGE_SCALE});const canvas=document.createElement('canvas');canvas.width=vp.width;canvas.height=vp.height;await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;return canvas.toDataURL('image/jpeg',IMG_QUALITY).split(',')[1];}
     async function detectPDFMode(doc){const n=Math.min(5,doc.numPages);let total=0;for(let i=1;i<=n;i++){const pg=await doc.getPage(i);total+=(await extractPageText(pg)).length;}return(total/n)<50?'image':'text';}
-    async function groqVisionOCR(base64Img){for(let ki=0;ki<GROQ_KEYS.length;ki++){try{const res=await fetch(`${GROQ_BASE}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[ki]}`},body:JSON.stringify({model:'qwen/qwen3-32b',max_tokens:2048,messages:[{role:'user',content:[{type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64Img}`}},{type:'text',text:'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.'}]}]})});if(res.status===429){await sleep(4000);continue;}if(!res.ok)continue;const d=await res.json();return d.choices?.[0]?.message?.content||'';}catch(e){console.warn(`[OCR] key${ki+1}:`,e.message);}}return '';}
+    async function groqVisionOCR(base64Img){
+      const keys = groqKeys();
+      const base = groqBase();
+      for(let ki=0;ki<keys.length;ki++){
+        try{
+          const res=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${keys[ki]}`},body:JSON.stringify({model:'qwen/qwen3-32b',max_tokens:2048,messages:[{role:'user',content:[{type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64Img}`}},{type:'text',text:'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.'}]}]})});
+          if(res.status===429){await sleep(4000);continue;}
+          if(!res.ok) continue;
+          const d=await res.json();
+          return d.choices?.[0]?.message?.content||'';
+        }catch(e){console.warn(`[OCR] key${ki+1}:`,e.message);}
+      }
+      return '';
+    }
     async function loadAndIndexPDF(file,onProgress){store.reset();pdfPages=[];onProgress?.('PDF খোলা হচ্ছে…');const buf=await file.arrayBuffer();const pdfDoc=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;const pages=Math.min(pdfDoc.numPages,MAX_PAGES);const mode=await detectPDFMode(pdfDoc);for(let i=1;i<=pages;i++){onProgress?.(`পৃষ্ঠা ${i}/${pages} পড়া হচ্ছে…`);const pg=await pdfDoc.getPage(i);let pageText=await extractPageText(pg);if(pageText.trim().length<30&&mode==='image'){try{const b64=await pageToBase64(pg);const ocr=await groqVisionOCR(b64);if(ocr&&ocr.trim().length>pageText.length)pageText=ocr;}catch(e){console.warn(`[PDF OCR p${i}]:`,e.message);}}if(pageText.trim().length>10){pdfPages.push({page:i,text:pageText});for(const c of chunkText(pageText,i))store.addChunk(c);}}if(store.chunks.length===0){onProgress?.('⚠️ কোনো পাঠ্য পাওয়া যায়নি।');return;}store.build();onProgress?.(`প্রস্তুত! (${store.chunks.length} অংশ)`);}
 
     // ── Expert Config ──────────────────────────────
-    const OPENROUTER_MODELS = ['openrouter/free'];
-    const GROQ_MODELS  = ['openai/gpt-oss-120b','openai/gpt-oss-20b','llama-3.3-70b-versatile'];
+    const GROQ_MODELS = ['openai/gpt-oss-120b','openai/gpt-oss-20b','llama-3.3-70b-versatile'];
+
+    function getGroqKey() {
+      try {
+        const meta = document.querySelector('meta[name="groq-key"]');
+        if (meta) return meta.content;
+        const params = new URLSearchParams(location.search);
+        if (params.get('k')) return params.get('k');
+      } catch (e) {}
+      const keys = groqKeys();
+      return keys[0] || '';
+    }
+    let GROQ_KEY = getGroqKey();
 
     const EXPERTS = {
       expert1: { id:'expert1', name:'ড. আরিফা', nameShort:'ড.আ', role:'বিষয় বিশেষজ্ঞ ও সংশ্লেষক', model:'llama-3.3-70b-versatile', color:'#5b21b6', avatarClass:'expert1-avatar', bubbleClass:'bubble-expert1',
@@ -620,15 +630,14 @@
     function updateEinsteinLink() {
       const params = new URLSearchParams();
       params.set('topic', encodeURIComponent(sessionTopic));
-      if (GROQ_KEYS.length) params.set('k', GROQ_KEYS[0]);
+      const keys = groqKeys();
+      if (keys.length) params.set('k', keys[0]);
       einsteinToggle.href = `einstein.html?${params.toString()}`;
       einsteinToggle.setAttribute('target', '_blank');
       einsteinToggle.setAttribute('rel', 'noopener');
-      // Also store keys in sessionStorage for einstein.html to pick up
       try {
         sessionStorage.setItem('einstein_topic', sessionTopic);
-        sessionStorage.setItem('einstein_groq_keys', JSON.stringify(GROQ_KEYS));
-        sessionStorage.setItem('einstein_or_keys', JSON.stringify(OPENROUTER_KEYS));
+        sessionStorage.setItem('einstein_groq_keys', JSON.stringify(keys));
         sessionStorage.setItem('einstein_config', JSON.stringify({
           AZURE_SPEECH_KEY: _config?.AZURE_SPEECH_KEY || '',
           AZURE_SPEECH_REGION: _config?.AZURE_SPEECH_REGION || 'southeastasia',
@@ -712,11 +721,12 @@
     async function fetchGif(text) {
   try {
     let searchTerm = 'science animation';
-    if (GROQ_KEYS.length > 0) {
+    const keys = groqKeys();
+    if (keys.length > 0) {
       try {
-        const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+        const res = await fetch(`${groqBase()}/chat/completions`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEYS[0]}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${keys[0]}` },
           body: JSON.stringify({
             model: 'openai/gpt-oss-120b', max_tokens: 12, temperature: 0.1,
             messages: [{ role: 'user', content: `2-3 English science words for GIF search from: "${text.slice(0,200)}". Output ONLY the words:` }]
@@ -808,19 +818,69 @@ async function addChatBubble(expertId, text) {
     async function fetchArxivPapers(topic){
       try{
         let searchTerm=topic;
-        if(GROQ_KEYS.length>0){const res=await fetch(`${GROQ_BASE}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[0]}`},body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:30,temperature:0.1,messages:[{role:'user',content:`Extract 2-4 English academic search keywords from this topic: "${topic}". Output ONLY the English keywords, nothing else.`}]})});if(res.ok){const d=await res.json();const cleaned=(d?.choices?.[0]?.message?.content?.trim()||'').replace(/[\u0980-\u09FF]/g,'').replace(/[^\w\s]/g,'').trim();if(cleaned.length>2)searchTerm=cleaned;}}
-        const res=await fetch(`https://api.openalex.org/works?search=${encodeURIComponent(searchTerm)}&per-page=6&sort=relevance_score:desc&filter=has_abstract:true`,{headers:{'Accept':'application/json'}});
-        if(!res.ok)return[];
+        if(groqKeys().length>0){
+          try{
+            const res=await fetch(`${groqBase()}/chat/completions`,{
+              method:'POST',
+              headers:{'Content-Type':'application/json','Authorization':`Bearer ${groqKeys()[0]}`},
+              body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:30,temperature:0.1,messages:[{role:'user',content:`Extract 2-4 English academic search keywords from this topic: "${topic}". Output ONLY the English keywords, nothing else.`}]})
+            });
+            if(res.ok){
+              const d=await res.json();
+              const cleaned=(d?.choices?.[0]?.message?.content?.trim()||'').replace(/[\u0980-\u09FF]/g,'').replace(/[^\w\s]/g,'').trim();
+              if(cleaned.length>2) searchTerm=cleaned;
+            } else {
+              console.warn('[OpenAlex] Groq keyword extraction failed, HTTP', res.status);
+            }
+          } catch(e){ console.warn('[OpenAlex] Groq keyword extraction exception:', e.message); }
+        } else {
+          console.warn('[OpenAlex] No Groq keys available — searching with raw topic, results may be empty');
+        }
+
+        const url = `https://api.openalex.org/works?search=${encodeURIComponent(searchTerm)}&per-page=6&sort=relevance_score:desc&filter=has_abstract:true&mailto=support@amplify.app`;
+        const res=await fetch(url,{headers:{'Accept':'application/json'}});
+        if(!res.ok){
+          const errText = await res.text().catch(()=> '');
+          console.warn(`[OpenAlex] HTTP ${res.status} for query "${searchTerm}":`, errText.slice(0,300));
+          return [];
+        }
         const data=await res.json();
-        return(data.results||[]).map(w=>({title:w.title||'',abstract:(()=>{const inv=w.abstract_inverted_index;if(!inv)return w.primary_topic?.display_name||'';const words=[];for(const[word,positions] of Object.entries(inv))positions.forEach(i=>words[i]=word);return words.join(' ').slice(0,300);})(),link:w.doi?`https://doi.org/${w.doi}`:(w.id||''),year:w.publication_year||'',citations:w.cited_by_count||0})).filter(p=>p.title);
-      }catch(err){console.warn('[OpenAlex]',err.message);return[];}
+        console.log(`[OpenAlex] query="${searchTerm}" → ${data.results?.length||0} results`);
+        return(data.results||[]).map(w=>({
+          title:w.title||'',
+          abstract:(()=>{const inv=w.abstract_inverted_index;if(!inv)return w.primary_topic?.display_name||'';const words=[];for(const[word,positions] of Object.entries(inv))positions.forEach(i=>words[i]=word);return words.join(' ').slice(0,300);})(),
+          link:w.doi?`https://doi.org/${w.doi}`:(w.id||''),
+          year:w.publication_year||'',
+          citations:w.cited_by_count||0
+        })).filter(p=>p.title);
+      }catch(err){console.warn('[OpenAlex] outer exception:',err.message);return[];}
     }
 
     async function fetchKhanAcademyVideos(topic){
       try{
         let searchTerm=topic;
-        if(GROQ_KEYS.length>0){const res=await fetch(`${GROQ_BASE}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[0]}`},body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:30,temperature:0.1,messages:[{role:'user',content:`Extract 3-5 English keywords for a YouTube/Khan Academy search from this topic: "${topic}". Output ONLY English keywords suitable for educational video search.`}]})});if(res.ok){const d=await res.json();const cleaned=(d?.choices?.[0]?.message?.content?.trim()||'').replace(/[\u0980-\u09FF]/g,'').replace(/[^\w\s]/g,'').trim();if(cleaned.length>2)searchTerm=cleaned;}}
-        return[{title:`${searchTerm} — Khan Academy`,link:`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm+' khan academy')}`},{title:`${searchTerm} Explained`,link:`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm+' explained')}`},{title:`${searchTerm} Lecture`,link:`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm+' lecture')}`},{title:`${searchTerm} Tutorial`,link:`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm+' tutorial')}`}];
+        if(groqKeys().length>0){
+          try{
+            const res=await fetch(`${groqBase()}/chat/completions`,{
+              method:'POST',
+              headers:{'Content-Type':'application/json','Authorization':`Bearer ${groqKeys()[0]}`},
+              body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:30,temperature:0.1,messages:[{role:'user',content:`Extract 3-5 English keywords for a YouTube/Khan Academy search from this topic: "${topic}". Output ONLY English keywords suitable for educational video search.`}]})
+            });
+            if(res.ok){
+              const d=await res.json();
+              const cleaned=(d?.choices?.[0]?.message?.content?.trim()||'').replace(/[\u0980-\u09FF]/g,'').replace(/[^\w\s]/g,'').trim();
+              if(cleaned.length>2) searchTerm=cleaned;
+            } else {
+              console.warn('[Khan] Groq keyword extraction failed, HTTP', res.status);
+            }
+          } catch(e){ console.warn('[Khan] Groq keyword extraction exception:', e.message); }
+        }
+        return[
+          {title:`${searchTerm} — Khan Academy`,link:`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm+' khan academy')}`},
+          {title:`${searchTerm} Explained`,link:`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm+' explained')}`},
+          {title:`${searchTerm} Lecture`,link:`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm+' lecture')}`},
+          {title:`${searchTerm} Tutorial`,link:`https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerm+' tutorial')}`}
+        ];
       }catch(err){console.warn('[Khan]',err.message);return[];}
     }
 
@@ -860,28 +920,33 @@ async function addChatBubble(expertId, text) {
       return[{role:'user',content:`বিষয়: ${sessionTopic}\nবর্তমান পর্যায়: ${phase.label}\nনির্দেশনা: ${phaseInstruction}\n${docBlock}${refsBlock}এখন ${expert.name} হিসেবে মাত্র ২টি বাক্য বলো:\n`+(expertId==='expert1'?`তুমি শুধু এই বিষয়ের একটি মূল বৈজ্ঞানিক প্রক্রিয়া বা কারণ ব্যাখ্যা করো যা এখনো বলা হয়নি।`:expertId==='expert2'?`ড. আরিফা যা বলেছেন তার সাথে দ্বিমত করো বা সম্পূর্ণ ভিন্ন পরিসংখ্যান বা তুলনামূলক তথ্য দাও।`:`ড. আরিফা ও ড. নাফিসার বক্তব্যের একটি নির্দিষ্ট দুর্বলতা ধরিয়ে দাও এবং একটি কঠিন প্রশ্ন করো।`)+`\nডকুমেন্টের তথ্য ব্যবহার করো। কোনো নাম বা সম্বোধন ছাড়া সরাসরি শুরু করো।`}];
     }
 
-    async function openRouterChat(messages,system,maxTokens=280,temp=0.85){
-      for(const model of OPENROUTER_MODELS){for(let i=0;i<OPENROUTER_KEYS.length;i++){try{const res=await fetch(`${OPENROUTER_BASE}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${OPENROUTER_KEYS[i]}`,'HTTP-Referer':'http://localhost','X-Title':'DeepLearn'},body:JSON.stringify({model,max_tokens:maxTokens,temperature:temp,messages:[{role:'system',content:system},...messages]})});if(!res.ok){if(res.status===429)await sleep(1000);throw new Error(`${res.status}`);}const d=await res.json();const text=d?.choices?.[0]?.message?.content||'';if(!text.trim())throw new Error('Empty');return cleanReply(text.trim());}catch(e){console.warn(`[OpenRouter] ${model} key${i+1}: ${e.message}`);}}}
-      throw new Error('All OpenRouter keys failed');
-    }
-
     async function callGroq(expertId){
       const expert=EXPERTS[expertId],phase=getCurrentPhase();
       const messages=buildMessagesForExpert(expertId);
       if(!messages[0]?.content||messages[0].content==='null'){await sleep(800);return callGroq(expertId);}
       const recentTurns=dialogueLog.slice(-5).map(e=>`"${e.text.slice(0,80)}"`).join(' | ');
-      const system=`তুমি ${expert.name} — ${expert.role}। শুধু বাংলায় কথা বলো।\nবর্তমান পর্যায়: ${phase.label}।\nসাম্প্রতিক বক্তব্য (এগুলো পুনরাবৃত্তি করা নিষিদ্ধ): ${recentTurns||'কিছু নেই'}\nকঠোর নিয়ম:\n- ঠিক ২টি সম্পূর্ণ বাক্য লেখো, প্রতিটি "।" দিয়ে শেষ করো\n- প্রতিটি বাক্য সর্বোচ্চ ২০ শব্দ\n- উপরের সাম্প্রতিক বক্তব্যে যা বলা হয়েছে তার কোনো শব্দ বা ধারণা পুনরাবৃত্তি করো না\n- সম্পূর্ণ নতুন তথ্য বা বিপরীত দৃষ্টিভঙ্গি আনো\n- কোনো নাম, সম্বোধন, বা পরিচয় ছাড়া সরাসরি শুরু করো\n- তথ্যসূত্রের নাম নয়, শুধু "গবেষণায় দেখা গেছে" বা "পরিসংখ্যান অনুযায়ী" বলো`;
-      if(OPENROUTER_KEYS.length>0){try{return await openRouterChat(messages,system);}catch(e){console.warn('[callGroq] OpenRouter failed:',e.message);}}
-      if(GROQ_KEYS.length>0){for(const model of GROQ_MODELS){for(let ki=0;ki<GROQ_KEYS.length;ki++){try{const payload={model,max_tokens:900,temperature:0.85,messages:[{role:'system',content:system},...messages]};if(model.includes('gpt-oss')||model.includes('qwen/')){payload.reasoning_effort='low';if(model.includes('qwen/'))payload.max_tokens=Math.max(payload.max_tokens,900);}const res=await fetch(`${GROQ_BASE}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[ki]}`},body:JSON.stringify(payload)});if(!res.ok){if(res.status===429)await sleep(1200);throw new Error(`${res.status}`);}const d=await res.json();const text=d?.choices?.[0]?.message?.content||'';if(!text.trim())throw new Error('Empty');return cleanReply(text.trim());}catch(e){console.warn(`[Groq] ${model} key${ki+1}: ${e.message}`);}}}
+      const system=`তুমি ${expert.name} — ${expert.role}। শুধু বাংলায় কথা বলো।\nবর্তমান পর্যায়: ${phase.label}।\nসাম্প্রতিক বক্তব্য (এগুলো পুনরাবৃত্তি করা নিষিদ্ধ): ${recentTurns||'কিছু নেই'}\nকঠোর নিয়ম:\n- ঠিক ২টি সম্পূর্ণ বাক্য লেখো, প্রতিটি "." দিয়ে শেষ করো\n- প্রতিটি বাক্য সর্বোচ্চ ২০ শব্দ\n- উপরের সাম্প্রতিক বক্তব্যে যা বলা হয়েছে তার কোনো শব্দ বা ধারণা পুনরাবৃত্তি করো না\n- সম্পূর্ণ নতুন তথ্য বা বিপরীত দৃষ্টিভঙ্গি আনো\n- কোনো নাম, সম্বোধন, বা পরিচয় ছাড়া সরাসরি শুরু করো\n- তথ্যসূত্রের নাম নয়, শুধু "গবেষণায় দেখা গেছে" বা "পরিসংখ্যান অনুযায়ী" বলো`;
+
+      const keys = groqKeys();
+      if(!keys.length) throw new Error('No Groq API keys available');
+
+      for(const model of [expert.model, ...GROQ_MODELS.filter(m => m !== expert.model)]){
+        for(let ki=0;ki<keys.length;ki++){
+          try{
+            const payload={model,max_tokens:900,temperature:0.85,messages:[{role:'system',content:system},...messages]};
+            if(model.includes('gpt-oss')||model.includes('qwen/')){payload.reasoning_effort='low';if(model.includes('qwen/'))payload.max_tokens=Math.max(payload.max_tokens,900);}
+            const res=await fetch(`${groqBase()}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${keys[ki]}`},body:JSON.stringify(payload)});
+            if(!res.ok){const errText=await res.text().catch(()=> '');console.warn(`[Groq] ${model} key${ki+1} HTTP ${res.status}: ${errText.slice(0,200)}`);if(res.status===429)await sleep(1200);continue;}
+            const d=await res.json();
+            const text=d?.choices?.[0]?.message?.content||'';
+            if(!text.trim()) continue;
+            return cleanReply(text.trim());
+          }catch(e){console.warn(`[Groq] ${model} key${ki+1} exception: ${e.message}`);}
+        }
       }
-      throw new Error('No API keys available');
+      throw new Error('All Groq keys/models failed');
     }
 
-    async function fetchKnowledgeInsert(topic,phaseId){
-      if(phaseId!=='analysis'&&phaseId!=='debate')return null;
-      const prompt=`বিষয়: "${topic}"\nএই বিষয়ে ২-৩টি গুরুত্বপূর্ণ তথ্যবিন্দু বাংলায় দাও। শুধু JSON রিটার্ন করো: {"insight":"বাংলায় ২-৩ বাক্য","sources":["উৎস ধরন ১","উৎস ধরন ২"]}`;
-      try{if(!GROQ_KEYS.length)return null;const res=await fetch(`${GROQ_BASE}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEYS[0]}`},body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:300,temperature:0.5,response_format:{type:'json_object'},messages:[{role:'user',content:prompt}]})});const data=await res.json();if(!res.ok)return null;return JSON.parse(data.choices?.[0]?.message?.content||'{}');}catch(e){return null;}
-    }
 
     function showKnowledgeInsert(insight,sources){
       if(!insight)return;
