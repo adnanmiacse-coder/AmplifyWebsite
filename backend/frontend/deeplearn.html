@@ -730,20 +730,21 @@
         body: JSON.stringify({
           model: 'openai/gpt-oss-120b', max_tokens: 150, temperature: 0.1, reasoning_effort: 'low',
           messages: [{ role: 'user', content:
-            `From this scientific discussion snippet, extract 2-3 English keywords naming a SPECIFIC, CONCRETE, VISUALIZABLE scientific phenomenon, process, or object (e.g. "DNA replication", "neuron firing", "chemical bond", "black hole", "cell division", "atom structure").
+            `From this scientific discussion snippet, extract EXACTLY 2 English words naming ONE specific, concrete, visualizable scientific phenomenon, process, or object (e.g. "DNA replication", "neuron firing", "chemical bond", "black hole", "cell division", "atom structure").
 Snippet: "${text.slice(0,300)}"
 Rules:
-- Output ONLY the keywords, nothing else
-- Must be a real, filmable/animatable science concept — not an abstract idea like "importance" or "theory"
+- Output ONLY 2 words, nothing else — no extra description, no multiple concepts, no punctuation
+- Pick the SINGLE most concrete/filmable concept mentioned, ignore all others
 - If nothing concrete can be extracted, output exactly: NONE
-Keywords:` }]
+Two words:` }]
         })
       });
       if (res.ok) {
         const d = await res.json();
         const raw = (d?.choices?.[0]?.message?.content || '').trim();
         if (raw && raw.toUpperCase() !== 'NONE') {
-          const kw = raw.replace(/[\u0980-\u09FF]/g, '').replace(/[^\w\s-]/g, '').trim();
+          const kw = raw.replace(/[\u0980-\u09FF]/g, '').replace(/[^\w\s-]/g, '').trim()
+            .split(/\s+/).slice(0, 3).join(' '); // hard cap at 3 words regardless of what the model outputs
           if (kw.length > 2) searchTerm = kw;
         }
       } else {
@@ -753,7 +754,11 @@ Keywords:` }]
 
     if (!searchTerm) return null;
 
-    const query = encodeURIComponent(`${searchTerm} science diagram animation`);
+    let query = encodeURIComponent(`${searchTerm} science diagram animation`);
+    if (query.length > 100) {
+      console.warn(`[Giphy] Query too long (${query.length} chars) even after capping, using searchTerm only`);
+      query = encodeURIComponent(searchTerm);
+    }
     const apiUrl = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${query}&limit=15&rating=g&lang=en`;
 
     const res = await fetch(apiUrl);
