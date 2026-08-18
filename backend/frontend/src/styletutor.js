@@ -778,14 +778,18 @@ async function groqCallModel(model, messages, system, maxTokens=400, temperature
   return d.choices?.[0]?.message?.content || '';
 }
 
+const _deadORKeys = new Set(); // keys that returned 402 (out of credits) — skip permanently this session
+
 async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
-  for (let i = 0; i < openRouterKeys().length; i++) {
+  const keys = openRouterKeys();
+  for (let i = 0; i < keys.length; i++) {
+    if (_deadORKeys.has(i)) continue; // known dead, don't waste a request
     try {
       const res = await fetch(`${openRouterBase()}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${openRouterKeys()[i]}`,
+          'Authorization': `Bearer ${keys[i]}`,
           'HTTP-Referer': 'http://localhost:5173',
           'X-Title': 'Amplify'
         },
@@ -799,13 +803,14 @@ async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
           ]
         })
       });
+      if (res.status === 402) { _deadORKeys.add(i); throw new Error(`OpenRouter key ${i+1}: 402 (no credits) — marking dead`); }
       if (!res.ok) throw new Error(`OpenRouter key ${i+1}: ${res.status}`);
       const d = await res.json();
       console.log(`[OpenRouter] key ${i+1} success`);
       return d.choices[0].message.content;
     } catch(e) {
       console.warn(`[OpenRouter] key ${i+1} error: ${e.message} — trying next`);
-      continue;  // continue on ALL errors, not just 429
+      continue;
     }
   }
   throw new Error('All OpenRouter keys failed');
@@ -2454,6 +2459,17 @@ async function getSegment(idx, timeoutMs = 12000) {
   return await fetchSegmentText(idx);
 }
 
+function speakWithBrowserTTS(text, onDone) {
+  if (!('speechSynthesis' in window) || !text?.trim()) { onDone?.(); return; }
+  speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  if (_lectureVoice) utter.voice = _lectureVoice;
+  utter.lang = _lectureVoice?.lang || 'bn-BD';
+  utter.rate = 0.95;
+  utter.onend = () => onDone?.();
+  utter.onerror = () => onDone?.();
+  speechSynthesis.speak(utter);
+}
 
 function speakWithLaser(sentence) {
   return new Promise(resolve => {
@@ -2473,8 +2489,15 @@ function speakWithLaser(sentence) {
     if (_laserSpans.length > 0) { _laserActive = true; moveLaser(0); }
 
     TTS._fetchAzureAudio(sentence, 'bn-BD-NabanitaNeural', '-10%', '0%').then(url => {
-      if (!url || lectureAborted) {
+      if (lectureAborted) {
         if (TTS._pendingResolve) { TTS._pendingResolve(); TTS._pendingResolve = null; }
+        return;
+      }
+      if (!url) {
+        console.warn('[TTS] Azure unavailable (missing/invalid key) — falling back to browser voice');
+        speakWithBrowserTTS(sentence, () => {
+          if (TTS._pendingResolve) { TTS._pendingResolve(); TTS._pendingResolve = null; }
+        });
         return;
       }
 

@@ -729,14 +729,18 @@ async function groqCallModel(model, messages, system, maxTokens=400, temperature
   return d.choices?.[0]?.message?.content || '';
 }
 
+const _deadORKeys = new Set(); // keys that returned 402 (out of credits) — skip permanently this session
+
 async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
-  for (let i = 0; i < openRouterKeys().length; i++) {
+  const keys = openRouterKeys();
+  for (let i = 0; i < keys.length; i++) {
+    if (_deadORKeys.has(i)) continue; // known dead, don't waste a request
     try {
       const res = await fetch(`${openRouterBase()}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${openRouterKeys()[i]}`,
+          'Authorization': `Bearer ${keys[i]}`,
           'HTTP-Referer': 'http://localhost:5173',
           'X-Title': 'Amplify'
         },
@@ -750,13 +754,14 @@ async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
           ]
         })
       });
+      if (res.status === 402) { _deadORKeys.add(i); throw new Error(`OpenRouter key ${i+1}: 402 (no credits) — marking dead`); }
       if (!res.ok) throw new Error(`OpenRouter key ${i+1}: ${res.status}`);
       const d = await res.json();
       console.log(`[OpenRouter] key ${i+1} success`);
       return d.choices[0].message.content;
     } catch(e) {
       console.warn(`[OpenRouter] key ${i+1} error: ${e.message} — trying next`);
-      continue;  // continue on ALL errors, not just 429
+      continue;
     }
   }
   throw new Error('All OpenRouter keys failed');
