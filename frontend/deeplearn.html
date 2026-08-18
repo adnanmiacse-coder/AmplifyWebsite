@@ -1126,15 +1126,18 @@ body::after {
 
     let _config = {};
     const _env = getViteEnv();
-    loadEnvConfig().then(cfg => { _config = cfg; });
+    let _azureKey    = '';
+    let _azureRegion = 'southeastasia';
+    loadEnvConfig().then(cfg => {
+      _config = cfg;
+      _azureKey    = cfg.AZURE_SPEECH_KEY    || '';
+      _azureRegion = cfg.AZURE_SPEECH_REGION || 'southeastasia';
+      console.log('[DeepLearn HTML Azure] config loaded | key present:', !!_azureKey, '| key length:', _azureKey.length, '| region:', _azureRegion);
+    });
     _config = await loadEnvConfig();
 
     function groqKeys() { return getGroqKeys(_config, _env); }
     function groqBase() { return getGroqBase(_config, _env); }
-
-    const _azureKey    = _config.AZURE_SPEECH_KEY    || '';
-    const _azureRegion = _config.AZURE_SPEECH_REGION || 'southeastasia';
-    console.log('[DeepLearn HTML Azure] key present:', !!_azureKey, '| key length:', _azureKey.length, '| region:', _azureRegion);
 
     // ══════════════════════════════════════════════
     //  Deep Learn — deeplearn.html (inline)
