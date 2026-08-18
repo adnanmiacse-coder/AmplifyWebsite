@@ -1989,10 +1989,17 @@ function startVoiceCommand(){
     return;
   }
 
+  if (window.__voiceCommandActive) {
+    return;
+  }
+
   const btn = document.getElementById('voiceBtn');
   const lbl = document.getElementById('voiceBtnLabel');
   const mic = document.getElementById('micIcon');
 
+  if (!btn || !lbl || !mic) return;
+
+  window.__voiceCommandActive = true;
   btn.style.background = 'rgba(0,255,136,0.25)';
   btn.style.borderColor = '#00ff88';
   mic.textContent = '🔴';
@@ -2005,11 +2012,16 @@ function startVoiceCommand(){
   recog.interimResults = false;
   recog.maxAlternatives = 5;
 
-  recog.onresult = (e)=>{
+  const resetVoiceUI = () => {
+    window.__voiceCommandActive = false;
     btn.style.background = 'rgba(0,255,136,0.08)';
     btn.style.borderColor = 'rgba(0,255,136,0.25)';
     mic.textContent = '🎙️';
     lbl.textContent = 'Speak Experiment';
+  };
+
+  recog.onresult = (e)=>{
+    resetVoiceUI();
 
     const said = e.results[0][0].transcript;
     const section = matchSection(said);
@@ -2062,21 +2074,23 @@ function startVoiceCommand(){
   };
 
   recog.onerror = (e)=>{
-    btn.style.background = 'rgba(0,255,136,0.08)';
-    btn.style.borderColor = 'rgba(0,255,136,0.25)';
-    mic.textContent = '🎙️';
-    lbl.textContent = 'Speak Experiment';
-    showToast(`⚠️ Mic error: ${e.error}`, 3000);
+    resetVoiceUI();
+    console.error('[VoiceCmd] Speech recognition error:', e);
+    showToast(`⚠️ Mic error: ${e.error || 'unknown error'}`, 3000);
   };
 
   recog.onend = ()=>{
-    btn.style.background = 'rgba(0,255,136,0.08)';
-    btn.style.borderColor = 'rgba(0,255,136,0.25)';
-    mic.textContent = '🎙️';
-    lbl.textContent = 'Speak Experiment';
+    resetVoiceUI();
   };
 
-  recog.start();
+  try {
+    recog.start();
+  } catch (err) {
+    resetVoiceUI();
+    console.error('[VoiceCmd] recog.start() failed:', err);
+    const msg = err && (err.message || err.name) ? `${err.name || 'Error'}: ${err.message || ''}`.trim() : 'Unknown browser error';
+    showToast(`⚠️ Mic couldn't start: ${msg}. Check mic permission, HTTPS, or if the page is inside an iframe.`, 5000);
+  }
 }
 
 function fireWelcome(){
