@@ -1132,6 +1132,10 @@ body::after {
     function groqKeys() { return getGroqKeys(_config, _env); }
     function groqBase() { return getGroqBase(_config, _env); }
 
+    const _azureKey    = _config.AZURE_SPEECH_KEY    || '';
+    const _azureRegion = _config.AZURE_SPEECH_REGION || 'southeastasia';
+    console.log('[DeepLearn HTML Azure] key present:', !!_azureKey, '| key length:', _azureKey.length, '| region:', _azureRegion);
+
     // ══════════════════════════════════════════════
     //  Deep Learn — deeplearn.html (inline)
     //  3 Expert Agents · Groq · Bangla Deep Discussion
@@ -1410,6 +1414,12 @@ async function loadAndIndexPDF(file,onProgress){
       expert3: { rate: 0.92, pitch: 0.85 },
     };
 
+    const EXPERT_AZURE_VOICES = {
+      expert1: { voice: 'bn-BD-PradeepNeural',  rate: '-5%', pitch: '-5%'  },
+      expert2: { voice: 'bn-BD-NabanitaNeural', rate: '0%',  pitch: '+8%'  },
+      expert3: { voice: 'bn-BD-PradeepNeural',  rate: '+5%', pitch: '-12%' },
+    };
+
     // ── DOM ───────────────────────────────────────
     const uploadScreen    = document.getElementById('upload-screen');
     const deeplearnScreen = document.getElementById('deeplearn-screen');
@@ -1572,26 +1582,68 @@ function splitSentences(text) {
     .filter(s => s.length > 3);
 }
 
+async function speakAzureSentence(sentence, expertId) {
+  if (!_azureKey) return false;
+  const cfg = EXPERT_AZURE_VOICES[expertId];
+  const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${cfg.voice}'><prosody rate='${cfg.rate}' pitch='${cfg.pitch}'>${sentence.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
+  try {
+    const res = await fetch(`https://${_azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+      method: 'POST',
+      headers: {
+        'Ocp-Apim-Subscription-Key': _azureKey,
+        'Content-Type': 'application/ssml+xml',
+        'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+      },
+      body: ssml,
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error(`[DeepLearn HTML Azure] HTTP ${res.status} | region:${_azureRegion} | key prefix:${_azureKey.slice(0,6)} | body:`, errBody.slice(0, 300));
+      return false;
+    }
+    const blob  = await res.blob();
+    const url   = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    await new Promise(resolve => {
+      audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.onerror = (e) => { console.error('[DeepLearn HTML Azure] playback error:', e); URL.revokeObjectURL(url); resolve(); };
+      audio.play().catch(e => { console.error('[DeepLearn HTML Azure] play() rejected:', e.message); resolve(); });
+    });
+    return true;
+  } catch (e) {
+    console.error('[DeepLearn HTML Azure] fetch threw:', e.message);
+    return false;
+  }
+}
+
+function speakBrowserSentence(sentence, expertId) {
+  return new Promise(resolve => {
+    const tts = AGENT_TTS[expertId];
+    speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(sentence);
+    const voice = agentVoiceMap[expertId];
+    if (voice) { utt.voice = voice; utt.lang = voice.lang; }
+    else { utt.lang = 'bn-BD'; }
+    utt.rate  = tts.rate;
+    utt.pitch = tts.pitch;
+    utt.onend   = () => resolve();
+    utt.onerror = (e) => { console.warn('[DeepLearn HTML Browser TTS] error:', e.error); resolve(); };
+    speechSynthesis.speak(utt);
+  });
+}
+
 async function speak(text, expertId) {
   if (!ttsEnabled) return;
-  const tts = AGENT_TTS[expertId];
   const sentences = splitSentences(text);
   ttsWave.classList.add('speaking');
   ttsLabel.textContent = EXPERTS[expertId].name + ' বলছেন...';
   for (const sentence of sentences) {
     if (!ttsEnabled) break;
-    await new Promise(resolve => {
-      speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance(sentence);
-      const voice = agentVoiceMap[expertId];
-      if (voice) { utt.voice = voice; utt.lang = voice.lang; }
-      else { utt.lang = 'bn-BD'; }
-      utt.rate  = tts.rate;
-      utt.pitch = tts.pitch;
-      utt.onend   = () => resolve();
-      utt.onerror = () => resolve();
-      speechSynthesis.speak(utt);
-    });
+    const azureOk = await speakAzureSentence(sentence, expertId);
+    if (!azureOk) {
+      console.warn('[DeepLearn HTML TTS] Azure failed/unavailable, using browser voice for this sentence.');
+      await speakBrowserSentence(sentence, expertId);
+    }
     await sleep(120);
   }
   ttsWave.classList.remove('speaking');
