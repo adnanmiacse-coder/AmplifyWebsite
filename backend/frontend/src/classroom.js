@@ -20,12 +20,12 @@ function openRouterBase() { return getOpenRouterBase(_config, _env); }
 const OPENROUTER_MODELS = ['openrouter/free'];
 // ── Groq (primary chat + Whisper STT + Vision OCR) ──
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
-const VISION_MODEL       = 'qwen/qwen3-32b';
+const VISION_MODEL       = 'qwen/qwen3.6-27b';
 const OPENROUTER_VISION_MODEL = 'openrouter/free';
 const GROQ_MODELS = [
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
-  'llama-3.3-70b-versatile',
+  'qwen/qwen3.6-27b',
 ];
 
 // ── PDF Pipeline Config ───────────────────────

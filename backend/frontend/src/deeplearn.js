@@ -15,8 +15,8 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 const OPENROUTER_MODELS = ['openrouter/free'];
-const GROQ_MODELS        = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile'];
-const VISION_MODEL       = 'qwen/qwen3-32b';
+const GROQ_MODELS        = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b'];
+const VISION_MODEL       = 'qwen/qwen3.6-27b';
 
 // ── Expert Config ──────────────────────────────
 const MODEL_FALLBACK = 'openai/gpt-oss-120b';
@@ -208,7 +208,7 @@ const EXPERTS = {
     name:  'ড. আরিফ',
     nameShort: 'ড.আ',
     role:  'বিষয় বিশেষজ্ঞ ও সংশ্লেষক',
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     color: '#5b21b6',
     avatarClass: 'expert1-avatar',
     bubbleClass: 'bubble-expert1',
@@ -226,7 +226,7 @@ const EXPERTS = {
     name:  'ড. নাফিসা',
     nameShort: 'ড.না',
     role:  'বিশ্লেষক ও গবেষক',
-    model: 'llama-3.3-70b-versatile',
+    model: 'qwen/qwen3.6-27b',
     color: '#0369a1',
     avatarClass: 'expert2-avatar',
     bubbleClass: 'bubble-expert2',
@@ -761,7 +761,7 @@ async function fetchKnowledgeInsert(topic, phaseId) {
         'Authorization': `Bearer ${groqKeys()[0] || ''}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         max_tokens: 300,
         temperature: 0.5,
         response_format: { type: 'json_object' },

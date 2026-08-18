@@ -502,7 +502,7 @@
       const base = groqBase();
       for(let ki=0;ki<keys.length;ki++){
         try{
-          const res=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${keys[ki]}`},body:JSON.stringify({model:'qwen/qwen3-32b',max_tokens:2048,messages:[{role:'user',content:[{type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64Img}`}},{type:'text',text:'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.'}]}]})});
+          const res=await fetch(`${base}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${keys[ki]}`},body:JSON.stringify({model:'qwen/qwen3.6-27b',max_tokens:2048,messages:[{role:'user',content:[{type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64Img}`}},{type:'text',text:'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.'}]}]})});
           if(res.status===429){await sleep(4000);continue;}
           if(!res.ok) continue;
           const d=await res.json();
@@ -514,7 +514,7 @@
     async function loadAndIndexPDF(file,onProgress){store.reset();pdfPages=[];onProgress?.('PDF খোলা হচ্ছে…');const buf=await file.arrayBuffer();const pdfDoc=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;const pages=Math.min(pdfDoc.numPages,MAX_PAGES);const mode=await detectPDFMode(pdfDoc);for(let i=1;i<=pages;i++){onProgress?.(`পৃষ্ঠা ${i}/${pages} পড়া হচ্ছে…`);const pg=await pdfDoc.getPage(i);let pageText=await extractPageText(pg);if(pageText.trim().length<30&&mode==='image'){try{const b64=await pageToBase64(pg);const ocr=await groqVisionOCR(b64);if(ocr&&ocr.trim().length>pageText.length)pageText=ocr;}catch(e){console.warn(`[PDF OCR p${i}]:`,e.message);}}if(pageText.trim().length>10){pdfPages.push({page:i,text:pageText});for(const c of chunkText(pageText,i))store.addChunk(c);}}if(store.chunks.length===0){onProgress?.('⚠️ কোনো পাঠ্য পাওয়া যায়নি।');return;}store.build();onProgress?.(`প্রস্তুত! (${store.chunks.length} অংশ)`);}
 
     // ── Expert Config ──────────────────────────────
-    const GROQ_MODELS = ['openai/gpt-oss-120b','openai/gpt-oss-20b','llama-3.3-70b-versatile'];
+    const GROQ_MODELS = ['openai/gpt-oss-120b','openai/gpt-oss-20b','qwen/qwen3.6-27b'];
 
     function getGroqKey() {
       try {
@@ -529,13 +529,13 @@
     let GROQ_KEY = getGroqKey();
 
     const EXPERTS = {
-      expert1: { id:'expert1', name:'ড. আরিফা', nameShort:'ড.আ', role:'বিষয় বিশেষজ্ঞ ও সংশ্লেষক', model:'llama-3.3-70b-versatile', color:'#5b21b6', avatarClass:'expert1-avatar', bubbleClass:'bubble-expert1',
+      expert1: { id:'expert1', name:'ড. আরিফা', nameShort:'ড.আ', role:'বিষয় বিশেষজ্ঞ ও সংশ্লেষক', model:'openai/gpt-oss-120b', color:'#5b21b6', avatarClass:'expert1-avatar', bubbleClass:'bubble-expert1',
         system:`তুমি ড. আরিফা, একজন অভিজ্ঞ বিষয় বিশেষজ্ঞ ও সংশ্লেষক। তুমি সরাসরি বাংলায় কথা বলছ। কঠোর নিয়ম: প্রথম পুরুষে কথা বলো। "ড. আরিফা বলেছেন" বা তৃতীয় পুরুষের বর্ণনা সম্পূর্ণ নিষিদ্ধ। প্রতিটি বক্তব্যে গভীর ধারণা, বৈজ্ঞানিক ব্যাখ্যা, এবং বাস্তব প্রাসঙ্গিকতা উল্লেখ করো। তথ্য উল্লেখ করো কিন্তু কোনো প্রতিষ্ঠানের নাম বা ব্যক্তির নাম ব্যবহার করো না। ৩ টি বাক্যে বিস্তারিত বলো। অন্য বিশেষজ্ঞদের কথায় সরাসরি সাড়া দাও।`,
       },
       expert2: { id:'expert2', name:'ড. নাফিসা', nameShort:'ড.না', role:'বিশ্লেষক ও গবেষক', model:'openai/gpt-oss-20b', color:'#0369a1', avatarClass:'expert2-avatar', bubbleClass:'bubble-expert2',
         system:`তুমি ড. নাফিসা, একজন তীক্ষ্ণ বিশ্লেষক ও গবেষক। তুমি সরাসরি বাংলায় কথা বলছ। কঠোর নিয়ম: প্রথম পুরুষে কথা বলো। তুলনামূলক বিশ্লেষণ করো, তথ্য-ভিত্তিক যুক্তি দাও। কোনো প্রতিষ্ঠানের নাম বা ব্যক্তির নাম ব্যবহার করো না। ৩ টি বাক্যে বিস্তারিত বলো।`,
       },
-      expert3: { id:'expert3', name:'ড. রাকিব', nameShort:'ড.রা', role:'সমালোচক ও প্রশ্নকর্তা', model:'llama-3.3-70b-versatile', color:'#b45309', avatarClass:'expert3-avatar', bubbleClass:'bubble-expert3',
+      expert3: { id:'expert3', name:'ড. রাকিব', nameShort:'ড.রা', role:'সমালোচক ও প্রশ্নকর্তা', model:'qwen/qwen3.6-27b', color:'#b45309', avatarClass:'expert3-avatar', bubbleClass:'bubble-expert3',
         system:`তুমি ড. রাকিব, একজন তীব্র সমালোচক ও প্রশ্নকর্তা। তুমি সরাসরি বাংলায় কথা বলছ। কঠোর নিয়ম: প্রথম পুরুষে কথা বলো। বিদ্যমান বক্তব্যকে চ্যালেঞ্জ করো, বিকল্প দৃষ্টিভঙ্গি তুলে ধরো, গুরুত্বপূর্ণ প্রশ্ন করো। বিতর্কমূলক হও কিন্তু তথ্যভিত্তিক থাকো। কোনো প্রতিষ্ঠানের নাম বা ব্যক্তির নাম ব্যবহার করো না। ৩ টি বাক্যে বিস্তারিত বলো।`,
       },
     };
@@ -720,49 +720,71 @@
    
     async function fetchGif(text) {
   try {
-    let searchTerm = 'science animation';
-    const keys = groqKeys();
-    if (keys.length > 0) {
-      try {
-        const res = await fetch(`${groqBase()}/chat/completions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${keys[0]}` },
-          body: JSON.stringify({
-            model: 'openai/gpt-oss-120b', max_tokens: 12, temperature: 0.1,
-            messages: [{ role: 'user', content: `2-3 English science words for GIF search from: "${text.slice(0,200)}". Output ONLY the words:` }]
-          })
-        });
-        if (res.ok) {
-          const d = await res.json();
-          const kw = (d?.choices?.[0]?.message?.content || '')
-            .replace(/[\u0980-\u09FF]/g, '').replace(/[^\w\s]/g, '').trim();
-          if (kw && kw.length > 2) searchTerm = kw;
-        }
-      } catch(e) { /* keep default searchTerm */ }
-    }
+    if (!groqKeys().length) { console.warn('[Giphy] No Groq keys, skipping GIF'); return null; }
 
-    const query = encodeURIComponent(searchTerm + ' science');
-    const apiUrl = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${query}&limit=10&rating=g&lang=en`;
+    let searchTerm = null;
+    try {
+      const res = await fetch(`${groqBase()}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKeys()[0]}` },
+        body: JSON.stringify({
+          model: 'openai/gpt-oss-120b', max_tokens: 20, temperature: 0.1,
+          messages: [{ role: 'user', content:
+            `From this scientific discussion snippet, extract 2-3 English keywords naming a SPECIFIC, CONCRETE, VISUALIZABLE scientific phenomenon, process, or object (e.g. "DNA replication", "neuron firing", "chemical bond", "black hole", "cell division", "atom structure").
+Snippet: "${text.slice(0,300)}"
+Rules:
+- Output ONLY the keywords, nothing else
+- Must be a real, filmable/animatable science concept — not an abstract idea like "importance" or "theory"
+- If nothing concrete can be extracted, output exactly: NONE
+Keywords:` }]
+        })
+      });
+      if (res.ok) {
+        const d = await res.json();
+        const raw = (d?.choices?.[0]?.message?.content || '').trim();
+        if (raw && raw.toUpperCase() !== 'NONE') {
+          const kw = raw.replace(/[\u0980-\u09FF]/g, '').replace(/[^\w\s-]/g, '').trim();
+          if (kw.length > 2) searchTerm = kw;
+        }
+      } else {
+        console.warn('[Giphy] Groq keyword extraction failed, HTTP', res.status);
+      }
+    } catch(e) { console.warn('[Giphy] Groq keyword extraction exception:', e.message); }
+
+    if (!searchTerm) return null;
+
+    const query = encodeURIComponent(`${searchTerm} science diagram animation`);
+    const apiUrl = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${query}&limit=15&rating=g&lang=en`;
 
     const res = await fetch(apiUrl);
     if (!res.ok) throw new Error(`Giphy ${res.status}`);
     const data = await res.json();
     const results = data?.data || [];
-    if (!results.length) return null;
+    if (!results.length) { console.log(`[Giphy] no results for "${searchTerm}"`); return null; }
 
     const BLOCK = ['anime','cartoon','meme','funny','movie','music','dance',
       'cat','dog','food','sport','celebrity','fashion','baby','wedding',
-      'party','gaming','drama','romance','kiss','love','fight','superhero'];
+      'party','gaming','drama','romance','kiss','love','fight','superhero',
+      'reaction','tv show','film','game','vine','tiktok','viral'];
 
-    const filtered = results.filter(g => {
+    const SCIENCE_HINTS = ['science','biology','chemistry','physics','molecule','cell',
+      'atom','dna','neuron','experiment','lab','microscope','reaction','organism',
+      'diagram','animation','education','educational'];
+
+    const scored = results.map(g => {
       const s = `${g.title || ''} ${g.slug || ''}`.toLowerCase();
-      return !BLOCK.some(w => s.includes(w));
+      const blocked = BLOCK.some(w => s.includes(w));
+      const termWords = searchTerm.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+      const matchesTerm = termWords.some(w => s.includes(w));
+      const matchesScience = SCIENCE_HINTS.some(w => s.includes(w));
+      return { g, blocked, score: (matchesTerm ? 2 : 0) + (matchesScience ? 1 : 0) };
     });
 
-    const pool = filtered.length ? filtered : results;
-    const pick = pool[Math.floor(Math.random() * Math.min(pool.length, 5))];
+    const good = scored.filter(x => !x.blocked && x.score > 0).sort((a,b) => b.score - a.score);
 
-    // Use the media_url (direct CDN link) — no CORS issues
+    if (!good.length) { console.log(`[Giphy] "${searchTerm}" → results found but none passed relevance filter`); return null; }
+
+    const pick = good[0].g;
     return pick?.images?.downsized_medium?.url
       || pick?.images?.fixed_height?.url
       || pick?.images?.downsized?.url

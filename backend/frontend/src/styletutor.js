@@ -118,13 +118,13 @@ async function initNeo4j() {
 
 
 const OPENROUTER_MODEL = 'openrouter/auto';
-const VISION_MODEL = 'qwen/qwen3-32b';
+const VISION_MODEL = 'qwen/qwen3.6-27b';
 
 // Primary model for all lecture + chat generation
 const GROQ_MODELS = [
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
-  'llama-3.3-70b-versatile',
+  'qwen/qwen3.6-27b',
 ];
 
 
