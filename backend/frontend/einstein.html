@@ -1101,10 +1101,15 @@ function clearSpeaking() { for (let i = 0; i < 3; i++) { const el = document.get
 let azureKey    = '';
 let azureRegion = 'southeastasia';
 try {
-  const cfg = JSON.parse(sessionStorage.getItem('einstein_config')||'{}');
+  const raw = sessionStorage.getItem('einstein_config');
+  console.log('[Einstein TTS] raw einstein_config from sessionStorage:', raw);
+  const cfg = JSON.parse(raw || '{}');
   azureKey    = cfg.AZURE_SPEECH_KEY    || '';
   azureRegion = cfg.AZURE_SPEECH_REGION || 'southeastasia';
-} catch(e) {}
+  console.log('[Einstein TTS] azureKey present:', !!azureKey, '| region:', azureRegion);
+} catch(e) {
+  console.error('[Einstein TTS] Failed to parse einstein_config:', e.message);
+}
 
 
 const VOICES = [
@@ -1133,7 +1138,10 @@ async function speak(text, slotIdx) {
         headers:{'Ocp-Apim-Subscription-Key':azureKey,'Content-Type':'application/ssml+xml','X-Microsoft-OutputFormat':'audio-24khz-48kbitrate-mono-mp3'},
         body: ssml,
       });
-      if (!res.ok) throw new Error('TTS ' + res.status);
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        throw new Error(`TTS ${res.status}: ${errBody.slice(0,200)}`);
+      }
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       const audio = new Audio(url);
@@ -1142,7 +1150,7 @@ async function speak(text, slotIdx) {
       ttsWave.classList.remove('speaking');
       ttsLabel.textContent = 'SILENT';
       return;
-    } catch(e) { console.warn('[Azure TTS]', e.message); }
+    } catch(e) { console.error('[Azure TTS] request failed:', e.message, '| had key:', !!azureKey); }
   }
 
   // Fallback: Web Speech API
