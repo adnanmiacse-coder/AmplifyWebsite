@@ -581,8 +581,8 @@ body::before{
 
       <div class="error-overlay" id="errorOverlay">
         <div class="error-icon">📂</div>
-        <div class="error-title">Model file not found</div>
-        <div class="error-msg">Make sure the <code>.glb</code> file is inside <code>public/models/</code> in your project folder.</div>
+        <div class="error-title" id="errorTitle">3D model preview unavailable</div>
+        <div class="error-msg" id="errorMessage">The model could not be loaded, or this browser could not create a WebGL context.</div>
         <div class="error-path" id="errorPath"></div>
       </div>
 
@@ -660,17 +660,18 @@ body::before{
 <!-- Three.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+const MODEL_BASE_PATH = './public/models';
 const MODELS = [
-  { id:'kidney',        file:'/models/human_kidney.glb',                  name:'Human Kidney',                  category:'Urinary System',    icon:'🩸', color:'#c084fc', desc:'The kidneys filter blood, remove waste, regulate electrolytes, and produce urine. Essential for homeostasis.',                                                        tags:['Excretory','Homeostasis','Nephron'] },
-  { id:'full_skeleton', file:'/models/skeleton.glb',                       name:'Full Skeleton',                  category:'Skeletal System',   icon:'💀', color:'#e2e8f0', desc:'Complete human skeleton — 206 bones providing structure, protection, and movement. Includes axial and appendicular skeleton.',                                     tags:['Skeletal','Anatomy','Bones'] },
-  { id:'lungs',         file:'/models/realistic_human_lungs.glb',          name:'Realistic Human Lungs',          category:'Respiratory System',icon:'🫁', color:'#f97316', desc:'The lungs facilitate gas exchange — oxygen into blood, carbon dioxide out. Vital for respiration.',                                                              tags:['Respiratory','Gas Exchange','Thorax'] },
-  { id:'digestive_system', file:'/models/digestive_system_human_anatomy.glb', name:'Digestive System',           category:'Digestive Anatomy', icon:'🍽️', color:'#a3e635', desc:'Complete digestive tract from esophagus to intestines. Breaks down food and absorbs nutrients.',                                                                tags:['Digestion','Organs','Nutrient Absorption'] },
-  { id:'dna',           file:'/models/dna.glb',                            name:'DNA Double Helix',               category:'Genetics',          icon:'🧬', color:'#38bdf8', desc:'The blueprint of life — double helix structure storing genetic information. Base pairs: A-T, C-G.',                                                               tags:['Genetics','Molecular','Heredity'] },
-  { id:'cerebellum',    file:'/models/cerebellum.glb',                     name:'Cerebellum',                     category:'Neuroscience',      icon:'🧠', color:'#f05b8b', desc:'The cerebellum coordinates voluntary movements, balance, and fine motor skills. It contains more neurons than the rest of the brain combined.',                    tags:['Nervous System','Brain','Motor Control'] },
-  { id:'humerus',       file:'/models/human_humerus_bone.glb',             name:'Humerus Bone',                   category:'Skeletal System',   icon:'🦴', color:'#f0c44a', desc:'The humerus is the long bone of the upper arm, connecting the shoulder to the elbow.',                                                                           tags:['Skeletal','Upper Limb','Bone'] },
-  { id:'ribs',          file:'/models/low_poly_skeleton_ribs.glb',         name:'Rib Cage',                       category:'Skeletal System',   icon:'🫁', color:'#f0c44a', desc:'The thoracic cage formed by 12 pairs of ribs protects the heart and lungs while enabling breathing.',                                                            tags:['Skeletal','Thorax','Protection'] },
-  { id:'phospholipid',  file:'/models/Phospholipid_bilayer_Beige.glb',     name:'Phospholipid Bilayer',           category:'Cell Biology',      icon:'🔬', color:'#4af0c4', desc:'The fundamental structure of all cell membranes — two layers of phospholipid molecules creating a selectively permeable barrier.',                             tags:['Cell Membrane','Biochemistry','Lipids'] },
-  { id:'rougher',       file:'/models/Rough_ER_Dark_Beige.glb',            name:'Rough Endoplasmic Reticulum',    category:'Cell Biology',      icon:'🔬', color:'#5b8fff', desc:'Studded with ribosomes, the Rough ER synthesizes and processes proteins destined for secretion or membrane insertion.',                                        tags:['Organelle','Protein Synthesis','Cell'] },
+  { id:'kidney',        file:`${MODEL_BASE_PATH}/human_kidney.glb`,                  name:'Human Kidney',                  category:'Urinary System',    icon:'🩸', color:'#c084fc', desc:'The kidneys filter blood, remove waste, regulate electrolytes, and produce urine. Essential for homeostasis.',                                                        tags:['Excretory','Homeostasis','Nephron'] },
+  { id:'full_skeleton', file:`${MODEL_BASE_PATH}/skeleton.glb`,                       name:'Full Skeleton',                  category:'Skeletal System',   icon:'💀', color:'#e2e8f0', desc:'Complete human skeleton — 206 bones providing structure, protection, and movement. Includes axial and appendicular skeleton.',                                     tags:['Skeletal','Anatomy','Bones'] },
+  { id:'lungs',         file:`${MODEL_BASE_PATH}/realistic_human_lungs.glb`,          name:'Realistic Human Lungs',          category:'Respiratory System',icon:'🫁', color:'#f97316', desc:'The lungs facilitate gas exchange — oxygen into blood, carbon dioxide out. Vital for respiration.',                                                              tags:['Respiratory','Gas Exchange','Thorax'] },
+  { id:'digestive_system', file:`${MODEL_BASE_PATH}/digestive_system_human_anatomy.glb`, name:'Digestive System',           category:'Digestive Anatomy', icon:'🍽️', color:'#a3e635', desc:'Complete digestive tract from esophagus to intestines. Breaks down food and absorbs nutrients.',                                                                tags:['Digestion','Organs','Nutrient Absorption'] },
+  { id:'dna',           file:`${MODEL_BASE_PATH}/dna.glb`,                            name:'DNA Double Helix',               category:'Genetics',          icon:'🧬', color:'#38bdf8', desc:'The blueprint of life — double helix structure storing genetic information. Base pairs: A-T, C-G.',                                                               tags:['Genetics','Molecular','Heredity'] },
+  { id:'cerebellum',    file:`${MODEL_BASE_PATH}/cerebellum.glb`,                     name:'Cerebellum',                     category:'Neuroscience',      icon:'🧠', color:'#f05b8b', desc:'The cerebellum coordinates voluntary movements, balance, and fine motor skills. It contains more neurons than the rest of the brain combined.',                    tags:['Nervous System','Brain','Motor Control'] },
+  { id:'humerus',       file:`${MODEL_BASE_PATH}/human_humerus_bone.glb`,             name:'Humerus Bone',                   category:'Skeletal System',   icon:'🦴', color:'#f0c44a', desc:'The humerus is the long bone of the upper arm, connecting the shoulder to the elbow.',                                                                           tags:['Skeletal','Upper Limb','Bone'] },
+  { id:'ribs',          file:`${MODEL_BASE_PATH}/low_poly_skeleton_ribs.glb`,         name:'Rib Cage',                       category:'Skeletal System',   icon:'🫁', color:'#f0c44a', desc:'The thoracic cage formed by 12 pairs of ribs protects the heart and lungs while enabling breathing.',                                                            tags:['Skeletal','Thorax','Protection'] },
+  { id:'phospholipid',  file:`${MODEL_BASE_PATH}/Phospholipid_bilayer_Beige.glb`,     name:'Phospholipid Bilayer',           category:'Cell Biology',      icon:'🔬', color:'#4af0c4', desc:'The fundamental structure of all cell membranes — two layers of phospholipid molecules creating a selectively permeable barrier.',                             tags:['Cell Membrane','Biochemistry','Lipids'] },
+  { id:'rougher',       file:`${MODEL_BASE_PATH}/Rough_ER_Dark_Beige.glb`,            name:'Rough Endoplasmic Reticulum',    category:'Cell Biology',      icon:'🔬', color:'#5b8fff', desc:'Studded with ribosomes, the Rough ER synthesizes and processes proteins destined for secretion or membrane insertion.',                                        tags:['Organelle','Protein Synthesis','Cell'] },
 ];
 
 const canvas    = document.getElementById('threeCanvas');
@@ -876,7 +877,31 @@ function toggleWireframe() {
 }
 function zoomIn()  { targetDistance=Math.max(0.3,targetDistance*0.8); }
 function zoomOut() { targetDistance=Math.min(20,targetDistance*1.25); }
-function showError(msg) { document.getElementById('loadingOverlay').classList.add('hidden'); document.getElementById('errorOverlay').classList.add('show'); document.getElementById('errorPath').textContent=msg; }
+function showError(msg) {
+  const overlay = document.getElementById('loadingOverlay');
+  const errorOverlay = document.getElementById('errorOverlay');
+  const title = document.getElementById('errorTitle');
+  const message = document.getElementById('errorMessage');
+  const path = document.getElementById('errorPath');
+
+  if (overlay) overlay.classList.add('hidden');
+  if (errorOverlay) errorOverlay.classList.add('show');
+
+  const text = String(msg || '');
+  const isWebGL = /webgl|context/i.test(text);
+
+  if (title) {
+    title.textContent = isWebGL ? 'WebGL unavailable' : 'Model file not found';
+  }
+
+  if (message) {
+    message.textContent = isWebGL
+      ? 'This browser could not create a WebGL context. Please use a modern browser with hardware acceleration enabled.'
+      : 'Make sure the .glb file is inside public/models/ in your project folder.';
+  }
+
+  if (path) path.textContent = text;
+}
 
 // ── CRITICAL FIX: keep window._currentModelIdx in sync ──
 // Use a single authoritative object so both the classic script
