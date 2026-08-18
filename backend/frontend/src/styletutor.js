@@ -2537,6 +2537,35 @@ function speakWithLaser(sentence) {
   });
 }
 
+function pauseTTS(){
+  if (TTS.aiAudio && typeof TTS.aiAudio.pause === 'function' && TTS.aiAudio.paused === false) {
+    TTS.aiAudio.pause();
+  }
+  TTS.aiPaused = true;
+
+  if ('speechSynthesis' in window && speechSynthesis.speaking && !speechSynthesis.paused) {
+    speechSynthesis.pause();
+  }
+
+  if (_laserEl) hideLaser();
+}
+
+function resumeTTS(){
+  TTS.aiPaused = false;
+
+  if (TTS.aiAudio && typeof TTS.aiAudio.play === 'function') {
+    TTS.aiAudio.play().catch(() => {});
+  }
+
+  if ('speechSynthesis' in window && speechSynthesis.paused) {
+    speechSynthesis.resume();
+  }
+
+  if (_laserSpans.length > 0 && !_laserEl?.classList.contains('hidden')) {
+    _laserActive = true;
+  }
+}
+
 function stopTTS(){ TTS.stop(); }
 
 
@@ -2712,13 +2741,14 @@ function pauseLecture(){
   lecturePaused=!lecturePaused;
   const btn=document.getElementById('pause-btn');
   if(lecturePaused){
-    stopTTS(); hideLaser();
+    pauseTTS();
     if(btn) btn.textContent='▶ চালিয়ে যাও';
     document.getElementById('lecture-question-area')?.classList.add('open');
     const statusEl = document.getElementById('lecture-status-text');
     if(statusEl) statusEl.textContent='⏸ বিরতি';
     resetVoiceQA();
   }else{
+    resumeTTS();
     if(btn) btn.textContent='⏸ বিরতি ও প্রশ্ন';
     document.getElementById('lecture-question-area')?.classList.remove('open');
     const answerEl = document.getElementById('lq-answer');
