@@ -818,16 +818,10 @@ async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
 
 
 async function groqChat(messages, system, maxTokens=400, temperature=0.72) {
-  // Try OpenRouter first
-  try {
-    const result = await openRouterChat(messages, system, maxTokens, temperature);
-    console.log('[Chat] OpenRouter success');
-    return result;
-  } catch(e) {
-    console.warn('[Chat] OpenRouter failed, falling back to Groq:', e.message);
-  }
+  // OpenRouter (openrouter/free) disabled as primary path — it leaks
+  // English system-prompt/instruction text into Bangla output. Go straight to Groq.
 
-  // Fallback — try each Groq model + key combination
+  // Try each Groq model + key combination
   for (let mi = 0; mi < GROQ_MODELS.length; mi++) {
     const model = GROQ_MODELS[mi];
     for (let ki = 0; ki < groqKeys().length; ki++) {
@@ -2755,9 +2749,12 @@ function resetVoiceQA(){
   const lbl=document.getElementById('mic-label');
   if(btn) btn.className='voice-qa-btn';
   if(lbl) lbl.textContent='প্রশ্ন করুন';
-  document.getElementById('lq-transcript').textContent='';
-  document.getElementById('lq-answer').style.display='none';
-  document.getElementById('lq-label-text').textContent='🎙️ মাইক চালু করুন — কথায় প্রশ্ন করুন';
+  const transcriptEl = document.getElementById('lq-transcript');
+  if(transcriptEl) transcriptEl.textContent='';
+  const answerEl = document.getElementById('lq-answer');
+  if(answerEl) answerEl.style.display='none';
+  const labelTextEl = document.getElementById('lq-label-text');
+  if(labelTextEl) labelTextEl.textContent='🎙️ মাইক চালু করুন — কথায় প্রশ্ন করুন';
 }
 
 function stopVoiceListening(){
