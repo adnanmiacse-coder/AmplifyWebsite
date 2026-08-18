@@ -455,7 +455,14 @@
 
     let _config = {};
     const _env = getViteEnv();
-    loadEnvConfig().then(cfg => { _config = cfg; });
+    let _azureKey    = '';
+    let _azureRegion = 'southeastasia';
+    loadEnvConfig().then(cfg => {
+      _config = cfg;
+      _azureKey    = cfg.AZURE_SPEECH_KEY    || '';
+      _azureRegion = cfg.AZURE_SPEECH_REGION || 'southeastasia';
+      console.log('[DeepLearn HTML Azure] config loaded | key present:', !!_azureKey, '| key length:', _azureKey.length, '| region:', _azureRegion);
+    });
     _config = await loadEnvConfig();
 
     function groqKeys() { return getGroqKeys(_config, _env); }
@@ -562,6 +569,12 @@
       expert3: { voice:'bn-BD-PradeepNeural',  rate:'-5%',  pitch:'-15%' },
     };
 
+    const EXPERT_AZURE_VOICES = {
+      expert1: { voice: 'bn-BD-PradeepNeural',  rate: '-5%', pitch: '-5%'  },
+      expert2: { voice: 'bn-BD-NabanitaNeural', rate: '0%',  pitch: '+8%'  },
+      expert3: { voice: 'bn-BD-PradeepNeural',  rate: '+5%', pitch: '-12%' },
+    };
+
     // DOM
     const uploadScreen=document.getElementById('upload-screen'), deeplearnScreen=document.getElementById('deeplearn-screen');
     const uploadZone=document.getElementById('uploadZone'), fileInput=document.getElementById('fileInput');
@@ -659,21 +672,49 @@
 
     // TTS
     let _currentAudio = null;
+    async function speakAzureSentence(sentence, expertId) {
+      if (!_azureKey) return false;
+      const cfg = EXPERT_AZURE_VOICES[expertId];
+      const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${cfg.voice}'><prosody rate='${cfg.rate}' pitch='${cfg.pitch}'>${sentence.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
+      try {
+        const res = await fetch(`https://${_azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+          method: 'POST',
+          headers: {'Ocp-Apim-Subscription-Key': _azureKey, 'Content-Type': 'application/ssml+xml', 'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3'},
+          body: ssml,
+        });
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '');
+          console.error(`[DeepLearn Backend Azure] HTTP ${res.status} | region:${_azureRegion} | key prefix:${_azureKey.slice(0,6)} | body:`, errBody.slice(0, 300));
+          return false;
+        }
+        const blob = await res.blob(), url = URL.createObjectURL(blob), audio = new Audio(url);
+        _currentAudio = audio;
+        await new Promise(resolve => {
+          audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+          audio.onerror = (e) => { console.error('[DeepLearn Backend Azure] playback error:', e); URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+          audio.play().catch(e => { console.error('[DeepLearn Backend Azure] play() rejected:', e.message); resolve(); });
+        });
+        return true;
+      } catch (e) {
+        console.error('[DeepLearn Backend Azure] fetch threw:', e.message);
+        return false;
+      }
+    }
     async function speak(text, expertId) {
       if (!ttsEnabled || !text?.trim()) return;
-      const tts=AGENT_TTS[expertId], key=_config?.AZURE_SPEECH_KEY||'', region=_config?.AZURE_SPEECH_REGION||'southeastasia';
-      if (!key) return;
-      if (_currentAudio) { _currentAudio.pause(); _currentAudio=null; }
-      const ssml=`<speak version='1.0' xml:lang='bn-BD'><voice name='${tts.voice}'><prosody rate='${tts.rate}' pitch='${tts.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
-      try {
-        ttsWave.classList.add('speaking');
-        ttsLabel.textContent = EXPERTS[expertId].name+' বলছেন...';
-        const res=await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,{method:'POST',headers:{'Ocp-Apim-Subscription-Key':key,'Content-Type':'application/ssml+xml','X-Microsoft-OutputFormat':'audio-24khz-48kbitrate-mono-mp3'},body:ssml});
-        if (!res.ok) throw new Error(`Azure TTS ${res.status}`);
-        const blob=await res.blob(), url=URL.createObjectURL(blob), audio=new Audio(url);
-        _currentAudio=audio;
-        await new Promise(resolve=>{audio.onended=()=>{URL.revokeObjectURL(url);_currentAudio=null;resolve();};audio.onerror=()=>{URL.revokeObjectURL(url);_currentAudio=null;resolve();};audio.play();});
-      } catch(e) { console.warn('[Azure TTS]', e.message); }
+      const sentences = text.replace(/([।?!.]+)\s+/g, '$1\n').split('\n').map(s => s.trim()).filter(s => s.length > 3);
+      ttsWave.classList.add('speaking');
+      ttsLabel.textContent = EXPERTS[expertId].name+' বলছেন...';
+      for (const sentence of sentences) {
+        if (!ttsEnabled) break;
+        if (_currentAudio) { _currentAudio.pause(); _currentAudio=null; }
+        const azureOk = await speakAzureSentence(sentence, expertId);
+        if (!azureOk) {
+          console.warn('[DeepLearn Backend TTS] Azure failed/unavailable, using browser voice for this sentence.');
+          // Browser fallback would go here
+        }
+        await new Promise(r => setTimeout(r, 120));
+      }
       ttsWave.classList.remove('speaking');
       ttsLabel.textContent = 'নীরব';
     }
