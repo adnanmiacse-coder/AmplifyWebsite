@@ -7,7 +7,14 @@ import { loadEnvConfig, getGroqKeys, getOpenRouterKeys, getGroqBase, getOpenRout
 
 let _config = {};
 const _env = getViteEnv();
-loadEnvConfig().then(cfg => { _config = cfg; });
+let _azureKey = '';
+let _azureRegion = 'southeastasia';
+loadEnvConfig().then(cfg => {
+  _config = cfg;
+  _azureKey    = cfg.AZURE_SPEECH_KEY    || '';
+  _azureRegion = cfg.AZURE_SPEECH_REGION || 'southeastasia';
+  console.log('[DeepLearn Azure] config loaded. key present:', !!_azureKey, '| key length:', _azureKey.length, '| region:', _azureRegion);
+});
 
 function groqKeys() { return getGroqKeys(_config, _env); }
 function openRouterKeys() { return getOpenRouterKeys(_config, _env); }
@@ -307,6 +314,12 @@ const AGENT_TTS = {
   expert3: { rate: 0.92, pitch: 0.85 },
 };
 
+const EXPERT_AZURE_VOICES = {
+  expert1: { voice: 'bn-BD-PradeepNeural',  rate: '-5%', pitch: '-5%'  },
+  expert2: { voice: 'bn-BD-NabanitaNeural', rate: '0%',  pitch: '+8%'  },
+  expert3: { voice: 'bn-BD-PradeepNeural',  rate: '+5%', pitch: '-12%' },
+};
+
 // ── DOM ───────────────────────────────────────
 const uploadScreen    = document.getElementById('upload-screen');
 const deeplearnScreen = document.getElementById('deeplearn-screen');
@@ -438,11 +451,62 @@ function loadVoices() {
 }
 
 // ── TTS ───────────────────────────────────────
-function speak(text, expertId) {
+async function speakAzure(text, expertId) {
+  if (!_azureKey) {
+    console.warn('[DeepLearn Azure] No key loaded — skipping Azure, going to browser fallback.');
+    return false;
+  }
+  const cfg = EXPERT_AZURE_VOICES[expertId];
+  const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${cfg.voice}'><prosody rate='${cfg.rate}' pitch='${cfg.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
+
+  try {
+    ttsWave.classList.add('speaking');
+    ttsLabel.textContent = EXPERTS[expertId].name + ' বলছেন...';
+
+    const res = await fetch(`https://${_azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+      method: 'POST',
+      headers: {
+        'Ocp-Apim-Subscription-Key': _azureKey,
+        'Content-Type': 'application/ssml+xml',
+        'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+      },
+      body: ssml,
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error(`[DeepLearn Azure] HTTP ${res.status} | region:${_azureRegion} | key prefix:${_azureKey.slice(0,6)} | body:`, errBody.slice(0, 300));
+      ttsWave.classList.remove('speaking');
+      return false;
+    }
+
+    const blob  = await res.blob();
+    const url   = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    await new Promise(resolve => {
+      audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.onerror = (e) => { console.error('[DeepLearn Azure] audio playback error:', e); URL.revokeObjectURL(url); resolve(); };
+      audio.play().catch(e => { console.error('[DeepLearn Azure] audio.play() rejected:', e.message); resolve(); });
+    });
+
+    ttsWave.classList.remove('speaking');
+    ttsLabel.textContent = 'নীরব';
+    return true;
+  } catch (e) {
+    console.error('[DeepLearn Azure] fetch threw:', e.message);
+    ttsWave.classList.remove('speaking');
+    return false;
+  }
+}
+
+function speakBrowser(text, expertId) {
   return new Promise(resolve => {
-    if (!ttsEnabled) { resolve(); return; }
     const voice = agentVoiceMap[expertId];
-    if (!voice)  { resolve(); return; }
+    if (!voice) {
+      console.warn('[DeepLearn Browser TTS] No browser voice available either — silent.');
+      resolve();
+      return;
+    }
     const tts = AGENT_TTS[expertId];
     speechSynthesis.cancel();
     const utt   = new SpeechSynthesisUtterance(text);
@@ -453,9 +517,18 @@ function speak(text, expertId) {
     ttsWave.classList.add('speaking');
     ttsLabel.textContent = EXPERTS[expertId].name + ' বলছেন...';
     utt.onend   = () => { ttsWave.classList.remove('speaking'); ttsLabel.textContent = 'নীরব'; resolve(); };
-    utt.onerror = () => { ttsWave.classList.remove('speaking'); ttsLabel.textContent = 'নীরব'; resolve(); };
+    utt.onerror = (e) => { console.warn('[DeepLearn Browser TTS] error:', e.error); ttsWave.classList.remove('speaking'); ttsLabel.textContent = 'নীরব'; resolve(); };
     speechSynthesis.speak(utt);
   });
+}
+
+async function speak(text, expertId) {
+  if (!ttsEnabled || !text?.trim()) return;
+  const azureOk = await speakAzure(text, expertId);
+  if (!azureOk) {
+    console.warn('[DeepLearn TTS] Azure failed or unavailable, falling back to browser voice.');
+    await speakBrowser(text, expertId);
+  }
 }
 
 ttsToggle.addEventListener('click', () => {
