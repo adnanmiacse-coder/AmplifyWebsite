@@ -25,7 +25,9 @@
 11. [Performance Metrics](#performance-metrics)
 12. [Troubleshooting](#troubleshooting)
 13. [Contributing](#contributing)
-14. [License](#license)
+14. [NCTB Textbook Q&A Assistant](#nctb-textbook-qa-assistant)
+15. [License](#license)
+16. [Flutter Mobile App](#flutter-mobile-app)
 
 ---
 
@@ -598,6 +600,93 @@ GET /api/analytics/classroom/{id}/dashboard
 
 ---
 
+## NCTB Textbook Q&A Assistant
+
+Amplify also includes a dedicated Retrieval-Augmented Generation (RAG) chatbot for Class 11-12 NCTB textbook questions. The assistant grounds its answers in the selected textbook rather than relying only on the language model's general knowledge. It supports English, Bangla, and ICT materials and is available as a standalone deployed application on Hugging Face:
+
+**Live chatbot:** [NCTB Textbook Q&A Assistant on Hugging Face](https://huggingface.co/spaces/addyjeddy/book-chatbot-better/tree/main)
+
+### Capabilities
+
+- **Multi-subject support:** English, Bangla (বাংলা), and ICT textbooks
+- **Hybrid retrieval:** Combines semantic similarity from FAISS with keyword matching to retrieve relevant textbook passages
+- **LLM inference:** Uses Groq-hosted models, including GPT-OSS 120B, with a configurable model mapping
+- **Language-aware processing:** Performs Bengali spelling correction when needed and preserves the language of the student's question
+- **Voice input:** Uses the browser Web Speech API for English and Bengali speech-to-text input
+- **Conversation history:** Saves conversations with timestamps and restores them across browser sessions
+- **Revision export:** Generates PDF revision material from chat history, including Noto Sans Bengali font support
+- **Graceful failures:** Retries transient API errors with exponential backoff and provides a useful response when a retrieval or model service is unavailable
+
+### RAG architecture
+
+```mermaid
+flowchart LR
+   Q[Student question] --> S[Subject selection]
+   S --> R1[FAISS semantic search]
+   S --> R2[Keyword matching]
+   R1 --> M[Merge and rank context]
+   R2 --> M
+   M --> C[Textbook-grounded prompt]
+   C --> G[Groq LLM inference]
+   G --> H[Save chat history]
+   H --> A[Display answer or export PDF]
+```
+
+The retrieval process searches the FAISS index for the selected textbook and combines the best semantic results with keyword matches. The resulting context is truncated to a controlled size before it is passed to the LLM, which reduces irrelevant context and helps keep answers grounded in NCTB content. The default retrieval configuration is:
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| Semantic results (`semantic_k`) | 3 | Top vector-similarity matches |
+| Keyword results (`keyword_n`) | 2 | Additional exact or lexical matches |
+| Combined results (`max_results`) | 4 | Maximum context documents sent onward |
+| Per-document limit (`truncate_chars`) | 800 characters | Keeps individual passages focused |
+| Total context limit (`context_chars`) | 2,000 characters | Bounds the final prompt context |
+
+### Technology stack and index structure
+
+- **Interface:** Gradio with custom responsive dark-theme CSS
+- **Embeddings:** `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
+- **Vector database:** FAISS (`faiss-cpu`) with 384-dimensional multilingual embeddings
+- **Language model:** Groq API using `openai/gpt-oss-120b` by default
+- **PDF generation:** FPDF with Noto Sans Bengali font support
+- **Speech recognition:** Browser-side Web Speech API
+- **Conversation persistence:** JSON-backed history and browser session persistence
+
+Each textbook index contains document embeddings, source and chapter metadata, and a document store containing the original passage text. The expected index directories are:
+
+- `nctb_english_index_v2` - English textbook
+- `nctb_bangla_index_v2` - Bengali textbook
+- `nctb_ict_index_better` - ICT textbook
+
+### Running the chatbot locally
+
+The standalone chatbot requires Python 3.8 or newer, a Groq API key, and approximately 2-4 GB of disk space for the textbook indexes. Install its dependencies and configure the key before starting Gradio:
+
+```bash
+pip install gradio langchain-community langchain-huggingface langchain-groq faiss-cpu fpdf sentence-transformers
+export GROQ_API_KEY="your-groq-api-key-here"
+python app.py
+```
+
+The local interface is served at `http://127.0.0.1:7860`. Place the pre-built FAISS indexes in the application root before asking questions. The active model can be changed through the model mapping, for example:
+
+```python
+GROQ_MODELS = {
+   "GPT-OSS 120B": "openai/gpt-oss-120b",
+}
+```
+
+### Typical interaction flow
+
+1. The student selects a textbook and types or speaks a question.
+2. The assistant optionally corrects Bengali spelling.
+3. Hybrid retrieval searches the selected FAISS index.
+4. Retrieved passages are assembled into a grounded system prompt.
+5. Groq generates the answer using the chosen model.
+6. The question and answer are saved to history for later review or PDF export.
+
+For questions outside the selected textbook, students can rephrase the question or choose a more relevant subject. If an index cannot be loaded, check that its directory is in the application root and that the process has read permission. If responses are slow, the first request may be loading the embedding model and FAISS index into memory.
+
 ## 📄 License
 
 This project is licensed under the **MIT License** — see [LICENSE](LICENSE) file for details.
@@ -625,3 +714,142 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 **Last Updated:** September 2, 2025  
 **Version:** 1.0.0  
 **Maintainer:** Amplify Development Team
+
+---
+
+## Flutter Mobile App
+
+Amplify is also available as a dedicated Flutter and Dart mobile application. The app is designed as an offline-first virtual learning lab that helps students **visualize, not memorize**. It extends the web platform with mobile-friendly interactive simulations, programming tools, AI learning assistance, exam preparation resources, educational content, and services for students with limited internet access.
+
+**Mobile app source repository:** [github.com/Adnann07/Amplifyapp](https://github.com/Adnann07/Amplifyapp)
+**Download/access the app:** [amplifywebsite-production.up.railway.app](https://amplifywebsite-production.up.railway.app)
+
+### Mobile app capabilities
+
+#### Virtual learning labs
+
+- **Physics Lab:** Interactive simulations for mechanics, optics, electricity, and related concepts
+- **Chemistry Lab:** Molecular models, reaction simulations, and periodic-table exploration
+- **Biology Lab:** 3D organ models, cell structures, and ecosystem visualizations
+- **Math Lab:** Graph plotters, geometry tools, and equation solvers
+- **ICT Lab:** Programming exercises with syntax highlighting and code execution
+- **Mechanical engineering visuals:** 3D components, assemblies, operation animations, and engineering diagrams
+- **Robotics knowledge:** Introductory robotics concepts, robot programming, and real-world applications
+
+#### DSA and programming
+
+- Step-by-step data structure and algorithm visualizations
+- Demonstrations of arrays, linked lists, trees, and graphs
+- Complexity analysis tools
+- Built-in C compiler for writing, compiling, and running programs
+- More than 30 ICT fundamentals exercises and tutorials
+- Syntax highlighting, error detection, sample programs, and guided learning materials
+
+#### AI-powered learning tools
+
+- AI assistant powered by the Llama API for context-aware explanations
+- Automatic study-notes generation from any topic
+- Personalized flashcard generation
+- AI-generated quizzes for practice and revision
+- Homework support, concept clarification, and interactive question-and-answer sessions
+
+#### Exam preparation and educational content
+
+- Free HSC exam preparation content and topic-based quizzes
+- MBBS flashcards for medical terminology and concepts
+- IELTS preparation exams
+- Vocabulary builder with more than 300 essential words
+- English grammar, comprehension, and writing foundations
+- Educational audiobooks and subject-specific audio content
+- Text-to-speech support for learning materials
+- Progress tracking and learning analytics
+
+#### Academic, rural, and engagement services
+
+- University admission updates, deadlines, and scholarship opportunities
+- Emergency management lessons covering disaster preparedness, first aid, and safety
+- Gamified learning for younger students in Classes 1-5
+- Brain exercises for mental math, memory, and reaction time
+- Leaderboards, achievement badges, and engaging learning paths
+- SMS services for students without reliable internet access or smartphones, including exam suggestions, daily vocabulary, scientific facts, study tips, and mnemonics
+- OTP-based subscription verification, premium-content access, and subscription plans
+
+### Flutter application architecture
+
+```mermaid
+flowchart TB
+   U[Student using Flutter app] --> P[Provider state management]
+   P --> F[Feature modules]
+   F --> L[Virtual labs and 3D content]
+   F --> AI[AI assistant, notes, flashcards, quizzes]
+   F --> E[Exam resources and gamification]
+   F --> SMS[SMS, OTP, and subscription services]
+   P --> C[Offline cache and shared_preferences]
+   F --> H[HTTP REST client]
+   H --> PHP[Custom PHP API]
+   PHP --> AWS[AWS EC2 Ubuntu server]
+   AWS --> FS[JSON and text file storage]
+   F --> T[Third-party services]
+   T --> LL[Llama API]
+   T --> AP[Applink SMS and subscription APIs]
+   T --> CAAS[CaaS billing and messaging API]
+```
+
+The app follows a modular client-server architecture. Flutter provides the cross-platform UI, while Dart feature modules communicate with a custom PHP backend through RESTful HTTP requests. Provider coordinates shared application state, loading states, and feature-level updates. Content that is needed repeatedly is cached locally, allowing core learning experiences to remain available when connectivity is intermittent or unavailable.
+
+The backend is hosted on an AWS EC2 Ubuntu environment and uses local JSON/text storage for the app's server-side records. External services provide AI generation through the Llama API, OTP and SMS delivery through Applink, subscription operations through the Applink subscription service, and carrier billing or messaging through the CaaS API.
+
+### Flutter technology stack
+
+| Layer | Technology | Responsibility |
+|------|------------|----------------|
+| Application framework | Flutter and Dart | Cross-platform mobile interface and application logic |
+| State management | Provider | Reactive state, service access, and feature coordination |
+| Networking | `http` package | REST API requests to the PHP backend and external services |
+| Web parsing | `html` package | Parsing web-based academic and opportunity content |
+| Local persistence | `shared_preferences` | Lightweight settings, cached content, and offline state |
+| 3D content | `model_viewer_plus` | Displaying interactive 3D educational models |
+| Embedded content | `webview_flutter` | Presenting compatible web learning experiences inside the app |
+| Speech | `flutter_tts` | Reading learning content aloud |
+| Device input | `sensors_plus` | Accessing device sensor data for interactive experiences |
+| Charts | `fl_chart` | Progress tracking and data visualization |
+| Analytics | `firebase_core`, `firebase_analytics` | Firebase initialization and usage analytics |
+
+### Offline-first design
+
+Offline support is a core part of the mobile experience rather than an afterthought. The app can cache downloaded learning content and lightweight user preferences through `shared_preferences`. Students can therefore revisit selected lessons, basic lab material, quizzes, and other downloaded resources without maintaining a continuous connection. When the connection returns, network-backed features such as AI assistance, live academic updates, SMS operations, and subscription actions can communicate with their respective services.
+
+### Getting started with the Flutter app
+
+#### Prerequisites
+
+- Flutter SDK `>=3.7.2 <4.0.0`
+- Android Studio or VS Code with Flutter extensions
+- Android device or emulator with minimum SDK 21
+
+#### Installation and development
+
+```bash
+git clone https://github.com/Adnann07/Amplifyapp.git
+cd Amplifyapp
+flutter pub get
+flutter run
+```
+
+To create a release APK:
+
+```bash
+flutter build apk --release
+```
+
+For the ready-to-use app or the latest distribution instructions, visit the live Amplify website: [amplifywebsite-production.up.railway.app](https://amplifywebsite-production.up.railway.app).
+
+### Typical mobile workflow
+
+1. Open the app and choose a subject or learning area.
+2. Explore a virtual lab, DSA visualization, programming exercise, or academic resource.
+3. Use the AI assistant to ask questions, create notes, generate flashcards, or build quizzes.
+4. Download relevant content for later offline study.
+5. Practice with HSC, IELTS, MBBS, vocabulary, or gamified learning resources.
+6. Use SMS services when smartphone or internet access is limited.
+7. Authenticate with OTP and subscribe when premium content or services are required.
