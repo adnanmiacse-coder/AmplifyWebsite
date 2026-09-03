@@ -8,6 +8,27 @@
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![Built with](https://img.shields.io/badge/Built%20with-Laravel%20%7C%20Python%20%7C%20JavaScript-blue)
 
+[![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)](https://laravel.com/)
+[![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES6%2B-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+[![Flutter](https://img.shields.io/badge/Flutter-Mobile%20App-02569B?logo=flutter&logoColor=white)](https://github.com/Adnann07/Amplifyapp)
+[![Dart](https://img.shields.io/badge/Dart-Mobile%20Client-0175C2?logo=dart&logoColor=white)](https://dart.dev/)
+[![Manim](https://img.shields.io/badge/Manim-Visualizations-000000?logo=python&logoColor=white)](https://www.manim.community/)
+[![Three.js](https://img.shields.io/badge/Three.js-3D%20Labs-000000?logo=threedotjs&logoColor=white)](https://threejs.org/)
+[![Neo4j](https://img.shields.io/badge/Neo4j-Knowledge%20Graph-4581C3?logo=neo4j&logoColor=white)](https://neo4j.com/)
+[![FAISS](https://img.shields.io/badge/FAISS-Vector%20Search-0467DF?logo=meta&logoColor=white)](https://github.com/facebookresearch/faiss)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Agent%20Workflows-1C3C3C?logo=langchain&logoColor=white)](https://langchain-ai.github.io/langgraph/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![Redis](https://img.shields.io/badge/Redis-Cache%20%26%20Queues-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/Docker-Deployment-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![AWS](https://img.shields.io/badge/AWS-EC2%20Mobile%20Backend-FF9900?logo=amazonaws&logoColor=white)](https://aws.amazon.com/ec2/)
+[![Railway](https://img.shields.io/badge/Railway-Live%20Deployment-000000?logo=railway&logoColor=white)](https://amplifywebsite-production.up.railway.app)
+[![Groq](https://img.shields.io/badge/Groq-LLM%20Inference-F55036?logo=groq&logoColor=white)](https://groq.com/)
+[![OpenRouter](https://img.shields.io/badge/OpenRouter-Model%20Routing-6466F1?logo=openrouter&logoColor=white)](https://openrouter.ai/)
+[![Azure](https://img.shields.io/badge/Azure-Speech%20Services-0078D4?logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/products/ai-services/ai-speech)
+
 ---
 
 ## 📋 Table of Contents
