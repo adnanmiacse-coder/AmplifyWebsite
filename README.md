@@ -1,5 +1,7 @@
 # Amplify: Adaptive AI-Powered Learning Platform
 
+> **Live Platform:** [amplifywebsite-production.up.railway.app](https://amplifywebsite-production.up.railway.app)
+
 > **Don't Memorise, Visualise** — A revolutionary adaptive learning platform built for Bangladesh, designed to transform passive textbook learning into intelligent, personalized education powered by cutting-edge AI models.
 
 ![Project Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen)
@@ -13,15 +15,17 @@
 1. [Project Overview](#project-overview)
 2. [Core Features & Use Cases](#core-features--use-cases)
 3. [Technical Architecture](#technical-architecture)
-4. [AI Models & Methodologies](#ai-models--methodologies)
-5. [Data Privacy & Security](#data-privacy--security)
-6. [Installation & Setup](#installation--setup)
-7. [Usage Guide](#usage-guide)
-8. [API Documentation](#api-documentation)
-9. [Performance Metrics](#performance-metrics)
-10. [Troubleshooting](#troubleshooting)
-11. [Contributing](#contributing)
-12. [License](#license)
+4. [Manim Visualization Pipeline](#manim-visualization-pipeline)
+5. [Database Architecture](#database-architecture)
+6. [AI Models & Methodologies](#ai-models--methodologies)
+7. [Data Privacy & Security](#data-privacy--security)
+8. [Installation & Setup](#installation--setup)
+9. [Usage Guide](#usage-guide)
+10. [API Documentation](#api-documentation)
+11. [Performance Metrics](#performance-metrics)
+12. [Troubleshooting](#troubleshooting)
+13. [Contributing](#contributing)
+14. [License](#license)
 
 ---
 
@@ -236,19 +240,88 @@ Student Query → Vector Search (Top-K=4)
 - 30-second cooldown between warnings
 - 30 FPS detection rate
 
-### Manim Animation Generation
+## Manim Visualization Pipeline
 
-**Workflow:**
-1. LLM generates Python Manim code
-2. Syntax validation and variable checking
-3. Sandboxed execution (15s timeout, 512MB memory)
-4. MP4 output at 480p resolution
-5. 24-hour HTTP caching
+Manim is used as a server-side rendering engine for short, concept-focused visual explanations. The browser requests a visual from the tutor interface, while the Python/FastAPI service performs code generation and video rendering. The generated MP4 is then played by the normal HTML5 video player.
 
-### Knowledge Graph (Neo4j)
+#### Request-to-video flow
 
-**Nodes:** Concepts, Experiments, Students
-**Relationships:** Prerequisites, Related Topics, Mastered, Struggling
+```mermaid
+flowchart LR
+   A[Lesson text or tutor prompt] --> B[Frontend fetchAnimatedVisual]
+   B --> C[FastAPI POST /generate]
+   C --> D[OpenRouter LLM generates Manim Python]
+   D --> E[AST syntax validation]
+   E --> F[Pre-flight API and undefined-name checks]
+   F --> G[Manim Community Edition render]
+   G --> H[MP4 moved to backend/videos]
+   H --> I[GET /videos/job-id.mp4]
+   I --> J[Autoplay loop in lecture visual panel]
+```
+
+#### Implementation details
+
+1. **Prompt construction:** `generate_manim_code()` sends the lesson topic and optional context to an OpenRouter-compatible chat client. The model is instructed to return executable Python, use a `Scene` class based on `MovingCameraScene`, and prefer a small set of reliable Manim primitives such as `Text`, `Circle`, `Line`, `Arrow`, `VGroup`, `Create`, `Write`, and `Transform`.
+2. **Pre-render validation:** The service parses generated code with Python `ast`. If the first response has invalid syntax, it retries with a simpler generation prompt. `sanitize_code()` also checks for undefined names and known camera API mistakes, then asks the LLM for a corrected version before rendering.
+3. **Rendering:** Each request receives an eight-character UUID job ID. The generated scene is written to `backend/scenes/scene_<job-id>.py`. Manim is invoked through the same Python interpreter as FastAPI with low-quality preview rendering (`-ql`), the `Scene` class, and a job-specific media directory. This produces a 480p15 MP4 that is moved to `backend/videos/<job-id>.mp4`.
+4. **Reliability controls:** The endpoint checks that Manim is installed before generation, retries failed renders up to three times, regenerates simpler code for syntax failures, and asks the LLM to repair other render errors. A render that exceeds the 120-second subprocess timeout returns a gateway timeout instead of leaving the request hanging.
+5. **Frontend delivery:** The frontend calls the deployed FastAPI `/generate` endpoint, receives the `video_url`, and creates a blob URL for the returned MP4. The lecture panel displays it in a muted, autoplaying, looping `<video>` element. If generation fails, the UI shows its configured fallback visual.
+
+Manim is a generated-media subsystem, not the browser's 3D engine. Three.js remains responsible for interactive lab scenes, while Manim is responsible for deterministic explanatory animations rendered on the backend.
+
+## 🗄️ Database Architecture
+
+Amplify uses separate storage mechanisms for different data shapes instead of forcing authentication, graph relationships, and document search into one database. Laravel is the system of record for relational application data; the tutor uses graph and browser-local stores for learning context.
+
+```mermaid
+flowchart TB
+   UI[Frontend applications] -->|Auth and classroom API| L[Laravel API]
+   UI -->|Tutor graph queries when enabled| N[Neo4j]
+   UI -->|Document chunks, TF-IDF index, chat snapshot| LS[Browser localStorage]
+   L --> SQL[(SQL database)]
+   F[FastAPI AI service] --> N
+   F --> V[Generated videos and scene files]
+   SQL -. optional cache or queue driver .-> R[(Redis)]
+```
+
+### 1. Laravel SQL database: transactional application data
+
+Laravel reads the connection from `DB_CONNECTION` and defaults to SQLite when no value is supplied. The repository includes migrations for:
+
+- `users`, including the student/teacher role used by authentication and classroom authorization
+- `personal_access_tokens` for Laravel Sanctum API tokens
+- `classrooms`, owned by a teacher and identified by a unique enrollment code
+- `classroom_student`, the many-to-many relationship between students and classrooms
+- `classroom_notifications`, messages associated with a classroom
+- Laravel's cache and queue support tables
+
+For containerized deployment, `docker-compose.yml` provisions MySQL 8.0 as the `db` service. The PHP application connects to it through `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD`. MySQL is the intended production-style relational backend in the included Docker setup, while SQLite is convenient for local development and tests. PostgreSQL and MariaDB are also defined as Laravel adapters in `config/database.php`, but they are not separately provisioned by the repository's Docker Compose file.
+
+### 2. Neo4j: optional knowledge graph for tutor relationships
+
+Neo4j stores relationships that are naturally represented as a graph: document concepts, topic connections, prerequisites, and learning-state links such as mastered or struggling. The tutor frontend connects through Neo4j's transactional HTTP endpoint when `NEO4J_HOST`, `NEO4J_USER`, and `NEO4J_PASS` are available. The Python service also exposes a `/neo4j` proxy backed by the official async Neo4j driver and `NEO4J_URI`/`NEO4J_PASS` environment variables.
+
+Neo4j is optional. On startup or connection failure, the tutor falls back to browser storage rather than making basic document study depend on an external graph database. This makes the feature usable in local or offline-oriented deployments while preserving richer graph traversal when Neo4j is configured.
+
+### 3. Browser-local TF-IDF store: document retrieval fallback
+
+The document tutor parses and chunks uploaded material in the frontend. Its local retrieval path uses a TF-IDF vector store rather than a hosted vector database. A document snapshot includes chunk text, page numbers, token statistics, graph metadata, and chat history, and is stored in `localStorage` under `amplify_tutor_documents`.
+
+The local store is bounded to the most recent 20 documents. It supports offline study and keeps retrieval state in the browser. When Neo4j is enabled, graph metadata can be synchronized there; localStorage remains the fallback and the client-side cache for the tutor experience.
+
+### 4. Redis, queues, and cache configuration
+
+Laravel defines Redis connections for the default and cache databases and supports Redis as a queue, cache, session, or application backend through environment configuration. Redis is not required by the core Docker Compose definition, which currently provisions MySQL only. Deployments that need background rendering, high-volume classroom events, or shared cache state can enable Redis with the corresponding Laravel `REDIS_*`, `CACHE_STORE`, `QUEUE_CONNECTION`, or `SESSION_DRIVER` variables.
+
+### Data ownership summary
+
+| Data | Primary store | Purpose | Required? |
+|------|---------------|---------|-----------|
+| Users, roles, classrooms, memberships, notifications | Laravel SQL (SQLite/MySQL/etc.) | Transactions, authorization, and durable application records | Yes |
+| Concepts, prerequisites, and learning relationships | Neo4j | Graph traversal and knowledge context | Optional |
+| PDF chunks and local tutor snapshots | Browser `localStorage` with TF-IDF index | Offline-capable retrieval and session continuity | Fallback path |
+| Rendered Manim MP4 files | FastAPI `backend/videos` directory | Visual delivery through `/videos` | Created per render |
+| Cache, queue, and session state | Laravel file/database/Redis drivers | Operational scaling and asynchronous work | Configurable |
 
 ---
 
