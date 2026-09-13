@@ -206,6 +206,9 @@ h1 span{color:var(--acc)}
       <button id="voiceBtn" onclick="startVoiceCommand()" title="Speak an experiment name" style="display:flex;align-items:center;gap:7px;background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.25);color:var(--acc);font-family:var(--mono);font-size:11px;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all 0.2s;letter-spacing:.5px;">
         <span id="micIcon">🎙️</span><span id="voiceBtnLabel">Speak Experiment</span>
       </button>
+      <button id="autoplayBtn" onclick="startSilentAutoplay()" title="Run all chemistry experiments automatically without narration" style="display:flex;align-items:center;gap:7px;background:rgba(0,180,255,0.08);border:1px solid rgba(0,180,255,0.3);color:#66d9ff;font-family:var(--mono);font-size:11px;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all 0.2s;letter-spacing:.5px;">
+        <span>▶</span><span>Auto Lab</span>
+      </button>
     </div>
   </div>
 </header>
@@ -1750,9 +1753,14 @@ const SECTION_MAP = [
   { keys: ['heat', 'enthalpy', 'calorimetry'],
     label: 'Heat Experiments',
     experiments: ['heat','cuso4'] },
+  { keys: ['all', 'everything', 'all experiments'],
+    label: 'All Experiments',
+    experiments: ['nh4','fe2','fe3','cu2','zn2','pb2','co3','so4','cl','acetate','no3','titration','redox','heat','rate1','h2o2','alcohol','aldehyde','na2co3','distill'] },
 ];
 
 const SESSION = { active: false, queue: [], index: 0, label: '' };
+let silentAutoplayActive = false;
+let silentAutoplayTimer = null;
 
 function matchSection(transcript) {
   const t = transcript.toLowerCase();
@@ -1853,10 +1861,63 @@ function runGuidedSession() {
 
 function stopSession() {
   SESSION.active = false;
+  stopSilentAutoplay(false);
   window.speechSynthesis.cancel();
   const stopBtn = document.getElementById('stopSessionBtn');
   if (stopBtn) stopBtn.style.display = 'none';
   showToast('Session ended.', 2000);
+}
+
+function stopSilentAutoplay(showMessage = true) {
+  silentAutoplayActive = false;
+  if (silentAutoplayTimer) {
+    clearTimeout(silentAutoplayTimer);
+    silentAutoplayTimer = null;
+  }
+  const autoplayBtn = document.getElementById('autoplayBtn');
+  if (autoplayBtn) {
+    autoplayBtn.innerHTML = '<span>▶</span><span>Auto Lab</span>';
+    autoplayBtn.style.color = '#66d9ff';
+  }
+  if (showMessage) showToast('Auto Lab stopped.', 2000);
+}
+
+function startSilentAutoplay() {
+  if (silentAutoplayActive) {
+    stopSilentAutoplay();
+    return;
+  }
+  stopSilentAutoplay(false);
+  SESSION.active = false;
+  window.speechSynthesis.cancel();
+  const queue = SECTION_MAP.find(section => section.label === 'All Experiments')?.experiments.filter(key => EXP[key]) || [];
+  if (!queue.length) return;
+
+  silentAutoplayActive = true;
+  SESSION.queue = queue;
+  SESSION.index = 0;
+  SESSION.label = 'All Experiments';
+  const autoplayBtn = document.getElementById('autoplayBtn');
+  if (autoplayBtn) {
+    autoplayBtn.innerHTML = '<span>⏹</span><span>Stop Auto Lab</span>';
+    autoplayBtn.style.color = '#ff8b8b';
+  }
+  const first = SESSION.queue[0];
+  openLab(VOICE_MAP.find(entry => entry.key === first)?.name || first, first);
+  silentAutoplayTimer = setTimeout(() => autoRunExperiment(EXP[first]), 800);
+}
+
+function runNextSilentExperiment() {
+  if (!silentAutoplayActive) return;
+  SESSION.index += 1;
+  if (SESSION.index >= SESSION.queue.length) {
+    stopSilentAutoplay(false);
+    showToast('All chemistry experiments completed.', 3500);
+    return;
+  }
+  const key = SESSION.queue[SESSION.index];
+  openLab(VOICE_MAP.find(entry => entry.key === key)?.name || key, key);
+  silentAutoplayTimer = setTimeout(() => autoRunExperiment(EXP[key]), 800);
 }
 
 // ===================== VOICE ASSISTANT =====================
@@ -1904,6 +1965,7 @@ function stopAllSpeech(){
   _justAnsweredQuiz = false;
   if(quizResolve){ quizResolve('(stopped)'); }
   SESSION.active = false;
+  stopSilentAutoplay(false);
   const stopBtn = document.getElementById('stopSessionBtn');
   if(stopBtn) stopBtn.style.display = 'none';
 }
@@ -1961,6 +2023,10 @@ function autoRunExperiment(exp){
 
   function runStep(){
     if(i >= reagents.length){
+      if(silentAutoplayActive){
+        silentAutoplayTimer = setTimeout(runNextSilentExperiment, 1200);
+        return;
+      }
       if(SESSION.active) setTimeout(runGuidedSession, 1500);
       return;
     }
@@ -1970,6 +2036,11 @@ function autoRunExperiment(exp){
       addReagent(i, reagent, btn);
       const stepText = exp.steps[i] ? exp.steps[i] : reagent.label;
       const obsText = reagent.obs || '';
+      if(silentAutoplayActive){
+        i++;
+        silentAutoplayTimer = setTimeout(runStep, 900);
+        return;
+      }
       speak(`Step ${i+1}. ${stepText}. ${obsText}`, ()=>{
         i++;
         setTimeout(runStep, 1200);
