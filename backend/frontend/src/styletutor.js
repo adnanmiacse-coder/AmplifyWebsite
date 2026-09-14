@@ -335,7 +335,7 @@ async function drainOCRQueue() {
     } catch(e) {
       reject(e);
     }
-    if (_ocrQueue.length > 0) await sleep(2200); // 2.2s gap between OCR calls
+    if (_ocrQueue.length > 0) await sleep(2210); // 2.2s gap between OCR calls
   }
   _ocrRunning = false;
 }
