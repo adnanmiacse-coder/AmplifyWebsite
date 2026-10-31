@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  const API_BASE = window.AMPLIFY_API_BASE || '/api';
+  const API_BASE = (window.AMPLIFY_API_BASE || import.meta.env?.VITE_API_BASE || '/api').replace(/\/+$/, '');
 
   // ── Storage helpers ────────────────────────────────────────────────────
   const Auth = {
@@ -58,12 +58,14 @@
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(body),
     });
-    const data = await res.json();
+    const contentType = res.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await res.json() : null;
     if (!res.ok) {
-      const msg = data.message
-        || (data.errors ? Object.values(data.errors).flat().join(' ') : 'An error occurred.');
+      const msg = data?.message
+        || (data?.errors ? Object.values(data.errors).flat().join(' ') : `Request failed (${res.status}).`);
       throw new Error(msg);
     }
+    if (!data) throw new Error('The server returned an invalid response. Check the API URL and try again.');
     return data;
   }
 
