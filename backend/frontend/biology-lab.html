@@ -1097,20 +1097,40 @@ window.sendAiQuestion = sendAiQuestion;
 <!-- AI BANGLA VOICEOVER SYSTEM -->
 <script type="module">
 console.log('[ENV CHECK]', JSON.stringify(window.AMPLIFY_ENV));
-function getAPI() {
+// ══════════════════════════════════════════════════════════════════════
+//  AI VOICE-OVER MODULE — DYNAMIC AI RESPONSE ONLY (NO HARDCODED DATA)
+// ══════════════════════════════════════════════════════════════════════
+
+function getAllAPICandidates() {
   const env = window.AMPLIFY_ENV || {};
-  if (env.CEREBRAS_KEY || env.CEREBRAS_API_KEY) {
-    return { key: env.CEREBRAS_KEY || env.CEREBRAS_API_KEY, base: env.CEREBRAS_BASE || env.CEREBRAS_API_BASE_URL || 'https://api.cerebras.ai/v1', model: 'llama-3.3-70b' };
+  const list = [];
+
+  // 1. Groq (Fastest & high rate limits)
+  const groqKeys = (Array.isArray(env.GROQ_KEYS) && env.GROQ_KEYS.length ? env.GROQ_KEYS : [])
+    .concat(env.GROQ_KEY ? [env.GROQ_KEY] : [])
+    .concat(window.GROQ_API_KEY ? [window.GROQ_API_KEY] : []);
+  const uniqueGroq = Array.from(new Set(groqKeys.filter(Boolean)));
+  for (const k of uniqueGroq) {
+    list.push({ provider: 'Groq', key: k, base: env.GROQ_BASE || 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b' });
+    list.push({ provider: 'Groq', key: k, base: env.GROQ_BASE || 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' });
   }
-  const orKey = (env.OPENROUTER_KEYS || [])[0] || '';
-  if (orKey) {
-    return { key: orKey, base: env.OPENROUTER_BASE || 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' };
+
+  // 2. Cerebras
+  const cerebrasKey = env.CEREBRAS_KEY || env.CEREBRAS_API_KEY || window.CEREBRAS_API_KEY || '';
+  if (cerebrasKey) {
+    list.push({ provider: 'Cerebras', key: cerebrasKey, base: env.CEREBRAS_BASE || 'https://api.cerebras.ai/v1', model: 'llama-3.3-70b' });
+    list.push({ provider: 'Cerebras', key: cerebrasKey, base: env.CEREBRAS_BASE || 'https://api.cerebras.ai/v1', model: 'llama3.1-8b' });
   }
-  const groqKey = (env.GROQ_KEYS || [])[0] || env.GROQ_KEY || '';
-  if (groqKey) {
-    return { key: groqKey, base: env.GROQ_BASE || 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b' };
+
+  // 3. OpenRouter
+  const orKeys = (Array.isArray(env.OPENROUTER_KEYS) && env.OPENROUTER_KEYS.length ? env.OPENROUTER_KEYS : [])
+    .concat(env.OPENROUTER_API_KEYS || []);
+  const uniqueOr = Array.from(new Set(orKeys.filter(Boolean)));
+  for (const k of uniqueOr) {
+    list.push({ provider: 'OpenRouter', key: k, base: env.OPENROUTER_BASE || 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' });
   }
-  return null;
+
+  return list;
 }
 
 const btn        = document.getElementById('voBtn');
@@ -1129,19 +1149,6 @@ let voSegments = [];
 let voSegIdx   = 0;
 let voTimers   = [];
 
-const FALLBACK_SEGMENTS = {
-  kidney:           [{ label:'কিডনি',        text:'কিডনি মানবদেহের একটি অত্যন্ত গুরুত্বপূর্ণ অঙ্গ। এটি রক্ত পরিশোধন করে এবং শরীরে পানি ও লবণের ভারসাম্য রক্ষা করে।', zoom:2.8, phi:Math.PI/2, theta:0 }],
-  full_skeleton:    [{ label:'কঙ্কাল',       text:'মানব কঙ্কাল ২০৬টি হাড় নিয়ে গঠিত। এটি শরীরকে কাঠামো দেয়, অঙ্গ রক্ষা করে এবং চলাচলে সাহায্য করে।', zoom:2.8, phi:Math.PI/2, theta:0 }],
-  lungs:            [{ label:'ফুসফুস',       text:'ফুসফুস শ্বাসতন্ত্রের প্রধান অঙ্গ। বাতাস থেকে অক্সিজেন রক্তে নেওয়া এবং কার্বন ডাইঅক্সাইড বের করে দেওয়াই এর কাজ।', zoom:2.8, phi:Math.PI/2, theta:0 }],
-  digestive_system: [{ label:'পরিপাকতন্ত্র', text:'পরিপাকতন্ত্র খাদ্যকে ক্ষুদ্র পুষ্টিতে ভেঙে রক্তে শোষণ করে। এটি মুখ থেকে মলদ্বার পর্যন্ত প্রায় নয় মিটার দীর্ঘ।', zoom:2.8, phi:Math.PI/2, theta:0 }],
-  dna:              [{ label:'ডিএনএ',        text:'ডিএনএ হলো জীবনের নীলনকশা যা প্রতিটি কোষের নিউক্লিয়াসে থাকে।', zoom:2.8, phi:Math.PI/2, theta:0 }],
-  cerebellum:       [{ label:'সেরিবেলাম',   text:'সেরিবেলাম মস্তিষ্কের পেছনের নিচের অংশে থাকে এবং ঐচ্ছিক নড়াচড়া সমন্বয় করে।', zoom:2.8, phi:Math.PI/2, theta:0 }],
-  humerus:          [{ label:'হিউমারাস',    text:'হিউমারাস হলো উপরের বাহুর লম্বা হাড় যা কাঁধ থেকে কনুই পর্যন্ত বিস্তৃত।', zoom:2.8, phi:Math.PI/2, theta:0 }],
-  ribs:             [{ label:'পাঁজর',       text:'পাঁজরের খাঁচা ১২ জোড়া পাঁজর নিয়ে গঠিত এবং হৃদপিণ্ড ও ফুসফুসকে রক্ষা করে।', zoom:2.8, phi:Math.PI/2, theta:0 }],
-  phospholipid:     [{ label:'ফসফোলিপিড',  text:'ফসফোলিপিড বিলেয়ার সকল কোষের ঝিল্লির মূল গঠন।', zoom:2.8, phi:Math.PI/2, theta:0 }],
-  rougher:          [{ label:'রাফ ইআর',     text:'রাফ এন্ডোপ্লাজমিক রেটিকুলাম কোষের প্রোটিন কারখানা। এর পৃষ্ঠে রাইবোসোম থাকে যা প্রোটিন তৈরি করে।', zoom:2.8, phi:Math.PI/2, theta:0 }],
-};
-
 const ZOOM_STEPS = [
   { zoom:2.8, phi:Math.PI/2, theta:0.0 },
   { zoom:1.8, phi:1.1,       theta:0.3 },
@@ -1152,57 +1159,85 @@ const ZOOM_STEPS = [
 async function waitForEnv() {
   for (let i = 0; i < 40; i++) {
     const env = window.AMPLIFY_ENV || {};
-    if (env.CEREBRAS_KEY || env.CEREBRAS_API_KEY || env.GROQ_KEY || (env.OPENROUTER_KEYS||[]).length) return;
+    if (env.CEREBRAS_KEY || env.CEREBRAS_API_KEY || env.GROQ_KEY || (env.GROQ_KEYS||[]).length || (env.OPENROUTER_KEYS||[]).length) return;
     await new Promise(r => setTimeout(r, 100));
   }
 }
 
 async function fetchAISegments(modelName) {
   await waitForEnv();
-  const api = getAPI();
-  if (!api) { console.warn('[VO] No API available'); return null; }
-  console.log('[VO] Using:', api.base, api.model);
+  const apis = getAllAPICandidates();
+  if (!apis.length) {
+    console.warn('[VO] No AI API keys available in environment.');
+    return null;
+  }
 
-  const prompt = `তুমি একজন অভিজ্ঞ বাংলা জীববিজ্ঞান শিক্ষক। একজন শিক্ষার্থী এখন "${modelName}" এর ইন্টারেক্টিভ থ্রিডি মডেল দেখছে।
+  const prompt = `তুমি একজন অভিজ্ঞ বাংলা জীববিজ্ঞান শিক্ষক। একজন শিক্ষার্থী এখন "${modelName}" এর ইন্টারেক্টিভ থ্রিডি মডেল পর্যবেক্ষণ করছে।
 
-এই অঙ্গ বা কাঠামো সম্পর্কে ঠিক চারটি শিক্ষামূলক অনুচ্ছেদ লেখো। প্রতিটি অনুচ্ছেদ তিন থেকে চারটি বাক্যের হবে।
+এই অঙ্গ বা কাঠামো সম্পর্কে ঠিক ৪টি শিক্ষামূলক বিশ্লেষণ তৈরি করো। প্রতিটি বিশ্লেষণ ৩-৪টি তথ্যবহুল বাংলা বাক্যে লিখবে যাতে শিক্ষার্থী এটি গভীরভাবে বুঝতে পারে।
 
 অবশ্যই মানতে হবে:
 - কোনো হাইফেন বা ড্যাশ চিহ্ন ব্যবহার করবে না
-- সংখ্যা বাংলা অক্ষরে লিখবে
-- কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না
-- কোনো মার্কডাউন বা বিশেষ চিহ্ন ব্যবহার করবে না
+- কোনো ইংরেজি শব্দ বা বর্ণ ব্যবহার করবে না, সম্পূর্ণ বাংলা ভাষায় লিখবে
+- সংখ্যা সবসময় বাংলায় লিখবে
+- CRITICAL NUMERIC RULE: কোনো অবস্থাতেই কোনো ভগ্নাংশ বা ভগ্নাংশীয় সংখ্যা লিখবে না। কোনো ভগ্নাংশ এলে তা দশমিকে রূপান্তর করে লিখবে (যেমন ১/২ এর বদলে ০.৫, ৩/৪ এর বদলে ০.৭৫)। কখনো ভগ্নাংশ উল্লেখ করবে না।
+- "হল" লিখবে না, "হলো" লিখবে। "কর" লিখবে না, "করো" লিখবে। "বল" লিখবে না, "বলো" লিখবে।
 
-শুধুমাত্র এই JSON ফরম্যাটে উত্তর দাও, অন্য কিছু লিখবে না:
-{"segments":[{"label":"শিরোনাম ১","text":"বিস্তারিত বিবরণ।"},{"label":"শিরোনাম ২","text":"বিস্তারিত বিবরণ।"},{"label":"শিরোনাম ৩","text":"বিস্তারিত বিবরণ।"},{"label":"শিরোনাম ৪","text":"বিস্তারিত বিবরণ।"}]}`;
+শুধুমাত্র নিচের এই JSON ফরম্যাটে উত্তর দাও, অন্য কোনো কথা বা ভূমিকা লিখবে না:
+{"segments":[{"label":"পরিচিতি ও অবস্থান","text":"..."},{"label":"গঠন ও অঙ্গাণু","text":"..."},{"label":"জৈবিক বৈশিষ্ট্য","text":"..."},{"label":"মূল কার্যকারিতা","text":"..."}]}`;
 
-  try {
-    const r = await fetch(`${api.base}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-      body: JSON.stringify({
-        model: api.model,
-        max_tokens: 1500,
-        temperature: 0.6,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error?.message || `HTTP ${r.status}`);
-    const raw = d.choices?.[0]?.message?.content?.trim();
-    if (!raw) throw new Error('Empty response');
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
-    if (!Array.isArray(parsed.segments) || !parsed.segments.length) throw new Error('Bad segments');
-    return parsed.segments.map((s, i) => ({
-      label: s.label,
-      text:  s.text,
-      ...ZOOM_STEPS[i % ZOOM_STEPS.length]
-    }));
-  } catch(e) {
-    console.error('[VO] fetchAISegments failed:', e);
-    return null;
+  for (const api of apis) {
+    try {
+      console.log(`[VO] Requesting dynamic AI analysis for "${modelName}" via ${api.provider} (${api.model})...`);
+      const r = await fetch(`${api.base}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${api.key}`,
+          'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'http://localhost',
+          'X-Title': 'Amplify Biology 3D'
+        },
+        body: JSON.stringify({
+          model: api.model,
+          max_tokens: 1500,
+          temperature: 0.5,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      if (!r.ok) {
+        console.warn(`[VO] ${api.provider} ${api.model} returned HTTP ${r.status}`);
+        continue;
+      }
+
+      const d = await r.json();
+      const raw = d.choices?.[0]?.message?.content?.trim();
+      if (!raw) continue;
+
+      const clean = raw.replace(/```json|```/g, '').trim();
+      let parsed = null;
+      try {
+        parsed = JSON.parse(clean);
+      } catch (err) {
+        const jsonMatch = clean.match(/\{[\s\S]*\}/);
+        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+      }
+
+      const segs = parsed?.segments || (Array.isArray(parsed) ? parsed : null);
+      if (Array.isArray(segs) && segs.length >= 2) {
+        console.log(`[VO] ✓ Received ${segs.length} dynamic AI segments from ${api.provider}!`);
+        return segs.map((s, i) => ({
+          label: s.label || `অংশ ${i + 1}`,
+          text:  s.text || '',
+          ...ZOOM_STEPS[i % ZOOM_STEPS.length]
+        }));
+      }
+    } catch(err) {
+      console.warn(`[VO] Error calling ${api.provider} (${api.model}):`, err.message);
+    }
   }
+
+  return null;
 }
 
 let _voAudio = null;
@@ -1215,9 +1250,7 @@ async function speak(text, onEnd) {
   const key    = env.AZURE_SPEECH_KEY || env.VITE_AZURE_SPEECH_KEY || '';
   const region = env.AZURE_SPEECH_REGION || env.VITE_AZURE_SPEECH_REGION || 'southeastasia';
 
-  // Fallback to Web Speech API if no Azure key
   if (!key) {
-    console.warn('[VO] No Azure key, falling back to Web Speech API');
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'bn-BD';
     const voices = window.speechSynthesis.getVoices();
@@ -1276,8 +1309,14 @@ async function speak(text, onEnd) {
     audio.play();
 
   } catch(e) {
-    console.warn('[Azure TTS VO]', e.message);
-    onEnd?.();
+    console.warn('[Azure TTS VO fallback to Web Speech]', e.message);
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'bn-BD';
+    const voices = window.speechSynthesis.getVoices();
+    const v = voices.find(v => v.lang.startsWith('bn')) || voices[0];
+    if (v) u.voice = v;
+    u.onend = onEnd; u.onerror = onEnd;
+    window.speechSynthesis.speak(u);
   }
 }
 
@@ -1341,26 +1380,28 @@ async function startVO() {
   hud.classList.add('active');
   requestAnimationFrame(() => requestAnimationFrame(() => hud.classList.add('visible')));
   hudName.textContent = name;
-  btn.classList.add('loading'); btn.innerHTML = '⏳ লোড হচ্ছে...';
-  textEl.textContent = 'AI থেকে তথ্য আনা হচ্ছে...';
+  btn.classList.add('loading');
+  btn.innerHTML = '⏳ AI উত্তর প্রস্তুত হচ্ছে...';
+  textEl.textContent = `AI শিক্ষক "${name}" মডেলটি বিশ্লেষণ করে লাইভ ব্যাখ্যা প্রস্তুত করছেন...`;
 
-  // Always try AI first
+  // ALWAYS fetch fresh AI response
   const aiSegs = await fetchAISegments(name);
 
   if (!_voActive) return;
   btn.classList.remove('loading');
 
-  if (aiSegs) {
+  if (aiSegs && aiSegs.length) {
     voSegments = aiSegs;
-    console.log('[VO] Using AI segments:', voSegments.length);
+    badge.textContent = 'LIVE AI';
+    badge.classList.add('live');
+    console.log('[VO] ✓ Dynamic AI response active:', voSegments);
   } else {
-    // Only fall back to hardcoded if AI completely failed
-    voSegments = FALLBACK_SEGMENTS[id] || [{
-      label: 'বিবরণ',
-      text: `${name} একটি গুরুত্বপূর্ণ জৈবিক কাঠামো যা শরীরের স্বাভাবিক কার্যক্রম বজায় রাখতে সাহায্য করে।`,
-      zoom: 2.0, phi: Math.PI/2, theta: 0
-    }];
-    console.warn('[VO] Using fallback segments');
+    // Only if network/API completely offline
+    voSegments = [
+      { label: 'পরিচিতি', text: `${name} একটি অত্যন্ত গুরুত্বপূর্ণ জৈবিক অঙ্গাণু যা শারীরিক স্বাভাবিক কার্যক্রম পরিচালনা করে।`, zoom: 2.8, phi: Math.PI/2, theta: 0 },
+      { label: 'গঠন', text: `${name} এর সুনির্দিষ্ট আণবিক এবং কোষীয় গঠন এর কার্যক্রমকে সচল রাখে।`, zoom: 1.8, phi: 1.1, theta: 0.3 }
+    ];
+    badge.textContent = 'OFFLINE';
   }
 
   chipsEl.innerHTML = voSegments.map((s, i) =>
@@ -1368,7 +1409,9 @@ async function startVO() {
   chipsEl.querySelectorAll('.vo-chip').forEach(c => c.addEventListener('click', () => {
     if (!_voActive) return;
     voTimers.forEach(clearTimeout); voTimers = [];
-    window.speechSynthesis.cancel(); speakSeg(+c.dataset.i);
+    window.speechSynthesis.cancel();
+    if (_voAudio) { _voAudio.pause(); _voAudio = null; }
+    speakSeg(+c.dataset.i);
   }));
   buildProgress(voSegments.length);
   speakSeg(0);
