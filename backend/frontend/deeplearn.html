@@ -448,7 +448,7 @@ html, body {
   </div>
 
   <!-- Einstein Mode Button — links to einstein.html with topic -->
-  <a class="einstein-toggle" id="einsteinToggle" href="#" target="_blank">
+  <a class="einstein-toggle" id="einsteinToggle" href="#">
     <div class="e-dot"></div>
     ⚛ Einstein Mode
   </a>
@@ -648,7 +648,7 @@ html, body {
       const keys = groqKeys();
       if (keys.length) params.set('k', keys[0]);
       einsteinToggle.href = `einstein.html?${params.toString()}`;
-      einsteinToggle.setAttribute('target', '_blank');
+      einsteinToggle.removeAttribute('target');
       einsteinToggle.setAttribute('rel', 'noopener');
       try {
         sessionStorage.setItem('einstein_topic', sessionTopic);

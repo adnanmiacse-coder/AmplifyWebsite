@@ -253,7 +253,7 @@
   // 3. AMPLIFY VOICE & LANGUAGE SYSTEM (ENGLISH / BANGLA TOGGLE + TTS)
   // ═════════════════════════════════════════════════════════════════════════
   const LANG_STORAGE_KEY = 'amplify_voice_lang';
-  const TARGET_PAGES_REGEX = /(?:classroom|biology|tutor|deeplearn)/i;
+  const TARGET_PAGES_REGEX = /(?:classroom|biology|tutor|deeplearn|pdf-tutor)/i;
 
   const AmplifyVoice = {
     getLanguage() {
@@ -491,6 +491,56 @@
   };
 
   window.AmplifyVoice = AmplifyVoice;
+
+    // ═════════════════════════════════════════════════════════════════════════
+  // 4. SAME-TAB NAVIGATION ENFORCEMENT
+  // ═════════════════════════════════════════════════════════════════════════
+  function isInternalUrl(urlStr) {
+    if (!urlStr || urlStr.startsWith('#') || urlStr.startsWith('javascript:') || urlStr.startsWith('mailto:') || urlStr.startsWith('tel:')) {
+      return false;
+    }
+    try {
+      const u = new URL(urlStr, window.location.origin);
+      if (u.origin === window.location.origin) return true;
+      if (u.hostname.includes('railway.app') || u.hostname.includes('amplifywebsite')) return true;
+      return false;
+    } catch {
+      return !urlStr.startsWith('http://') && !urlStr.startsWith('https://');
+    }
+  }
+
+  // Intercept all link clicks so internal links always navigate in the same tab
+  document.addEventListener('click', (event) => {
+    const link = event.target.closest('a');
+    if (!link) return;
+    const href = link.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+
+    if (isInternalUrl(href)) {
+      if (link.getAttribute('target') === '_blank') {
+        link.removeAttribute('target');
+      }
+      if (!event.ctrlKey && !event.metaKey && !event.shiftKey && event.button === 0) {
+        event.preventDefault();
+        try {
+          const u = new URL(href, window.location.origin);
+          window.location.assign(u.pathname + u.search + u.hash);
+        } catch {
+          window.location.assign(href);
+        }
+      }
+    }
+  }, true);
+
+  // Intercept window.open for internal pages
+  const originalWindowOpen = window.open.bind(window);
+  window.open = function (url, target, features) {
+    if (url && typeof url === 'string' && isInternalUrl(url)) {
+      window.location.assign(url);
+      return window;
+    }
+    return originalWindowOpen(url, target, features);
+  };
 
   function initPlatformAddons() {
     setupBackButton();
