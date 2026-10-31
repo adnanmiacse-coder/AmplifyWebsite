@@ -2379,19 +2379,26 @@ function showDiagram(videoUrl, topic) {
 function loadLectureVoice(){
   const assign=()=>{
     const all=speechSynthesis.getVoices();
-    // Prefer Edge's Natural/Online Bangla voices over the legacy default
-    _lectureVoice =
-      all.find(v=>v.lang==='bn-BD'&&v.name.includes('Bashkar')) ||   // bn-BD male, Natural
-      all.find(v=>v.lang==='bn-BD'&&v.name.includes('Nabanita')) ||  // bn-BD female, Natural
-      all.find(v=>v.lang==='bn-IN'&&v.name.includes('Tanishaa')) ||  // bn-IN female, Natural
-      all.find(v=>v.lang==='bn-BD') ||
-      all.find(v=>v.lang==='bn-IN') ||
-      all.find(v=>v.lang.startsWith('bn')) ||
-      all.find(v=>v.lang.startsWith('hi')) ||
-      all[0] || null;
+    if (!all.length) return;
+    const isEn = (typeof window !== 'undefined' && window.AmplifyVoice) ? window.AmplifyVoice.isEnglish() : ((localStorage.getItem('amplify_voice_lang') || 'en') === 'en');
+    if (isEn) {
+      const best = (typeof window !== 'undefined' && window.AmplifyVoice) 
+        ? window.AmplifyVoice.getBestVoices('en') 
+        : all.filter(v => (v.lang||'').startsWith('en'));
+      _lectureVoice = best[0] || all[0];
+    } else {
+      const best = (typeof window !== 'undefined' && window.AmplifyVoice) 
+        ? window.AmplifyVoice.getBestVoices('bn') 
+        : all.filter(v => (v.lang||'').startsWith('bn'));
+      _lectureVoice = best[0] || all.find(v=>v.lang.startsWith('hi')) || all[0] || null;
+    }
   };
   assign();
   speechSynthesis.addEventListener('voiceschanged',assign);
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('amplify-lang-change', assign);
+    window.addEventListener('amplify-lang-change', assign);
+  }
 }
 
 function splitSentences(text){
@@ -2440,7 +2447,22 @@ async function fetchSegmentText(idx) {
   const isFirst = idx === 0;
   const chapterHint = store.chunks[0]?.text?.slice(0, 80) || '';
 
-  const system = `তুমি একজন উৎসাহী ও অভিজ্ঞ বাংলাদেশি শিক্ষক। তুমি একজন শিক্ষার্থীকে একা পড়াচ্ছ।
+  const isEn = (typeof window !== 'undefined' && window.AmplifyVoice) ? window.AmplifyVoice.isEnglish() : ((localStorage.getItem('amplify_voice_lang') || 'en') === 'en');
+
+  const system = isEn
+    ? `You are an inspiring, expert educator teaching a student one-on-one.
+Your job is to explain the provided passage clearly and captivatingly in English.
+
+Teaching style:
+- Speak directly in the first person as a passionate teacher
+- Always address the student as "you"
+- Use intuitive, engaging phrasing ("Let's examine", "Notice that", "Keep in mind")
+- Break down difficult concepts with simple, memorable analogies
+- Flowing narrative style — no bullet points or markdown
+- 4 to 6 complete, engaging sentences
+- CRITICAL NUMERIC RULE: Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4). If any fractional quantity appears, ensure it is converted to and written as a decimal number (for example, write 1/2 as 0.5, 3/4 as 0.75). Never output fractions.
+${isFirst ? '- Begin with a warm greeting: "Welcome! Today we will explore [topic name]." Then dive into the core concepts.' : '- Dive straight into the concepts without greeting or preamble.'}`
+    : `তুমি একজন উৎসাহী ও অভিজ্ঞ বাংলাদেশি শিক্ষক। তুমি একজন শিক্ষার্থীকে একা পড়াচ্ছ।
 
 তোমার কাজ হলো নিচের পাঠ্যাংশটি সহজ ও আকর্ষণীয়ভাবে বুঝিয়ে বলা।
 
@@ -2452,11 +2474,25 @@ async function fetchSegmentText(idx) {
 - একটানা গল্পের মতো করে বলো — bullet বা list নয়
 - বাংলায় কথা বলো, স্বাভাবিক ও প্রাণবন্তভাবে
 - ৪–৬টি পূর্ণ বাক্যে বলো
+- CRITICAL NUMERIC RULE: কোনো অবস্থাতেই কোনো ভগ্নাংশ বা ভগ্নাংশীয় সংখ্যা লিখবে না। কোনো ভগ্নাংশ এলে তা দশমিকে রূপান্তর করে লিখবে (যেমন ১/২ এর বদলে ০.৫, ৩/৪ এর বদলে ০.৭৫)। কখনো ভগ্নাংশ উল্লেখ করবে না।
+- বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।
 ${isFirst ? `- শুরুতে একটি উষ্ণ সম্ভাষণ দাও। বলো "আশা করি ভালো আছো। আজকে আমরা পড়ব [বিষয়ের নাম]।" তারপর মূল বিষয়ে যাও।` : `- সরাসরি বিষয়ে ঢোকো। কোনো সম্ভাষণ বা ভূমিকা দিও না।`}`;
 
-  const userMsg = isFirst
-    ? `এই পাঠ্যাংশটি পড়িয়ে দাও। শুরুতে সংক্ষিপ্ত সম্ভাষণ দাও এবং বিষয়ের নাম উল্লেখ করো:\n\n${context}`
-    : `এই পাঠ্যাংশটি সরাসরি পড়িয়ে দাও, কোনো ভূমিকা ছাড়া:\n\n${context}`;
+  const userMsg = isEn
+    ? (isFirst 
+        ? `Please teach this passage. Begin with a brief warm welcome and mention the topic name:
+
+${context}`
+        : `Please teach this passage directly without preamble:
+
+${context}`)
+    : (isFirst
+        ? `এই পাঠ্যাংশটি পড়িয়ে দাও। শুরুতে সংক্ষিপ্ত সম্ভাষণ দাও এবং বিষয়ের নাম উল্লেখ করো:
+
+${context}`
+        : `এই পাঠ্যাংশটি সরাসরি পড়িয়ে দাও, কোনো ভূমিকা ছাড়া:
+
+${context}`);
 
   const text = await groqChat([{ role: 'user', content: userMsg }], system, 420, 0.78);
   return { text, pageNum: midPage };

@@ -209,17 +209,76 @@ async function loadAndIndexPDF(file, onProgress) {
 }
 
 
-const EXPERTS = {
-  expert1: {
-    id:    'expert1',
-    name:  'ড. আরিফ',
-    nameShort: 'ড.আ',
-    role:  'বিষয় বিশেষজ্ঞ ও সংশ্লেষক',
-    model: 'openai/gpt-oss-120b',
-    color: '#5b21b6',
-    avatarClass: 'expert1-avatar',
-    bubbleClass: 'bubble-expert1',
-    system: `তুমি ড. আরিফ, একজন অভিজ্ঞ বিষয় বিশেষজ্ঞ ও সংশ্লেষক। তুমি সরাসরি বাংলায় কথা বলছ।
+const EXPERT_PROFILES = {
+  en: {
+    expert1: {
+      id:    'expert1',
+      name:  'Dr. Arif',
+      nameShort: 'Dr. A',
+      role:  'Foundations & Theoretical Synthesis',
+      model: 'openai/gpt-oss-120b',
+      color: '#5b21b6',
+      avatarClass: 'expert1-avatar',
+      bubbleClass: 'bubble-expert1',
+      system: `You are Dr. Arif, an authoritative scholar and theoretical synthesizer. You speak directly in English.
+Strict rules:
+- Speak in the first person.
+- Never use third-person narration like "Dr. Arif said".
+- Focus on fundamental principles, causality, deep theoretical foundations, and real-world significance.
+- Do not cite specific institutional or living person names.
+- 3 to 5 clear, insightful sentences.
+- Respond directly to what the other experts just argued.
+- CRITICAL NUMERIC RULE: Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4). If any fractional quantity appears, ensure it is converted to and written as a decimal number (for example, write 1/2 as 0.5, 3/4 as 0.75). Never output fractions.`,
+    },
+    expert2: {
+      id:    'expert2',
+      name:  'Dr. Nafisa',
+      nameShort: 'Dr. N',
+      role:  'Empirical Analysis & Mechanisms',
+      model: 'qwen/qwen3.6-27b',
+      color: '#0369a1',
+      avatarClass: 'expert2-avatar',
+      bubbleClass: 'bubble-expert2',
+      system: `You are Dr. Nafisa, a sharp researcher focused on underlying mechanisms, causal links, and empirical depth. You speak directly in English.
+Strict rules:
+- Speak in the first person.
+- Never use third-person narration like "Dr. Nafisa said".
+- Provide comparative empirical analysis and unpack structural mechanisms.
+- Build upon or challenge the prior points made.
+- Do not use institutional or individual names.
+- 3 to 5 clear, insightful sentences.
+- CRITICAL NUMERIC RULE: Never use fractions (1/2, 3/4). Convert to decimal numbers (e.g. 0.5).`,
+    },
+    expert3: {
+      id:    'expert3',
+      name:  'Dr. Rakib',
+      nameShort: 'Dr. R',
+      role:  'Critical Debater & Provocateur',
+      model: 'openai/gpt-oss-20b',
+      color: '#b45309',
+      avatarClass: 'expert3-avatar',
+      bubbleClass: 'bubble-expert3',
+      system: `You are Dr. Rakib, an incisive critical debater who challenges assumptions, probes paradoxes, and interrogates consensus. You speak directly in English.
+Strict rules:
+- Speak in the first person.
+- Never use third-person narration like "Dr. Rakib said".
+- Challenge existing claims, raise alternative counter-perspectives, and ask difficult probing questions.
+- Be sharp, provocative, yet grounded in logic.
+- 3 to 5 clear, insightful sentences.
+- CRITICAL NUMERIC RULE: Never use fractions (1/2, 3/4). Convert to decimal numbers (e.g. 0.5).`,
+    },
+  },
+  bn: {
+    expert1: {
+      id:    'expert1',
+      name:  'ড. আরিফ',
+      nameShort: 'ড.আ',
+      role:  'বিষয় বিশেষজ্ঞ ও সংশ্লেষক',
+      model: 'openai/gpt-oss-120b',
+      color: '#5b21b6',
+      avatarClass: 'expert1-avatar',
+      bubbleClass: 'bubble-expert1',
+      system: `তুমি ড. আরিফ, একজন অভিজ্ঞ বিষয় বিশেষজ্ঞ ও সংশ্লেষক। তুমি সরাসরি বাংলায় কথা বলছ।
 কঠোর নিয়ম:
 - প্রথম পুরুষে কথা বলো।
 - "ড. আরিফ বলেছেন" বা তৃতীয় পুরুষের বর্ণনা সম্পূর্ণ নিষিদ্ধ।
@@ -227,18 +286,19 @@ const EXPERTS = {
 - তথ্য উল্লেখ করো কিন্তু কোনো প্রতিষ্ঠানের নাম বা ব্যক্তির নাম ব্যবহার করো না।
 - ৩-৫টি বাক্যে বিস্তারিত বলো।
 - অন্য বিশেষজ্ঞদের কথায় সরাসরি সাড়া দাও।
+- CRITICAL NUMERIC RULE: ভগ্নাংশ নিষিদ্ধ, দশমিকে লিখবে (০.৫)।
 - বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`,
-  },
-  expert2: {
-    id:    'expert2',
-    name:  'ড. নাফিসা',
-    nameShort: 'ড.না',
-    role:  'বিশ্লেষক ও গবেষক',
-    model: 'qwen/qwen3.6-27b',
-    color: '#0369a1',
-    avatarClass: 'expert2-avatar',
-    bubbleClass: 'bubble-expert2',
-    system: `তুমি ড. নাফিসা, একজন তীক্ষ্ণ বিশ্লেষক ও গবেষক। তুমি সরাসরি বাংলায় কথা বলছ।
+    },
+    expert2: {
+      id:    'expert2',
+      name:  'ড. নাফিসা',
+      nameShort: 'ড.না',
+      role:  'বিশ্লেষক ও গবেষক',
+      model: 'qwen/qwen3.6-27b',
+      color: '#0369a1',
+      avatarClass: 'expert2-avatar',
+      bubbleClass: 'bubble-expert2',
+      system: `তুমি ড. নাফিসা, একজন তীক্ষ্ণ বিশ্লেষক ও গবেষক। তুমি সরাসরি বাংলায় কথা বলছ।
 কঠোর নিয়ম:
 - প্রথম পুরুষে কথা বলো।
 - "ড. নাফিসা বলেছেন" বা তৃতীয় পুরুষের বর্ণনা সম্পূর্ণ নিষিদ্ধ।
@@ -246,18 +306,19 @@ const EXPERTS = {
 - ড. আরিফের বক্তব্যকে আরও বিশ্লেষণ করো বা নতুন দিক আনো।
 - কোনো প্রতিষ্ঠানের নাম বা ব্যক্তির নাম ব্যবহার করো না।
 - ৩-৫টি বাক্যে বিস্তারিত বলো।
+- CRITICAL NUMERIC RULE: ভগ্নাংশ নিষিদ্ধ, দশমিকে লিখবে (০.৫)।
 - বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`,
-  },
-  expert3: {
-    id:    'expert3',
-    name:  'ড. রাকিব',
-    nameShort: 'ড.রা',
-    role:  'সমালোচক ও প্রশ্নকর্তা',
-    model: 'openai/gpt-oss-20b',
-    color: '#b45309',
-    avatarClass: 'expert3-avatar',
-    bubbleClass: 'bubble-expert3',
-    system: `তুমি ড. রাকিব, একজন তীব্র সমালোচক ও প্রশ্নকর্তা। তুমি সরাসরি বাংলায় কথা বলছ।
+    },
+    expert3: {
+      id:    'expert3',
+      name:  'ড. রাকিব',
+      nameShort: 'ড.রা',
+      role:  'সমালোচক ও প্রশ্নকর্তা',
+      model: 'openai/gpt-oss-20b',
+      color: '#b45309',
+      avatarClass: 'expert3-avatar',
+      bubbleClass: 'bubble-expert3',
+      system: `তুমি ড. রাকিব, একজন তীব্র সমালোচক ও প্রশ্নকর্তা। তুমি সরাসরি বাংলায় কথা বলছ।
 কঠোর নিয়ম:
 - প্রথম পুরুষে কথা বলো।
 - "ড. রাকিব বলেছেন" বা তৃতীয় পুরুষের বর্ণনা সম্পূর্ণ নিষিদ্ধ।
@@ -265,11 +326,46 @@ const EXPERTS = {
 - বিতর্কমূলক হও কিন্তু তথ্যভিত্তিক থাকো।
 - কোনো প্রতিষ্ঠানের নাম বা ব্যক্তির নাম ব্যবহার করো না।
 - ৩-৫টি বাক্যে বিস্তারিত বলো।
+- CRITICAL NUMERIC RULE: ভগ্নাংশ নিষিদ্ধ, দশমিকে লিখবে (০.৫)।
 - বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`,
-  },
+    },
+  }
 };
 
-// ── Discussion phases ─────────────────────────
+function getDeepLearnLang() {
+  if (typeof window !== 'undefined' && window.AmplifyVoice) {
+    return window.AmplifyVoice.getLanguage();
+  }
+  try { return localStorage.getItem('amplify_voice_lang') || 'en'; } catch { return 'en'; }
+}
+
+function getExpert(expertId) {
+  const lang = getDeepLearnLang();
+  return (EXPERT_PROFILES[lang] && EXPERT_PROFILES[lang][expertId]) || EXPERT_PROFILES.en[expertId];
+}
+
+const EXPERTS = new Proxy({}, {
+  get(_, prop) {
+    return getExpert(prop);
+  }
+});
+
+function updateExpertDomCards() {
+  const lang = getDeepLearnLang();
+  ['expert1', 'expert2', 'expert3'].forEach(id => {
+    const exp = (EXPERT_PROFILES[lang] && EXPERT_PROFILES[lang][id]) || EXPERT_PROFILES.en[id];
+    const card = document.getElementById(`card-${id}`);
+    if (card) {
+      const nameEl = card.querySelector('.expert-name');
+      const roleEl = card.querySelector('.expert-role');
+      const avEl = card.querySelector('.expert-avatar');
+      if (nameEl) nameEl.textContent = exp.name;
+      if (roleEl) roleEl.textContent = exp.role;
+      if (avEl) avEl.textContent = exp.nameShort;
+    }
+  });
+}
+
 const DISCUSSION_PHASES = [
   { id: 'intro',     label: 'পরিচিতি ও ভিত্তি',  rounds: 2, stance: 'discuss'   },
   { id: 'analysis',  label: 'গভীর বিশ্লেষণ',      rounds: 3, stance: 'discuss'   },
@@ -318,9 +414,16 @@ const AGENT_TTS = {
 };
 
 const EXPERT_AZURE_VOICES = {
-  expert1: { voice: 'bn-BD-PradeepNeural',  rate: '-5%', pitch: '-5%'  },
-  expert2: { voice: 'bn-BD-NabanitaNeural', rate: '0%',  pitch: '+8%'  },
-  expert3: { voice: 'bn-BD-PradeepNeural',  rate: '+5%', pitch: '-12%' },
+  en: {
+    expert1: { voice: 'en-US-GuyNeural',   rate: '-2%', pitch: '-4%'  },
+    expert2: { voice: 'en-US-JennyNeural', rate: '0%',  pitch: '+4%'  },
+    expert3: { voice: 'en-US-DavisNeural', rate: '+4%', pitch: '-6%'  },
+  },
+  bn: {
+    expert1: { voice: 'bn-BD-PradeepNeural',  rate: '-5%', pitch: '-5%'  },
+    expert2: { voice: 'bn-BD-NabanitaNeural', rate: '0%',  pitch: '+8%'  },
+    expert3: { voice: 'bn-BD-PradeepNeural',  rate: '+5%', pitch: '-12%' },
+  }
 };
 
 // ── DOM ───────────────────────────────────────
@@ -431,26 +534,42 @@ function toBengaliNumerals(str) {
 // ── Voices ────────────────────────────────────
 function loadVoices() {
   const assign = () => {
-    const all   = speechSynthesis.getVoices();
-    const bnAll = all.filter(v => v.lang.startsWith('bn'));
-    if (bnAll.length === 0) {
-      const any = all[0] || null;
-      Object.keys(EXPERTS).forEach(id => { agentVoiceMap[id] = any; });
-      return;
+    const all = speechSynthesis.getVoices();
+    if (!all.length) return;
+    const lang = getDeepLearnLang();
+
+    if (lang === 'en') {
+      const enVoices = typeof window !== 'undefined' && window.AmplifyVoice 
+        ? window.AmplifyVoice.getBestVoices('en') 
+        : all.filter(v => (v.lang||'').startsWith('en'));
+
+      const v1 = enVoices.find(v => /guy|david|male|daniel/i.test(v.name)) || enVoices[0] || all[0];
+      const v2 = enVoices.find(v => /jenny|zira|samantha|female|victoria/i.test(v.name) && v !== v1) || enVoices[1] || enVoices[0] || all[0];
+      const v3 = enVoices.find(v => /mark|alex|george|natural/i.test(v.name) && v !== v1 && v !== v2) || enVoices[2] || enVoices[0] || all[0];
+
+      agentVoiceMap.expert1 = v1;
+      agentVoiceMap.expert2 = v2;
+      agentVoiceMap.expert3 = v3;
+    } else {
+      const bnVoices = typeof window !== 'undefined' && window.AmplifyVoice 
+        ? window.AmplifyVoice.getBestVoices('bn') 
+        : all.filter(v => (v.lang||'').startsWith('bn'));
+
+      const nabonita = bnVoices.find(v => /nabonita|নবনীতা/i.test(v.name));
+      agentVoiceMap.expert1 = bnVoices[0] || all[0];
+      agentVoiceMap.expert2 = nabonita || bnVoices[1] || bnVoices[0] || all[0];
+      agentVoiceMap.expert3 = bnVoices[2] || bnVoices[0] || all[0];
     }
-    const MALE   = /Pradeep|Bashkar|Arnav|Ravi|male/i;
-    const FEMALE = /Nabanita|Tanishaa|Asha|Heera|Swara|female/i;
-    const males   = bnAll.filter(v =>  MALE.test(v.name));
-    const females = bnAll.filter(v =>  FEMALE.test(v.name));
-    const neutral = bnAll.filter(v => !MALE.test(v.name) && !FEMALE.test(v.name));
-    const mPool = males.length   ? males   : [...neutral, ...females];
-    const fPool = females.length ? females : [...neutral, ...males];
-    agentVoiceMap.expert1 = mPool[0] || bnAll[0];
-    agentVoiceMap.expert2 = fPool[0] || bnAll[0];
-    agentVoiceMap.expert3 = mPool[1] || mPool[0] || bnAll[0];
   };
   assign();
   speechSynthesis.addEventListener('voiceschanged', assign);
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('amplify-lang-change', assign);
+    window.addEventListener('amplify-lang-change', () => {
+      assign();
+      updateExpertDomCards();
+    });
+  }
 }
 
 // ── TTS ───────────────────────────────────────
@@ -459,12 +578,12 @@ async function speakAzure(text, expertId) {
     console.warn('[DeepLearn Azure] No key loaded — skipping Azure, going to browser fallback.');
     return false;
   }
-  const cfg = EXPERT_AZURE_VOICES[expertId];
-  const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${cfg.voice}'><prosody rate='${cfg.rate}' pitch='${cfg.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
+  const lang = getDeepLearnLang(); const cfg = (EXPERT_AZURE_VOICES[lang] && EXPERT_AZURE_VOICES[lang][expertId]) || EXPERT_AZURE_VOICES.en[expertId];
+  const ssml = `<speak version='1.0' xml:lang='${lang === "en" ? "en-US" : "bn-BD"}'><voice name='${cfg.voice}'><prosody rate='${cfg.rate}' pitch='${cfg.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
 
   try {
     ttsWave.classList.add('speaking');
-    ttsLabel.textContent = EXPERTS[expertId].name + ' বলছেন...';
+    ttsLabel.textContent = (getDeepLearnLang() === 'en') ? (getExpert(expertId).name + ' speaking...') : (getExpert(expertId).name + ' বলছেন...');
 
     const res = await fetch(`https://${_azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`, {
       method: 'POST',
@@ -514,11 +633,11 @@ function speakBrowser(text, expertId) {
     speechSynthesis.cancel();
     const utt   = new SpeechSynthesisUtterance(text);
     utt.voice   = voice;
-    utt.lang    = voice.lang;
+    utt.lang    = (getDeepLearnLang() === 'en') ? (voice.lang || 'en-US') : 'bn-BD';
     utt.rate    = tts.rate;
     utt.pitch   = tts.pitch;
     ttsWave.classList.add('speaking');
-    ttsLabel.textContent = EXPERTS[expertId].name + ' বলছেন...';
+    ttsLabel.textContent = (getDeepLearnLang() === 'en') ? (getExpert(expertId).name + ' speaking...') : (getExpert(expertId).name + ' বলছেন...');
     utt.onend   = () => { ttsWave.classList.remove('speaking'); ttsLabel.textContent = 'নীরব'; resolve(); };
     utt.onerror = (e) => { console.warn('[DeepLearn Browser TTS] error:', e.error); ttsWave.classList.remove('speaking'); ttsLabel.textContent = 'নীরব'; resolve(); };
     speechSynthesis.speak(utt);
@@ -707,7 +826,8 @@ async function buildInitialContent() {
 }
 
 function buildMessagesForExpert(expertId) {
-  const expert = EXPERTS[expertId];
+  const isEn   = getDeepLearnLang() === 'en';
+  const expert = getExpert(expertId);
   const phase  = getCurrentPhase();
 
   if (dialogueLog.length === 0) {
@@ -721,30 +841,64 @@ function buildMessagesForExpert(expertId) {
     .map(e => `[${e.name}]: ${e.text}`)
     .join('\n\n');
 
-  const phaseInstruction = {
+  const phaseInstruction = isEn ? ({
+    intro:     'Explain the fundamental foundations, origins, and core principles.',
+    analysis:  'Provide an empirical breakdown — examine mechanisms, causes, effects, and data.',
+    debate:    'Challenge the existing arguments, raise sharp counterarguments, and debate edge cases.',
+    synthesis: 'Synthesize contrasting viewpoints into a cohesive, nuanced understanding.',
+    conclude:  'Conclude the debate with overarching insights and forward-looking horizons.',
+  }[phase.id] || '') : ({
     intro:     'বিষয়টির মূল ভিত্তি, ইতিহাস এবং মূল ধারণাগুলো ব্যাখ্যা করো।',
     analysis:  'বিষয়টির গভীর বিশ্লেষণ করো — কারণ, প্রভাব, প্রক্রিয়া, এবং প্রমাণ নিয়ে আলোচনা করো।',
     debate:    'বিদ্যমান বক্তব্যকে চ্যালেঞ্জ করো, বিরোধী মতামত তুলে ধরো, যুক্তিতর্ক করো।',
     synthesis: 'বিভিন্ন দৃষ্টিভঙ্গিকে একসাথে বিবেচনা করে একটি সমন্বিত বোঝাপড়া তৈরি করো।',
     conclude:  'আলোচনার উপসংহার টানো এবং ভবিষ্যতের দিকনির্দেশনা দাও।',
-  }[phase.id] || '';
+  }[phase.id] || '');
 
   const docCtx = getRelevantContext(
     `${sessionTopic} ${phaseInstruction} ${transcript.slice(-300)}`, 3000
   );
-  const docBlock = docCtx ? `\nডকুমেন্ট থেকে প্রাসঙ্গিক তথ্য:\n${docCtx}\n` : '';
+  const docBlock = docCtx ? (isEn ? `
+Material facts from document:
+${docCtx}
+` : `
+ডকুমেন্ট থেকে প্রাসঙ্গিক তথ্য:
+${docCtx}
+`) : '';
 
   return [{
     role: 'user',
-    content:
-      `বিষয়: ${sessionTopic}\n` +
-      `বর্তমান পর্যায়: ${phase.label}\n` +
-      `নির্দেশনা: ${phaseInstruction}\n` +
-      docBlock +
-      `\nএখন পর্যন্ত আলোচনা:\n${transcript}\n\n` +
-      `এখন ${expert.name} হিসেবে বিস্তারিত ও গভীরভাবে তোমার মত দাও। ` +
-      `উপরের ডকুমেন্টের তথ্যের উপর ভিত্তি করো। ` +
-      `সরাসরি শুরু করো, কোনো নাম-পরিচয় ছাড়া।`,
+    content: isEn
+      ? `Topic: ${sessionTopic}
+` +
+        `Current Phase: ${phase.id.toUpperCase()}
+` +
+        `Phase Instruction: ${phaseInstruction}
+` +
+        docBlock +
+        `
+Discussion so far:
+${transcript}
+
+` +
+        `Now as ${expert.name}, provide your in-depth, rigorous perspectives in English. ` +
+        `Base your arguments on the context provided above. ` +
+        `Begin speaking directly in the first person with no preamble or labels.`
+      : `বিষয়: ${sessionTopic}
+` +
+        `বর্তমান পর্যায়: ${phase.label}
+` +
+        `নির্দেশনা: ${phaseInstruction}
+` +
+        docBlock +
+        `
+এখন পর্যন্ত আলোচনা:
+${transcript}
+
+` +
+        `এখন ${expert.name} হিসেবে বিস্তারিত ও গভীরভাবে তোমার মত দাও। ` +
+        `উপরের ডকুমেন্টের তথ্যের উপর ভিত্তি করো। ` +
+        `সরাসরি শুরু করো, কোনো নাম-পরিচয় ছাড়া।`,
   }];
 }
 

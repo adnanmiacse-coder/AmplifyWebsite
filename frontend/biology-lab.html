@@ -1013,7 +1013,16 @@ async function waitForEnv() {
   }
 }
 
+let _aiSegmentsCache = {};
+
 async function fetchAISegments(modelName) {
+  const isEn = (typeof window !== 'undefined' && window.AmplifyVoice) 
+    ? window.AmplifyVoice.isEnglish() 
+    : ((localStorage.getItem('amplify_voice_lang') || 'en') === 'en');
+
+  const cacheKey = `${modelName}_${isEn ? 'en' : 'bn'}`;
+  if (_aiSegmentsCache[cacheKey]) return _aiSegmentsCache[cacheKey];
+
   await waitForEnv();
   const apis = getAllAPICandidates();
   if (!apis.length) {
@@ -1021,7 +1030,18 @@ async function fetchAISegments(modelName) {
     return null;
   }
 
-  const prompt = `তুমি একজন অভিজ্ঞ বাংলা জীববিজ্ঞান শিক্ষক। একজন শিক্ষার্থী এখন "${modelName}" এর ইন্টারেক্টিভ থ্রিডি মডেল পর্যবেক্ষণ করছে।
+  const prompt = isEn
+    ? `You are an expert biology educator. A student is currently exploring the interactive 3D model of "${modelName}".
+Create exactly 4 educational, in-depth analytical segments explaining this organ or biological structure.
+Write each segment as 3-4 informative, fascinating English sentences so the student gains deep physiological intuition.
+
+Strict requirements:
+- Do not use hyphens or dashes as bullets
+- Write in crystal-clear, elegant English
+- CRITICAL NUMERIC RULE: Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4). If any fractional quantity appears, ensure it is converted to and written as a decimal number (for example, write 1/2 as 0.5, 3/4 as 0.75). Never output fractions.
+- Output ONLY valid JSON in this exact structure with no other commentary:
+{"segments":[{"label":"Overview & Anatomy","text":"..."},{"label":"Structure & Organelles","text":"..."},{"label":"Biological Functions","text":"..."},{"label":"Physiological Importance","text":"..."}]}`
+    : `তুমি একজন অভিজ্ঞ বাংলা জীববিজ্ঞান শিক্ষক। একজন শিক্ষার্থী এখন "${modelName}" এর ইন্টারেক্টিভ থ্রিডি মডেল পর্যবেক্ষণ করছে।
 
 এই অঙ্গ বা কাঠামো সম্পর্কে ঠিক ৪টি শিক্ষামূলক বিশ্লেষণ তৈরি করো। প্রতিটি বিশ্লেষণ ৩-৪টি তথ্যবহুল বাংলা বাক্যে লিখবে যাতে শিক্ষার্থী এটি গভীরভাবে বুঝতে পারে।
 
@@ -1075,11 +1095,13 @@ async function fetchAISegments(modelName) {
       const segs = parsed?.segments || (Array.isArray(parsed) ? parsed : null);
       if (Array.isArray(segs) && segs.length >= 2) {
         console.log(`[VO] ✓ Received ${segs.length} dynamic AI segments from ${api.provider}!`);
-        return segs.map((s, i) => ({
-          label: s.label || `অংশ ${i + 1}`,
+        const mapped = segs.map((s, i) => ({
+          label: s.label || (isEn ? `Part ${i + 1}` : `অংশ ${i + 1}`),
           text:  s.text || '',
           ...ZOOM_STEPS[i % ZOOM_STEPS.length]
         }));
+        _aiSegmentsCache[cacheKey] = mapped;
+        return mapped;
       }
     } catch(err) {
       console.warn(`[VO] Error calling ${api.provider} (${api.model}):`, err.message);
@@ -1095,28 +1117,43 @@ async function speak(text, onEnd) {
   window.speechSynthesis.cancel();
   if (_voAudio) { _voAudio.pause(); _voAudio = null; }
 
+  const isEn = (typeof window !== 'undefined' && window.AmplifyVoice) 
+    ? window.AmplifyVoice.isEnglish() 
+    : ((localStorage.getItem('amplify_voice_lang') || 'en') === 'en');
+
   const env    = window.AMPLIFY_ENV || {};
   const key    = env.AZURE_SPEECH_KEY || env.VITE_AZURE_SPEECH_KEY || '';
   const region = env.AZURE_SPEECH_REGION || env.VITE_AZURE_SPEECH_REGION || 'southeastasia';
 
   if (!key) {
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'bn-BD';
-    const voices = window.speechSynthesis.getVoices();
-    const v = voices.find(v => v.lang.startsWith('bn'))
-           || voices.find(v => v.lang.startsWith('hi'))
-           || voices[0];
-    if (v) u.voice = v;
-    u.rate = 0.88; u.pitch = 1.05; u.volume = 1.0;
+    if (isEn) {
+      u.lang = 'en-US';
+      const best = (window.AmplifyVoice ? window.AmplifyVoice.getBestVoices('en') : window.speechSynthesis.getVoices().filter(v => (v.lang||'').startsWith('en')));
+      const v = best[0] || window.speechSynthesis.getVoices()[0];
+      if (v) u.voice = v;
+      u.rate = 0.95; u.pitch = 1.0; u.volume = 1.0;
+    } else {
+      u.lang = 'bn-BD';
+      const best = (window.AmplifyVoice ? window.AmplifyVoice.getBestVoices('bn') : window.speechSynthesis.getVoices().filter(v => (v.lang||'').startsWith('bn')));
+      const v = best[0] || window.speechSynthesis.getVoices()[0];
+      if (v) u.voice = v;
+      u.rate = 0.88; u.pitch = 1.05; u.volume = 1.0;
+    }
     u.onend  = onEnd;
     u.onerror = onEnd;
     window.speechSynthesis.speak(u);
     return;
   }
 
-  const ssml = `<speak version='1.0' xml:lang='bn-BD'>
-    <voice name='bn-BD-NabanitaNeural'>
-      <prosody rate='-10%' pitch='+5%'>${text
+  const azureVoice = isEn ? 'en-US-JennyNeural' : 'bn-BD-NabanitaNeural';
+  const xmlLang = isEn ? 'en-US' : 'bn-BD';
+  const rate = isEn ? '-4%' : '-10%';
+  const pitch = isEn ? '+2%' : '+5%';
+
+  const ssml = `<speak version='1.0' xml:lang='${xmlLang}'>
+    <voice name='${azureVoice}'>
+      <prosody rate='${rate}' pitch='${pitch}'>${text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')}

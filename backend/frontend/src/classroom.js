@@ -37,66 +37,173 @@ const PAGE_SCALE    = 2.0;
 const IMG_QUALITY   = 0.85;
 
 // ── Agent Config ──────────────────────────────
-const AGENTS = {
-  teacher: {
-    id:    'teacher',
-    name:  'শিক্ষক',
-    role:  'পাঠ পরিচালক',
-    color: '#1e2a2b',
-    system: `তুমি একজন অভিজ্ঞ বাংলাদেশি স্কুল শিক্ষক — উষ্ণ, স্পষ্ট, শিক্ষার্থীদের ভালোবাসো।
+const AGENT_PROFILES = {
+  en: {
+    teacher: {
+      id:    'teacher',
+      name:  'Teacher',
+      role:  'Classroom Lead',
+      avatar: 'Te',
+      color: '#1e2a2b',
+      system: `You are an experienced, warm, and highly engaging classroom teacher. Speak directly in the first person as if teaching an interactive seminar in front of your students.
 
+Strict rules:
+✗ "The teacher said", "He/She said" — third person is completely forbidden.
+✗ Never ask yourself questions (e.g. "Do I know", "Am I explaining correctly").
+✗ No flattery, fake praise, or filler greetings ("Hello everyone", "That's a great question").
+✗ Never write another character's dialogue.
+✓ Explain complex concepts through intuitive, vivid real-world analogies.
+✓ Maximum TWO clear, punchy sentences so students can respond immediately.
+✓ CRITICAL NUMERIC RULE: Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4). Convert any fractional quantity to a decimal number (e.g. 0.5, 0.75).`,
+    },
+    curious: {
+      id:    'curious',
+      name:  'Rafi',
+      role:  'Curious Student',
+      avatar: 'Ra',
+      color: '#2563eb',
+      system: `You are Rafi — an enthusiastic and inquisitive 9th-grade student with an eager mind.
+Strict rules:
+✗ No third-person narration, no thank-yous, no flattery.
+✗ Never repeat what has already been said.
+✗ Never say phrases like "As stated in the document".
+✓ Exactly ONE insightful question or observation.
+✓ CRITICAL NUMERIC RULE: Never use any fractions (1/2, 3/4). Convert to decimal numbers (e.g. 0.5).`,
+    },
+    skeptic: {
+      id:    'skeptic',
+      name:  'Iti',
+      role:  'Critical Thinker',
+      avatar: 'It',
+      color: '#dc2626',
+      system: `You are Iti — a thoughtful and analytical 9th-grade student who questions assumptions and probes edge cases.
+Strict rules:
+✗ No third-person narration, no flattery.
+✗ Never repeat what has already been said.
+✗ Never say "According to the document".
+✓ Exactly ONE probing question or alternative perspective.
+✓ CRITICAL NUMERIC RULE: Never use any fractions (1/2, 3/4). Convert to decimal numbers (e.g. 0.5).`,
+    },
+    achiever: {
+      id:    'achiever',
+      name:  'Medha',
+      role:  'Analytical Achiever',
+      avatar: 'Me',
+      color: '#16a34a',
+      system: `You are Medha — an observant, high-achieving 9th-grade student who connects theoretical concepts to concrete facts and practical applications.
+Strict rules:
+✗ No third-person narration, no flattery.
+✗ Never repeat what has already been said.
+✗ Never say "According to the document".
+✓ Exactly ONE concise sentence connecting the discussion to a concrete real-world application.
+✓ CRITICAL NUMERIC RULE: Never use any fractions (1/2, 3/4). Convert to decimal numbers (e.g. 0.5).`,
+    },
+  },
+  bn: {
+    teacher: {
+      id:    'teacher',
+      name:  'শিক্ষক',
+      role:  'পাঠ পরিচালক',
+      avatar: 'শি',
+      color: '#1e2a2b',
+      system: `তুমি একজন অভিজ্ঞ বাংলাদেশি স্কুল শিক্ষক — উষ্ণ, স্পষ্ট, শিক্ষার্থীদের ভালোবাসো।
 তোমার কণ্ঠস্বর: সরাসরি প্রথম পুরুষে। যেন ক্লাসরুমে দাঁড়িয়ে পড়াচ্ছ।
-
-
 কঠোর নিয়ম:
 ✗ "শিক্ষক বলেছেন", "তিনি বললেন" — তৃতীয় পুরুষ নিষিদ্ধ
 ✗ "আমি কি জানি", "আমি কি বুঝতে পারছি", "আমি কি সঠিকভাবে" — নিজেকে প্রশ্ন করা সম্পূর্ণ নিষিদ্ধ
 ✗ সালাম, ধন্যবাদ, "খুব ভালো প্রশ্ন" — চাটুকারিতা নয়
 ✗ অন্য চরিত্রের কথা লেখা নিষিদ্ধ
-✓ কঠিন ধারণা সহজ উদাহরণ দিয়ে বোঝাও`,
-  },
-  curious: {
-    id:    'curious',
-    name:  'ইমন',
-    role:  'কৌতূহলী শিক্ষার্থী',
-    color: '#2563eb',
-    system: `তুমি ইমন — ৯ম শ্রেণির উৎসাহী ছাত্র।
-
+✓ কঠিন ধারণা সহজ উদাহরণ দিয়ে বোঝাও
+✓ CRITICAL NUMERIC RULE: কোনো অবস্থাতেই কোনো ভগ্নাংশ বা ভগ্নাংশীয় সংখ্যা লিখবে না। কোনো ভগ্নাংশ এলে তা দশমিকে রূপান্তর করে লিখবে (যেমন ১/২ এর বদলে ০.৫, ৩/৪ এর বদলে ০.৭৫)। কখনো ভগ্নাংশ উল্লেখ করবে না।
+✓ বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`,
+    },
+    curious: {
+      id:    'curious',
+      name:  'রাফি',
+      role:  'কৌতূহলী শিক্ষার্থী',
+      avatar: 'রা',
+      color: '#2563eb',
+      system: `তুমি রাফি — ৯ম শ্রেণির উৎসাহী ছাত্র।
 কঠোর নিয়ম:
 ✗ তৃতীয় পুরুষ, ধন্যবাদ, প্রশংসা নিষিদ্ধ
 ✗ আগে যা বলা হয়েছে তা আবার বলা নিষিদ্ধ
 ✗ "ডকুমেন্টে বলা আছে" জাতীয় বাক্যাংশ নিষিদ্ধ
-✓ ঠিক ১টি বাক্য `,
-  },
-  skeptic: {
-    id:    'skeptic',
-    name:  'ইতি',
-    role:  'চিন্তাশীল শিক্ষার্থী',
-    color: '#dc2626',
-    system: `তুমি ইতি — ৯ম শ্রেণির তীক্ষ্ণবুদ্ধি ছাত্রী।
-
+✓ ঠিক ১টি বাক্য
+✓ CRITICAL NUMERIC RULE: ভগ্নাংশ নিষিদ্ধ, দশমিকে লিখবে (০.৫)।
+✓ বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`,
+    },
+    skeptic: {
+      id:    'skeptic',
+      name:  'ইতি',
+      role:  'চিন্তাশীল শিক্ষার্থী',
+      avatar: 'ই',
+      color: '#dc2626',
+      system: `তুমি ইতি — ৯ম শ্রেণির তীক্ষ্ণবুদ্ধি ছাত্রী।
 কঠোর নিয়ম:
 ✗ তৃতীয় পুরুষ, ধন্যবাদ, প্রশংসা নিষিদ্ধ
 ✗ আগে যা বলা হয়েছে তা আবার বলা নিষিদ্ধ
 ✗ "ডকুমেন্টে বলা আছে" জাতীয় বাক্যাংশ নিষিদ্ধ
 ✓ ঠিক ১টি বাক্য 
-✓ "কিন্তু", "তাহলে কি", "ধরি যদি" দিয়ে শুরু করো`,
-  },
-  achiever: {
-    id:    'achiever',
-    name:  'মেধা',
-    role:  'মেধাবী শিক্ষার্থী',
-    color: '#16a34a',
-    system: `তুমি মেধা — ৯ম শ্রেণির মেধাবী ছাত্রী।
-
+✓ "কিন্তু", "তাহলে কি", "ধরি যদি" দিয়ে শুরু করো
+✓ CRITICAL NUMERIC RULE: ভগ্নাংশ নিষিদ্ধ, দশমিকে লিখবে (০.৫)।
+✓ বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`,
+    },
+    achiever: {
+      id:    'achiever',
+      name:  'মেধা',
+      role:  'মেধাবী শিক্ষার্থী',
+      avatar: 'মে',
+      color: '#16a34a',
+      system: `তুমি মেধা — ৯ম শ্রেণির মেধাবী ছাত্রী।
 কঠোর নিয়ম:
 ✗ তৃতীয় পুরুষ, ধন্যবাদ, প্রশংসা নিষিদ্ধ
 ✗ আগে যা বলা হয়েছে তা আবার বলা নিষিদ্ধ
 ✗ "ডকুমেন্টে বলা আছে" জাতীয় বাক্যাংশ নিষিদ্ধ
 ✓ ঠিক ১টি বাক্য — আগের আলোচনায় নতুন কিছু যোগ করো
-✓ "এটা আসলে", "বাস্তবে", "এর সাথে যোগ করলে" দিয়ে শুরু করো`,
-  },
+✓ "এটা আসলে", "বাস্তবে", "এর সাথে যোগ করলে" দিয়ে শুরু করো
+✓ CRITICAL NUMERIC RULE: ভগ্নাংশ নিষিদ্ধ, দশমিকে লিখবে (০.৫)।
+✓ বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`,
+    },
+  }
 };
+
+function getVoiceLang() {
+  if (typeof window !== 'undefined' && window.AmplifyVoice) {
+    return window.AmplifyVoice.getLanguage();
+  }
+  try {
+    return localStorage.getItem('amplify_voice_lang') || 'en';
+  } catch {
+    return 'en';
+  }
+}
+
+function getAgent(agentId) {
+  const lang = getVoiceLang();
+  return (AGENT_PROFILES[lang] && AGENT_PROFILES[lang][agentId]) || AGENT_PROFILES.en[agentId];
+}
+
+const AGENTS = new Proxy({}, {
+  get(_, prop) {
+    return getAgent(prop);
+  }
+});
+
+function updateAgentDomCards() {
+  const lang = getVoiceLang();
+  ['teacher', 'curious', 'skeptic', 'achiever'].forEach(id => {
+    const prof = (AGENT_PROFILES[lang] && AGENT_PROFILES[lang][id]) || AGENT_PROFILES.en[id];
+    const card = document.getElementById(`card-${id}`);
+    if (card) {
+      const nameEl = card.querySelector('.agent-name');
+      const roleEl = card.querySelector('.agent-role');
+      const avEl = card.querySelector('.agent-avatar');
+      if (nameEl) nameEl.textContent = prof.name;
+      if (roleEl) roleEl.textContent = prof.role;
+      if (avEl) avEl.textContent = prof.avatar;
+    }
+  });
+}
 
 const TURN_ORDER = ['teacher', 'curious', 'skeptic', 'achiever'];
 
@@ -581,7 +688,7 @@ function _stripThinking(text) {
     .trim();
   const banglaCount  = (s.match(/[\u0980-\u09FF]/g) || []).length;
   const englishCount = (s.match(/[a-zA-Z]/g) || []).length;
-  if (englishCount > 60 && englishCount > banglaCount) {
+  if (getVoiceLang() === 'bn' && englishCount > 60 && englishCount > banglaCount) {
     const lines = s.split(/\n+/);
     const banglaLines = lines.filter(line => {
       const b = (line.match(/[\u0980-\u09FF]/g) || []).length;
@@ -610,8 +717,8 @@ function cleanReply(text) {
   if (midCut > 10) s = s.slice(0, midCut).trim();
 
   // Strip incomplete sentences ending mid-word (no punctuation at end)
-  if (!/[।?!]$/.test(s)) {
-    const lastPunct = Math.max(s.lastIndexOf('।'), s.lastIndexOf('?'), s.lastIndexOf('!'));
+  if (!/[।?!.]$/.test(s)) {
+    const lastPunct = Math.max(s.lastIndexOf('।'), s.lastIndexOf('?'), s.lastIndexOf('!'), s.lastIndexOf('.'));
     if (lastPunct > 30) s = s.slice(0, lastPunct + 1).trim();
   }
 
@@ -780,7 +887,7 @@ async function speak(text, agentId, useLaser = false) {
   const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${tts.voice}'><prosody rate='${tts.rate}' pitch='${tts.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
 
   if (ttsWave)  ttsWave.classList.add('speaking');
-  if (ttsLabel) ttsLabel.textContent = AGENTS[agentId].name + ' বলছেন...';
+  if (ttsLabel) ttsLabel.textContent = (getVoiceLang() === 'en') ? (getAgent(agentId).name + ' speaking...') : (getAgent(agentId).name + ' বলছেন...');
 
   if (useLaser && laserWordSpans.length > 0) {
     laserActive = true;
@@ -998,37 +1105,52 @@ All visible text in Bangla. mermaid: graph TD/LR only, ≤8 nodes.`;
 }
 
 async function fetchTeacherQuestion(context, topic) {
+  const isEn = getVoiceLang() === 'en';
   const docCtx = getRelevantContext(context + ' ' + topic, 1500);
-  const doc    = docCtx ? `\nডকুমেন্ট:\n${docCtx}` : '';
-  const prompt = `বিষয়: ${topic}${doc}
+  const doc    = docCtx ? (isEn ? `
+Context:
+${docCtx}` : `
+ডকুমেন্ট:
+${docCtx}`) : '';
+
+  const prompt = isEn
+    ? `Topic: ${topic}${doc}
+
+The teacher just explained: "${context}"
+
+Now the teacher asks Rafi, Iti, or Medha a question to test understanding.
+Rules:
+- Begin with "Rafi, ...", "Iti, ...", or "Medha, ..."
+- Never question yourself
+- Exactly ONE clear sentence
+- CRITICAL NUMERIC RULE: Never use fractions (1/2, 3/4). Convert to decimal numbers (e.g. 0.5).`
+    : `বিষয়: ${topic}${doc}
 
 এইমাত্র শিক্ষক বলেছেন: "${context}"
 
 এখন শিক্ষক রাফি, ইতি বা মেধার উদ্দেশ্যে একটি প্রশ্ন করবেন।
 নিয়ম:
-- "ইমন, তুমি কি..." বা "ইতি, তুমি কি..." বা "মেধা, তুমি কি..." দিয়ে শুরু করো
+- "রাফি, তুমি কি..." বা "ইতি, তুমি কি..." বা "মেধা, তুমি কি..." দিয়ে শুরু করো
 - শিক্ষক নিজেকে কখনো প্রশ্ন করবেন না
 - "আমি কি জানি", "আমি কি বুঝতে পারছি" — এগুলো সম্পূর্ণ নিষিদ্ধ
-- ঠিক ১টি বাক্য`;
+- ঠিক ১টি বাক্য
+- CRITICAL NUMERIC RULE: ভগ্নাংশ নিষিদ্ধ, দশমিকে লিখবে (০.৫)।
+- বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`;
 
   try {
     const raw = await groqChat(
       [{ role: 'user', content: prompt }],
-      'তুমি একজন বাংলাদেশি শিক্ষক। শুধুমাত্র ছাত্রছাত্রীদের উদ্দেশ্যে প্রশ্ন করো। নিজেকে প্রশ্ন করা সম্পূর্ণ নিষিদ্ধ।',
+      isEn 
+        ? 'You are a teacher testing student comprehension in English. Exactly 1 sentence question.'
+        : 'তুমি একজন বাংলাদেশি শিক্ষক। শুধুমাত্র ছাত্রছাত্রীদের উদ্দেশ্যে প্রশ্ন করো। নিজেকে প্রশ্ন করা সম্পূর্ণ নিষিদ্ধ। বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।',
       120, 0.7,
-      'teacher'   // ← add this
+      'teacher'
     );
     const cleaned = cleanReply(raw);
-    // Hard reject if teacher is asking herself
-    if (/^আমি কি|^আমার কি|^আমি কি/.test(cleaned)) {
-      const names = ['ইমন', 'ইতি', 'মেধা'];
-      const name  = names[Math.floor(Math.random() * names.length)];
-      return `${name}, তুমি কি এই বিষয়টি বুঝতে পেরেছ?`;
-    }
     return cleaned;
   } catch (e) {
     console.warn('Teacher question error:', e);
-    return 'ইমন, তুমি কি এই বিষয়টি বুঝতে পেরেছ?';
+    return isEn ? 'Rafi, did you follow this point?' : 'রাফি, তুমি কি এই বিষয়টি বুঝতে পেরেছ?';
   }
 }
 
@@ -1168,46 +1290,72 @@ function getInitialDocContext(maxChars = 3000) {
 }
 
 function buildMessages(agentId) {
-  const agent = AGENTS[agentId];
-
+  const isEn = getVoiceLang() === 'en';
   const recentLog  = dialogueLog.slice(-4);
   const recentText = recentLog.map(e => e.text).join(' ');
   const ctx = dialogueLog.length === 0
     ? (getInitialDocContext(3000) || getRelevantContext(sessionTopic, 3000))
     : getRelevantContext(recentText + ' ' + sessionTopic, 3000);
 
-  // If no PDF context available at all, warn
   if (!ctx && store.chunks.length === 0) {
     console.warn('[buildMessages] No PDF context available!');
   }
 
   const docBlock = ctx
-    ? `--- প্রসঙ্গ (এই তথ্যের বাইরে কিছু বলবে না, কিন্তু এটাকে "ডকুমেন্ট" বলে উল্লেখ করবে না — নিজের জ্ঞান হিসেবে সরাসরি শেখাও) ---\n${ctx}\n---\n\n`
+    ? (isEn 
+        ? `--- Material Context (teach strictly using these facts, but do NOT say "in the document" - speak as your own knowledge) ---
+${ctx}
+---
+
+`
+        : `--- প্রসঙ্গ (এই তথ্যের বাইরে কিছু বলবে না, কিন্তু এটাকে "ডকুমেন্ট" বলে উল্লেখ করবে না — নিজের জ্ঞান হিসেবে সরাসরি শেখাও) ---
+${ctx}
+---
+
+`)
     : '';
 
   if (dialogueLog.length === 0) {
     return [{
       role: 'user',
       content: docBlock +
-        `বিষয়: ${sessionTopic}\n\n` +
-        `উপরের প্রসঙ্গ থেকে পাঠ শুরু করো। প্রথম বাক্য দিয়ে সরাসরি পড়ানো শুরু করো।`
+        (isEn 
+          ? `Topic: ${sessionTopic}
+
+Begin teaching from the context above. Deliver your first opening lesson sentences directly.`
+          : `বিষয়: ${sessionTopic}
+
+উপরের প্রসঙ্গ থেকে পাঠ শুরু করো। প্রথম বাক্য দিয়ে সরাসরি পড়ানো শুরু করো।`)
     }];
   }
 
   const transcript = recentLog.map(e => `[${e.name}]: ${e.text}`).join('\n');
 
-  const depthNote = agentId === 'teacher' ? '\nগভীরতা: ' + ({
-    shallow: 'সহজ ভাষায়।',
-    medium:  'স্বাভাবিক গভীরতায়।',
-    deep:    'গভীরভাবে বিশ্লেষণ করো।',
-  }[difficultyLevel]) : '';
+  let depthNote = '';
+  if (agentId === 'teacher') {
+    if (isEn) {
+      depthNote = '\nDepth: ' + ({ shallow: 'Simple and intuitive.', medium: 'Standard depth.', deep: 'In-depth rigorous analysis.' }[difficultyLevel] || 'Standard depth.');
+    } else {
+      depthNote = '\nগভীরতা: ' + ({ shallow: 'সহজ ভাষায়।', medium: 'স্বাভাবিক গভীরতায়।', deep: 'গভীরভাবে বিশ্লেষণ করো।' }[difficultyLevel] || 'স্বাভাবিক গভীরতায়।');
+    }
+  }
 
   return [{
     role: 'user',
     content: docBlock +
-      `বিষয়: ${sessionTopic}\n\n` +
-      `সর্বশেষ কথোপকথন:\n${transcript}\n\n` +
-      `নির্দেশ: শুধুমাত্র উপরের প্রসঙ্গের তথ্য ব্যবহার করো, এর বাইরে কিছু বলা নিষিদ্ধ। কিন্তু "ডকুমেন্টে" শব্দটি বা এই ধরনের কোনো উল্লেখ কখনো করবে না — এটা যেন তোমার নিজের পাঠদান, প্রাকৃতিক ক্লাসরুম কথোপকথনের মতো শোনায়।` +
+      (isEn 
+        ? `Topic: ${sessionTopic}
+
+Recent dialogue:
+${transcript}
+
+Instruction: Speak in natural English. Connect to the discussion and teach clearly.`
+        : `বিষয়: ${sessionTopic}
+
+সর্বশেষ কথোপকথন:
+${transcript}
+
+নির্দেশ: শুধুমাত্র উপরের প্রসঙ্গের তথ্য ব্যবহার করো, এর বাইরে কিছু বলা নিষিদ্ধ। কিন্তু "ডকুমেন্টে" শব্দটি বা এই ধরনের কোনো উল্লেখ কখনো করবে না — এটা যেন তোমার নিজের পাঠদান, প্রাকৃতিক ক্লাসরুম কথোপকথনের মতো শোনায়।`) +
       depthNote,
   }];
 }
@@ -1216,26 +1364,41 @@ function buildMessages(agentId) {
 // increase max tokens for teacher so responses don't get cut mid-sentence
 // find this line in groqChat call inside callAgent:
 async function callAgent(agentId) {
-  const agent     = AGENTS[agentId];
+  const isEn      = getVoiceLang() === 'en';
+  const agent     = getAgent(agentId);
   const isTeacher = agentId === 'teacher';
   const maxTok    = isTeacher ? 220 : 180;
 
-  const pdfRule = store.chunks.length > 0
-    ? '\n\nকঠোর নিয়ম: শুধুমাত্র প্রদত্ত তথ্য ব্যবহার করো, এর বাইরে কোনো তথ্য বা উদাহরণ দেওয়া নিষিদ্ধ। কিন্তু কখনো "ডকুমেন্টে বলা আছে", "ডকুমেন্ট অনুযায়ী", "ডকুমেন্টে উল্লেখ আছে", "উপকরণে দেখা যায়" — এই ধরনের বাক্যাংশ ব্যবহার করবে না। এই তথ্য যেন তোমার নিজের জ্ঞান, সরাসরি বিষয়টি ব্যাখ্যা করো — যেমন একজন শিক্ষক ক্লাসে নিজের ভাষায় পড়ান।'
-    : '';
+  let pdfRule = '';
+  if (isEn) {
+    pdfRule = store.chunks.length > 0
+      ? `\n\nStrict rule: Use only the provided document material. Never say "According to the document" or "As stated in the notes". Speak directly from your own understanding as a teacher in an interactive seminar.`
+      : '';
+  } else {
+    pdfRule = store.chunks.length > 0
+      ? `\n\nকঠোর নিয়ম: শুধুমাত্র প্রদত্ত তথ্য ব্যবহার করো, এর বাইরে কোনো তথ্য বা উদাহরণ দেওয়া নিষিদ্ধ। কিন্তু কখনো "ডকুমেন্টে বলা আছে", "ডকুমেন্ট অনুযায়ী", "ডকুমেন্টে উল্লেখ আছে", "উপকরণে দেখা যায়" — এই ধরনের বাক্যাংশ ব্যবহার করবে না। এই তথ্য যেন তোমার নিজের জ্ঞান, সরাসরি বিষয়টি ব্যাখ্যা করো — যেমন একজন শিক্ষক ক্লাসে নিজের ভাষায় পড়ান। বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`
+      : `\n\nবাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`;
+  }
 
   const system = agent.system + pdfRule +
-  '\n\nCRITICAL: Output ONLY your final Bangla response. No reasoning, no English, no meta-commentary, no repeating instructions. Start teaching immediately.' + '\n\nYou HAVE been given the document content above in the user message. It is there. Read it and teach from it. Never say you cannot access it.' +
-  (isTeacher
-    ? '\n\nHARD LIMIT: Maximum TWO short sentences only. Stop after the second । or ?. This is a fast-paced group discussion — keep it brief so students can jump in.'
-    : '\n\nHARD LIMIT: Exactly ONE sentence only. Stop after first । or ?');
+  (isEn
+    ? `\n\nCRITICAL: Output ONLY your final English response. Speak in natural, engaging conversational English. No markdown, no meta-commentary, no repeating instructions. Start teaching immediately.\n\nYou HAVE been given the document content above in the user message. Teach directly from it.` +
+      (isTeacher
+        ? `\n\nHARD LIMIT: Maximum TWO short sentences only. Stop after the second period or question mark. This is a fast-paced group discussion.`
+        : `\n\nHARD LIMIT: Exactly ONE sentence only. Stop after first period or question mark.`)
+    : `\n\nCRITICAL: Output ONLY your final Bangla response. No reasoning, no English, no meta-commentary, no repeating instructions. Start teaching immediately.\n\nYou HAVE been given the document content above in the user message. It is there. Read it and teach from it. Never say you cannot access it.` +
+      (isTeacher
+        ? `\n\nHARD LIMIT: Maximum TWO short sentences only. Stop after the second । or ?. This is a fast-paced group discussion — keep it brief so students can jump in.`
+        : `\n\nHARD LIMIT: Exactly ONE sentence only. Stop after first । or ?`)
+  );
 
   const raw  = await groqChat(buildMessages(agentId), system, maxTok, 0.78, agentId);
   let reply  = cleanReply(raw);
 
   if (!isTeacher) {
-    const match = reply.match(/^[^।?!]+[।?!]/);
-    reply = match ? match[0].trim() : reply.split(/[।?!]/)[0].trim() + '।';
+    const isEn = getVoiceLang() === 'en';
+    const match = isEn ? reply.match(/^[^.?!]+[.?!]/) : reply.match(/^[^।?!]+[।?!]/);
+    reply = match ? match[0].trim() : reply.split(isEn ? /[.?!]/ : /[।?!]/)[0].trim() + (isEn ? '.' : '।');
   } else {
     // Cap teacher at 2 sentences even if the model overruns
     const sentences = reply.match(/[^।?!]+[।?!]/g);
