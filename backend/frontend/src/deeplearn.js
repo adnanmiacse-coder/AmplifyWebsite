@@ -518,6 +518,16 @@ const TOPIC_KEYWORD_MAP = [
   { re: /হৃদপিণ্ড|heart|রক্ত|blood|circulatory/i, term: 'human heart anatomy medical' }
 ];
 
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function extractGifSearchKeywords(topic) {
   if (!topic || typeof topic !== 'string') return 'education science';
   const clean = topic.trim();
@@ -675,6 +685,7 @@ async function switchToDeepLearn() {
   document.body.classList.remove('setup-active');
   uploadScreen.classList.remove('active');
   deeplearnScreen.classList.add('active');
+  deeplearnScreen.style.removeProperty('display');
   fetchTopicGifs(sessionTopic);
   initGifFetcherUI();
   stageTopic.textContent = sessionTopic;
@@ -1295,3 +1306,50 @@ resetBtn.addEventListener('click', () => {
 
 // ── Helpers ───────────────────────────────────
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // ── Setup Screen Language Switcher ──
+
+    function syncDeepLearnSetupLang(lang) {
+      const isEn = lang === 'en';
+      document.querySelectorAll('.setup-lang-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.lang === lang);
+      });
+      const startBtn = document.getElementById('startBtn');
+      if (startBtn) {
+        startBtn.innerHTML = isEn 
+          ? '🚀 Start Deep Discussion' 
+          : '🚀 গভীর আলোচনা শুরু করুন';
+      }
+      const topicInput = document.getElementById('topicInput');
+      if (topicInput) {
+        topicInput.placeholder = isEn 
+          ? 'e.g. Quantum Computing, AI Ethics, Theory of Relativity...' 
+          : 'যেমন: কৃত্রিম বুদ্ধিমত্তা, জলবায়ু পরিবর্তন, মহাবিশ্বের উৎপত্তি...';
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('DOMContentLoaded', () => {
+        const initLang = getDeepLearnLang();
+        syncDeepLearnSetupLang(initLang);
+
+        document.querySelectorAll('.setup-lang-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const target = btn.dataset.lang;
+            if (typeof window !== 'undefined' && window.AmplifyVoice) {
+              window.AmplifyVoice.setLanguage(target);
+            } else {
+              try { localStorage.setItem('amplify_voice_lang', target); } catch(_) {}
+            }
+            syncDeepLearnSetupLang(target);
+            if (typeof loadVoices === 'function') loadVoices();
+          });
+        });
+
+        window.addEventListener('amplify-lang-change', (e) => {
+          syncDeepLearnSetupLang(e.detail?.lang || 'en');
+          if (typeof loadVoices === 'function') loadVoices();
+        });
+      });
+    }

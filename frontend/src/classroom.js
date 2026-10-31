@@ -1346,6 +1346,7 @@ startBtn?.addEventListener('click', async () => {
   document.body.classList.remove('setup-active');
   uploadScreen?.classList.remove('active');
   classroomScreen?.classList.add('active');
+  classroomScreen?.style.removeProperty('display');
   if (stageTopic) stageTopic.textContent = sessionTopic;
   startTimer();
   loadAgentVoices();
@@ -2028,7 +2029,7 @@ resetBtn.addEventListener('click', () => {
   pauseBtn.textContent = 'বিরতি'; raiseHandBtn.classList.remove('active');
   userInput.disabled = true; sendBtn.disabled = true;
   if (micBtn) micBtn.disabled = true;
-  document.documentElement.classList.add('setup-active'); document.body.classList.add('setup-active'); classroomScreen.classList.remove('active'); uploadScreen.classList.add('active');
+  document.documentElement.classList.add('setup-active'); document.body.classList.add('setup-active'); classroomScreen.classList.remove('active'); classroomScreen.style.setProperty('display', 'none', 'important'); uploadScreen.classList.add('active');
 });
 
 // ══════════════════════════════════════════════
@@ -2377,3 +2378,54 @@ if (quizCloseBtn) quizCloseBtn.addEventListener('click', () => {
   quizPanel.classList.add('hidden'); quizActive = false;
   if (isRunning) { isPaused = false; pauseBtn.textContent = 'বিরতি'; if (ttsLabel) ttsLabel.textContent = 'নীরব'; }
 });
+
+// ── Wire Setup Language Toggle ──
+function syncClassroomSetupLang(lang) {
+  const isEn = lang === 'en';
+  document.querySelectorAll('.setup-lang-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
+  const startBtn = document.getElementById('startBtn');
+  if (startBtn) {
+    const span = startBtn.querySelector('span');
+    if (span) {
+      span.textContent = isEn ? 'Start Interactive Class' : 'ক্লাস শুরু করুন';
+    } else {
+      startBtn.textContent = isEn ? 'Start Interactive Class' : 'ক্লাস শুরু করুন';
+    }
+  }
+  const topicInput = document.getElementById('topicInput');
+  if (topicInput) {
+    topicInput.placeholder = isEn 
+      ? "e.g. Newton's Laws of Motion, Quantum Physics, Cell Biology..." 
+      : 'যেমন: বাংলাদেশের মুক্তিযুদ্ধ, ত্বরণ ও গতি…';
+  }
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    const initLang = (typeof window !== 'undefined' && window.AmplifyVoice) 
+      ? window.AmplifyVoice.getLanguage() 
+      : (localStorage.getItem('amplify_voice_lang') || 'en');
+    syncClassroomSetupLang(initLang);
+
+    document.querySelectorAll('.setup-lang-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = btn.dataset.lang;
+        if (typeof window !== 'undefined' && window.AmplifyVoice) {
+          window.AmplifyVoice.setLanguage(target);
+        } else {
+          try { localStorage.setItem('amplify_voice_lang', target); } catch(_) {}
+        }
+        syncClassroomSetupLang(target);
+        if (typeof updateAgentDomCards === 'function') updateAgentDomCards();
+        if (typeof loadAgentVoices === 'function') loadAgentVoices();
+      });
+    });
+
+    window.addEventListener('amplify-lang-change', (e) => {
+      syncClassroomSetupLang(e.detail?.lang || 'en');
+    });
+  });
+}

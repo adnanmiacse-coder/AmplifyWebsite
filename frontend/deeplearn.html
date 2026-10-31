@@ -1123,6 +1123,60 @@ body::after {
       display: block;
     }
 
+
+/* ── Setup Language Selector ── */
+.setup-lang-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+.setup-lang-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.setup-lang-toggle {
+  display: flex;
+  gap: 8px;
+  background: rgba(6, 23, 38, 0.75);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 10px);
+  padding: 4px;
+}
+.setup-lang-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 700;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.setup-lang-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+.setup-lang-btn.active {
+  color: #030a14;
+  background: linear-gradient(135deg, #00D4FF 0%, #00FF88 100%);
+  border-color: rgba(0, 255, 136, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.35);
+}
+.setup-lang-flag {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
@@ -1191,6 +1245,21 @@ body::after {
                placeholder="যেমন: কোয়ান্টাম মেকানিক্স, জলবায়ু পরিবর্তন, বিবর্তন তত্ত্ব..."/>
       </div>
 
+            <!-- Language Selection Toggle Before Start -->
+      <div class="setup-lang-wrap">
+        <span class="setup-lang-label">আলোচনার ভাষা ও ভয়েস / Response & Voice:</span>
+        <div class="setup-lang-toggle" role="group" aria-label="Language Toggle">
+          <button type="button" class="setup-lang-btn" data-lang="en" id="deeplearnLangEn">
+            <span class="setup-lang-flag">🇬🇧</span>
+            <span class="setup-lang-text">English</span>
+          </button>
+          <button type="button" class="setup-lang-btn" data-lang="bn" id="deeplearnLangBn">
+            <span class="setup-lang-flag">🇧🇩</span>
+            <span class="setup-lang-text">বাংলা</span>
+          </button>
+        </div>
+      </div>
+
       <button class="start-btn" id="startBtn">
         🔬 গভীর আলোচনা শুরু করুন
       </button>
@@ -1206,7 +1275,7 @@ body::after {
   </div>
 
   <!-- ══ Deep Learn Screen ══ -->
-  <div id="deeplearn-screen" class="screen">
+  <div id="deeplearn-screen" class="screen" style="display: none !important;">
 
     <!-- Refs Panel -->
     <div class="refs-panel">
@@ -1381,6 +1450,60 @@ body::after {
   <script src="/amplify-platform.js"></script>
   <script src="/amplify-env-bootstrap.js"></script>
   <script type="module">
+
+    // ── Setup Screen Language Switcher ──
+    function getDeepLearnLang() {
+      if (typeof window !== 'undefined' && window.AmplifyVoice) {
+        return window.AmplifyVoice.getLanguage();
+      }
+      try { return localStorage.getItem('amplify_voice_lang') || 'en'; } catch { return 'en'; }
+    }
+
+    function syncDeepLearnSetupLang(lang) {
+      const isEn = lang === 'en';
+      document.querySelectorAll('.setup-lang-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.lang === lang);
+      });
+      const startBtn = document.getElementById('startBtn');
+      if (startBtn) {
+        startBtn.innerHTML = isEn 
+          ? '🚀 Start Deep Discussion' 
+          : '🚀 গভীর আলোচনা শুরু করুন';
+      }
+      const topicInput = document.getElementById('topicInput');
+      if (topicInput) {
+        topicInput.placeholder = isEn 
+          ? 'e.g. Quantum Computing, AI Ethics, Theory of Relativity...' 
+          : 'যেমন: কৃত্রিম বুদ্ধিমত্তা, জলবায়ু পরিবর্তন, মহাবিশ্বের উৎপত্তি...';
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('DOMContentLoaded', () => {
+        const initLang = getDeepLearnLang();
+        syncDeepLearnSetupLang(initLang);
+
+        document.querySelectorAll('.setup-lang-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const target = btn.dataset.lang;
+            if (typeof window !== 'undefined' && window.AmplifyVoice) {
+              window.AmplifyVoice.setLanguage(target);
+            } else {
+              try { localStorage.setItem('amplify_voice_lang', target); } catch(_) {}
+            }
+            syncDeepLearnSetupLang(target);
+            if (typeof loadVoices === 'function') loadVoices();
+          });
+        });
+
+        window.addEventListener('amplify-lang-change', (e) => {
+          syncDeepLearnSetupLang(e.detail?.lang || 'en');
+          if (typeof loadVoices === 'function') loadVoices();
+        });
+      });
+    }
+
     import { loadEnvConfig, getGroqKeys, getGroqBase, getViteEnv } from '/src/env-config.js';
 
     let _config = {};
@@ -1814,7 +1937,17 @@ async function loadAndIndexPDF(file,onProgress){
       { re: /হৃদপিণ্ড|heart|রক্ত|blood|circulatory/i, term: 'human heart anatomy medical' }
     ];
 
-    function extractGifSearchKeywords(topic) {
+    function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function extractGifSearchKeywords(topic) {
       if (!topic || typeof topic !== 'string') return 'education science';
       const clean = topic.trim();
       for (const item of TOPIC_KEYWORD_MAP) {
@@ -1971,6 +2104,7 @@ async function switchToDeepLearn() {
       document.body.classList.remove('setup-active');
       uploadScreen.classList.remove('active');
       deeplearnScreen.classList.add('active');
+      deeplearnScreen.style.removeProperty('display');
       fetchTopicGifs(sessionTopic);
       initGifFetcherUI();
       stageTopic.textContent = sessionTopic;
@@ -1997,8 +2131,26 @@ async function switchToDeepLearn() {
     // ── Voices ────────────────────────────────────
     function loadVoices() {
       const assign = () => {
-        const all  = speechSynthesis.getVoices();
-        const bnAll = all.filter(v => v.lang.startsWith('bn'));
+        const all = speechSynthesis.getVoices();
+        if (!all.length) return;
+        const lang = getDeepLearnLang();
+
+        if (lang === 'en') {
+          const enVoices = typeof window !== 'undefined' && window.AmplifyVoice 
+            ? window.AmplifyVoice.getBestVoices('en') 
+            : all.filter(v => (v.lang||'').startsWith('en'));
+
+          const v1 = enVoices.find(v => /google uk english female|natural|jenny|victoria/i.test(v.name)) || enVoices[0] || all[0];
+          const v2 = enVoices.find(v => /google us english|mark|guy|alex/i.test(v.name) && v !== v1) || enVoices[1] || enVoices[0] || all[0];
+          const v3 = enVoices.find(v => /zira|samantha|aria|karen/i.test(v.name) && v !== v1 && v !== v2) || enVoices[2] || enVoices[0] || all[0];
+
+          agentVoiceMap.expert1 = v1;
+          agentVoiceMap.expert2 = v2;
+          agentVoiceMap.expert3 = v3;
+          return;
+        }
+
+        const bnAll = all.filter(v => (v.lang||'').startsWith('bn'));
         if (bnAll.length === 0) {
           const any = all[0] || null;
           Object.keys(EXPERTS).forEach(id => agentVoiceMap[id] = any);

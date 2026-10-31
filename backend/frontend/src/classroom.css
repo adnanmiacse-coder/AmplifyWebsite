@@ -1948,3 +1948,56 @@ button { font-family: inherit; }
       grid-row: 2;
     }
   
+
+/* ── Setup Language Selector ── */
+.setup-lang-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+.setup-lang-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.setup-lang-toggle {
+  display: flex;
+  gap: 8px;
+  background: rgba(6, 23, 38, 0.75);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 10px);
+  padding: 4px;
+}
+.setup-lang-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 700;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.setup-lang-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+.setup-lang-btn.active {
+  color: #030a14;
+  background: linear-gradient(135deg, #00D4FF 0%, #00FF88 100%);
+  border-color: rgba(0, 255, 136, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.35);
+}
+.setup-lang-flag {
+  font-size: 1.15rem;
+  line-height: 1;
+}

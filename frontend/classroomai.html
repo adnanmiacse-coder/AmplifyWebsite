@@ -65,6 +65,21 @@
           autocomplete="off" />
       </div>
 
+            <!-- Language Selection Toggle Before Start -->
+      <div class="setup-lang-wrap">
+        <span class="setup-lang-label">আলোচনার ভাষা ও ভয়েস / Response & Voice:</span>
+        <div class="setup-lang-toggle" role="group" aria-label="Language Toggle">
+          <button type="button" class="setup-lang-btn" data-lang="en" id="classroomLangEn">
+            <span class="setup-lang-flag">🇬🇧</span>
+            <span class="setup-lang-text">English</span>
+          </button>
+          <button type="button" class="setup-lang-btn" data-lang="bn" id="classroomLangBn">
+            <span class="setup-lang-flag">🇧🇩</span>
+            <span class="setup-lang-text">বাংলা</span>
+          </button>
+        </div>
+      </div>
+
       <button class="start-btn" id="startBtn">
         <span>ক্লাস শুরু করুন</span>
       </button>
@@ -74,7 +89,7 @@
   <!-- ══════════════════════════════════════════════
        CLASSROOM SCREEN
        ══════════════════════════════════════════════ -->
-  <div id="classroom-screen" class="screen">
+  <div id="classroom-screen" class="screen" style="display: none !important;">
 
     <!-- Left: Stage -->
     <section class="stage-panel" aria-label="প্রধান মঞ্চ">
