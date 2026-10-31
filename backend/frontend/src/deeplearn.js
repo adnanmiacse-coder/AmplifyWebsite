@@ -1,3 +1,12 @@
+
+// Prevent scroll leakage on setup screen
+if (typeof document !== 'undefined') {
+  const upScr = document.getElementById('upload-screen');
+  if (upScr && upScr.classList.contains('active')) {
+    document.documentElement.classList.add('setup-active');
+    document.body.classList.add('setup-active');
+  }
+}
 // ══════════════════════════════════════════════
 //  গভীর শিক্ষা — deeplearn.js
 //  3 Expert Agents · Groq multi-model · Bangla Deep Discussion
@@ -487,9 +496,187 @@ startBtn.addEventListener('click', async () => {
   await switchToDeepLearn();
 });
 
+
+// ══════════════════════════════════════════════
+//  TOPIC GIF FETCHER
+// ══════════════════════════════════════════════
+let currentGifQuery = '';
+let isGifLoading = false;
+
+const TOPIC_KEYWORD_MAP = [
+  { re: /মুক্তিযুদ্ধ|war|liberation|independence/i, term: 'liberation war bangladesh history' },
+  { re: /ত্বরণ|গতি|physics|motion|acceleration|force|বেগ/i, term: 'physics motion acceleration' },
+  { re: /সালোকসংশ্লেষণ|উদ্ভিদ|photosynthesis|chlorophyll/i, term: 'photosynthesis plant biology' },
+  { re: /ডিএনএ|dna|জিন|genetics|chromosome/i, term: 'dna double helix biology' },
+  { re: /মহাকর্ষ|space|gravity|মহাকাশ|গ্রহ|নক্ষত্র|galaxy|solar/i, term: 'galaxy gravity space science' },
+  { re: /কোষ|cell|mitosis|বিভাজন/i, term: 'cell mitosis biology' },
+  { re: /পরমাণু|atom|electron|রবার্ট|molecule|chemistry/i, term: 'chemistry atom molecule' },
+  { re: /কম্পিউটার|programming|coding|ai|আর্টিফিশিয়াল|রোবট|robot/i, term: 'technology coding artificial intelligence' },
+  { re: /গণিত|math|geometry|ত্রিকোণমিতি|বীজগণিত|algebra|calculus/i, term: 'mathematics geometry science' },
+  { re: /পরিবেশ|ecosystem|জলবায়ু|pollution|climate/i, term: 'nature climate earth environment' },
+  { re: /অর্থনীতি|economy|টাকা|finance|market/i, term: 'economy growth finance market' },
+  { re: /হৃদপিণ্ড|heart|রক্ত|blood|circulatory/i, term: 'human heart anatomy medical' }
+];
+
+function extractGifSearchKeywords(topic) {
+  if (!topic || typeof topic !== 'string') return 'education science';
+  const clean = topic.trim();
+  for (const item of TOPIC_KEYWORD_MAP) {
+    if (item.re.test(clean)) return item.term;
+  }
+  const asciiWords = clean.replace(/[\u0980-\u09FF]+/g, ' ').replace(/[^\w\s]/g, ' ').trim();
+  if (asciiWords.length > 2) {
+    return asciiWords.split(/\s+/).slice(0, 3).join(' ') + ' science';
+  }
+  return 'education science idea';
+}
+
+export async function fetchTopicGifs(queryTopic, force = false) {
+  const searchTerm = extractGifSearchKeywords(queryTopic || sessionTopic);
+  if (!force && searchTerm === currentGifQuery && !isGifLoading) return;
+  currentGifQuery = searchTerm;
+
+  const gifStrip = document.getElementById('gifStrip');
+  const gifTitleText = document.getElementById('gifTitleText');
+  if (gifTitleText) {
+    const displayLabel = (sessionTopic && sessionTopic.length > 22) 
+      ? sessionTopic.slice(0, 20) + '...' 
+      : (sessionTopic || searchTerm);
+    gifTitleText.textContent = `ভিজ্যুয়াল: ${displayLabel}`;
+  }
+  if (!gifStrip) return;
+
+  isGifLoading = true;
+  gifStrip.innerHTML = '<div class="gif-status">🔍 প্রাসঙ্গিক GIF সংগ্রহ করা হচ্ছে...</div>';
+
+  try {
+    let gifList = [];
+    try {
+      const giphyUrl = `https://api.giphy.com/v1/gifs/search?api_key=sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh&q=${encodeURIComponent(searchTerm)}&limit=10&rating=g`;
+      const gRes = await fetch(giphyUrl, { headers: { 'Accept': 'application/json' } });
+      if (gRes.ok) {
+        const gData = await gRes.json();
+        if (gData?.data?.length) {
+          gifList = gData.data.map(item => ({
+            id: item.id,
+            title: item.title || searchTerm,
+            preview: item.images?.fixed_height_small?.url || item.images?.downsized?.url || item.images?.original?.url,
+            full: item.images?.fixed_height?.url || item.images?.downsized_medium?.url || item.images?.original?.url
+          })).filter(g => !!g.preview);
+        }
+      }
+    } catch (e) {
+      console.warn('[GIF] Giphy search failed, trying Tenor fallback:', e);
+    }
+
+    if (!gifList.length) {
+      try {
+        const tenorUrl = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(searchTerm)}&key=LIVDSRZULELA&limit=10`;
+        const tRes = await fetch(tenorUrl);
+        if (tRes.ok) {
+          const tData = await tRes.json();
+          if (tData?.results?.length) {
+            gifList = tData.results.map(item => {
+              const tiny = item.media_formats?.tinygif?.url || item.media_formats?.gif?.url;
+              const full = item.media_formats?.gif?.url || tiny;
+              return {
+                id: item.id,
+                title: item.content_description || searchTerm,
+                preview: tiny,
+                full: full
+              };
+            }).filter(g => !!g.preview);
+          }
+        }
+      } catch (e) {
+        console.warn('[GIF] Tenor fallback also failed:', e);
+      }
+    }
+
+    if (!gifList.length) {
+      gifStrip.innerHTML = '<div class="gif-status">কোনো প্রাসঙ্গিক GIF পাওয়া যায়নি। রিফ্রেশ চাপুন।</div>';
+      isGifLoading = false;
+      return;
+    }
+
+    gifStrip.innerHTML = '';
+    gifList.forEach(gif => {
+      const card = document.createElement('div');
+      card.className = 'gif-card';
+      card.title = 'আলোচনায় যোগ করতে ক্লিক করুন';
+      card.innerHTML = `
+        <img src="${gif.preview}" alt="${escapeHtml(gif.title)}" loading="lazy" />
+        <span class="gif-send-pill">শেয়ার</span>
+      `;
+      card.addEventListener('click', () => {
+        sendGifToChat(gif.full, gif.title);
+      });
+      gifStrip.appendChild(card);
+    });
+
+  } catch (err) {
+    console.error('[GIF] Fetch error:', err);
+    gifStrip.innerHTML = '<div class="gif-status">GIF লোড করতে ত্রুটি হয়েছে।</div>';
+  } finally {
+    isGifLoading = false;
+  }
+}
+
+export function sendGifToChat(gifUrl, title = '') {
+  const chatMessages = document.getElementById('chatMessages');
+  if (!chatMessages) return;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-entry user-turn';
+  bubble.innerHTML = `
+    <div class="chat-header">
+      <span class="chat-speaker" style="color:var(--accent);">ভিজ্যুয়াল রেফারেন্স</span>
+      <span class="chat-time">${new Date().toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'})}</span>
+    </div>
+    <div class="chat-gif-bubble">
+      <img src="${gifUrl}" alt="${escapeHtml(title)}" />
+    </div>
+  `;
+  chatMessages.appendChild(bubble);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+export function initGifFetcherUI() {
+  const gifRefreshBtn = document.getElementById('gifRefreshBtn');
+  const gifCloseBtn = document.getElementById('gifCloseBtn');
+  const gifToggleBtn = document.getElementById('gifToggleBtn');
+  const gifPanel = document.getElementById('gifPanel');
+
+  if (gifRefreshBtn) {
+    gifRefreshBtn.addEventListener('click', () => {
+      fetchTopicGifs(sessionTopic, true);
+    });
+  }
+
+  if (gifCloseBtn && gifPanel) {
+    gifCloseBtn.addEventListener('click', () => {
+      gifPanel.classList.toggle('collapsed');
+      gifCloseBtn.textContent = gifPanel.classList.contains('collapsed') ? '＋' : '✕';
+    });
+  }
+
+  if (gifToggleBtn && gifPanel) {
+    gifToggleBtn.addEventListener('click', () => {
+      gifPanel.classList.toggle('collapsed');
+      if (gifCloseBtn) {
+        gifCloseBtn.textContent = gifPanel.classList.contains('collapsed') ? '＋' : '✕';
+      }
+    });
+  }
+}
+
 async function switchToDeepLearn() {
+  document.documentElement.classList.remove('setup-active');
+  document.body.classList.remove('setup-active');
   uploadScreen.classList.remove('active');
   deeplearnScreen.classList.add('active');
+  fetchTopicGifs(sessionTopic);
+  initGifFetcherUI();
   stageTopic.textContent = sessionTopic;
   startTimer();
   loadVoices();

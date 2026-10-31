@@ -1,9 +1,78 @@
-body:has(#upload-screen.active) {
-  overflow-x: hidden;
+/* ══════════════════════════════════════════════════════════════
+   SCREEN CONTAINMENT & SCROLL LOCK
+   Ensures upload/setup screen NEVER leaks the classroom screen
+   ══════════════════════════════════════════════════════════════ */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
-body:has(#classroom-screen.active) {
-  overflow: hidden;
-  height: 100vh;
+
+body:has(#upload-screen.active),
+html:has(#upload-screen.active),
+body.setup-active,
+html.setup-active {
+  overflow: hidden !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+}
+
+body:has(#classroom-screen.active),
+html:has(#classroom-screen.active) {
+  overflow: hidden !important;
+  height: 100vh !important;
+}
+
+/* Base screen rules */
+.screen {
+  display: none !important;
+}
+
+/* Hard quarantine: classroom-screen can NEVER be visible or take up space unless active */
+#classroom-screen:not(.active) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  top: -99999px !important;
+  left: -99999px !important;
+}
+
+/* Upload screen active state: fixed full-screen modal, completely isolated */
+#upload-screen.active {
+  display: flex !important;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  z-index: 99 !important;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+}
+
+#upload-screen:not(.active) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  pointer-events: none !important;
+}
+
+#classroom-screen.active {
+  display: grid !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  position: relative !important;
+  z-index: 10 !important;
+  overflow: hidden !important;
 }
 /* ══════════════════════════════════════════════════════════════
    AI ক্লাসরুম — Dark Space Stylesheet

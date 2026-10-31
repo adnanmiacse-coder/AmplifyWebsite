@@ -1,3 +1,12 @@
+
+// ── Ensure setup screen is locked and does not scroll into classroom screen ──
+if (typeof document !== 'undefined') {
+  const upScr = document.getElementById('upload-screen');
+  if (upScr && upScr.classList.contains('active')) {
+    document.documentElement.classList.add('setup-active');
+    document.body.classList.add('setup-active');
+  }
+}
 // ══════════════════════════════════════════════
 //  AI ক্লাসরুম — classroom.js
 //  4 agents · Groq ONLY (all AI + Whisper)
@@ -209,16 +218,16 @@ const TURN_ORDER = ['teacher', 'curious', 'skeptic', 'achiever'];
 
 const ALL_NAME_PREFIXES = [
   'শিক্ষক', 'Teacher', 'teacher',
-  'ইমন', 'Emon', 'emon',
+  'রাফি', 'Rafi', 'rafi',
   'ইতি', 'Iti', 'iti', 'Eity', 'eity',
   'মেধা', 'Medha', 'medha',
 ];
 
 const AGENT_TTS = {
-  teacher: { voice: 'bn-BD-NabanitaNeural', rate: '-13%', pitch: '+5%'  },
-  curious: { voice: 'bn-BD-PradeepNeural',  rate: '+5%',  pitch: '+15%' },
-  skeptic: { voice: 'bn-BD-NabanitaNeural', rate: '-12%', pitch: '-8%'  },
-  achiever:{ voice: 'bn-BD-NabanitaNeural', rate: '+2%',  pitch: '+12%' },
+  teacher: { rate: 0.87, pitch: 1.00 },
+  curious: { rate: 1.05, pitch: 1.20 },
+  skeptic: { rate: 0.88, pitch: 0.82 },
+  achiever:{ rate: 1.02, pitch: 1.25 },
 };
 
 // ── State ─────────────────────────────────────
@@ -233,11 +242,11 @@ let timerInterval      = null;
 let currentUtterance   = null;
 let currentTurnIndex   = 0;
 let dialogueLog        = [];
-let agentVoiceMap      = {};
+let agentVoiceMap      = { teacher: null, curious: null, skeptic: null, achiever: null };
 let turnLoopRunning    = false;
 let lessonStarting     = false;
 let _turnInProgress = false;
-let _fromMic = false;
+
 
 
 // ══════════════════════════════════════════════
@@ -506,11 +515,7 @@ async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
   }
   throw new Error('All OpenRouter keys failed');
 }
-
-
-
-async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId = null) {
-  // Try Groq first — rotate models × keys
+async function groqOnlyChat(messages, system, maxTokens = 500, temp = 0.78) {
   for (let modelIdx = 0; modelIdx < GROQ_MODELS.length; modelIdx++) {
     const model = GROQ_MODELS[modelIdx];
     for (let ki = 0; ki < groqKeys().length; ki++) {
@@ -532,7 +537,7 @@ async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId 
         if (res.status === 429) { await sleep(400); continue; }
         if (!res.ok) {
           const errBody = await res.text().catch(() => '');
-          console.warn(`[Groq fallback] model:${model} key:${ki + 1}: ${res.status} ${errBody.slice(0, 240)}`);
+          console.warn(`[Groq] model:${model} key:${ki + 1}: ${res.status} ${errBody.slice(0, 240)}`);
           continue;
         }
         const d = await res.json();
@@ -545,16 +550,24 @@ async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId 
       }
     }
   }
+  throw new Error('All Groq models failed');
+}
 
-  // OpenRouter fallback
-  console.warn('[groqChat] All Groq keys failed, falling back to OpenRouter');
+async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId = null) {
+  try {
+    return await groqOnlyChat(messages, system, maxTokens, temp);
+  } catch (e) {
+    console.warn('[groqChat] Groq failed, falling back to OpenRouter:', e.message);
+  }
+
   try {
     return await openRouterChat(messages, system, maxTokens, temp);
   } catch (e) {
-    throw new Error('সব Groq ও OpenRouter কী ব্যর্থ।');
+    console.warn('[groqChat] OpenRouter also failed:', e.message);
   }
-}
 
+  throw new Error('সব Groq ও OpenRouter কী ব্যর্থ।');
+}
 
 /**
  * JSON variant — calls groqChat and parses JSON from response.
@@ -590,6 +603,7 @@ async function drainOCRQueue() {
 }
 
 async function groqVisionOCR(base64Img, pageNum) {
+  console.log('[OCR] using model:', VISION_MODEL);
   const ocrKeys = [...groqKeys()];
 
   if (!ocrKeys.length && !openRouterKeys().length) {
@@ -827,9 +841,50 @@ async function loadAndIndexPDF(file, onProgress) {
 //  TTS — per-agent voices with laser sync
 // ══════════════════════════════════════════════
 
-
 function loadAgentVoices() {
-  // Azure TTS — no local voice loading needed
+  const assign = () => {
+    const all = speechSynthesis.getVoices();
+    if (!all.length) return;
+    const lang = getVoiceLang();
+
+    if (lang === 'en') {
+      const enVoices = typeof window !== 'undefined' && window.AmplifyVoice 
+        ? window.AmplifyVoice.getBestVoices('en') 
+        : all.filter(v => (v.lang || '').toLowerCase().startsWith('en'));
+
+      const vTeacher  = enVoices.find(v => /google uk english female|natural|jenny|victoria|david/i.test(v.name)) || enVoices[0] || all[0];
+      const vCurious  = enVoices.find(v => /google us english|mark|guy|alex/i.test(v.name) && v !== vTeacher) || enVoices[1] || enVoices[0] || all[0];
+      const vSkeptic  = enVoices.find(v => /zira|samantha|aria/i.test(v.name) && v !== vTeacher && v !== vCurious) || enVoices[2] || enVoices[0] || all[0];
+      const vAchiever = enVoices.find(v => /karen|tessa|fiona|moira/i.test(v.name) && v !== vTeacher && v !== vCurious && v !== vSkeptic) || enVoices[3] || enVoices[1] || all[0];
+
+      agentVoiceMap.teacher  = vTeacher;
+      agentVoiceMap.curious  = vCurious;
+      agentVoiceMap.skeptic  = vSkeptic;
+      agentVoiceMap.achiever = vAchiever;
+    } else {
+      const bnVoices = typeof window !== 'undefined' && window.AmplifyVoice 
+        ? window.AmplifyVoice.getBestVoices('bn') 
+        : all.filter(v => (v.lang || '').startsWith('bn'));
+
+      const nabonita = bnVoices.find(v => /nabonita|নবনীতা/i.test(v.name));
+      agentVoiceMap.teacher  = bnVoices[0] || all[0];
+      agentVoiceMap.curious  = bnVoices[1] || bnVoices[0] || all[0];
+      agentVoiceMap.skeptic  = nabonita || bnVoices[2] || bnVoices[0] || all[0];
+      agentVoiceMap.achiever = nabonita || bnVoices[3] || bnVoices[1] || all[0];
+    }
+
+    console.log('[TTS] voices (' + lang + '):', Object.entries(agentVoiceMap)
+      .map(([k, v]) => `${k}:${v?.name}`).join(' | '));
+  };
+  assign();
+  speechSynthesis.onvoiceschanged = assign;
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('amplify-lang-change', assign);
+    window.addEventListener('amplify-lang-change', () => {
+      assign();
+      updateAgentDomCards();
+    });
+  }
 }
 
 // ── Global TTS lock — only ONE utterance may run at a time ──
@@ -857,78 +912,121 @@ function _releaseTtsLock() {
  * If TTS is disabled or no voice, waits a character-count-based silent delay
  * so the rest of the turn still paces correctly.
  */
-
-let _currentAudio = null;
-
 async function speak(text, agentId, useLaser = false) {
   await _acquireTtsLock();
 
   if (!ttsEnabled || !text?.trim()) {
     const wc = text ? text.trim().split(/\s+/).length : 0;
-    await sleep(Math.max(800, wc * 220));
+    const silentMs = Math.max(800, wc * 220);
+    await sleep(silentMs);
     _releaseTtsLock();
     return;
   }
 
-  const tts    = AGENT_TTS[agentId];
-  const key    = _config?.AZURE_SPEECH_KEY || _config?.VITE_AZURE_SPEECH_KEY || '';
-  const region = _config?.AZURE_SPEECH_REGION || _config?.VITE_AZURE_SPEECH_REGION || 'southeastasia';
+  let voice = agentVoiceMap[agentId];
+  if (!voice) {
+    const deadline = Date.now() + 3000;
+    while (!voice && Date.now() < deadline) {
+      await sleep(150);
+      voice = agentVoiceMap[agentId];
+    }
+  }
 
-  if (!key) {
-    console.warn('[Azure TTS] No key');
+  if (!voice) {
     const wc = text.trim().split(/\s+/).length;
     await sleep(Math.max(800, wc * 220));
     _releaseTtsLock();
     return;
   }
 
-  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+  speechSynthesis.cancel();
+  await sleep(100);
 
-  const ssml = `<speak version='1.0' xml:lang='bn-BD'><voice name='${tts.voice}'><prosody rate='${tts.rate}' pitch='${tts.pitch}'>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</prosody></voice></speak>`;
+  return new Promise(resolve => {
+    const tts = AGENT_TTS[agentId];
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.rate   = tts.rate;
+    utt.pitch  = tts.pitch;
+    utt.volume = 1;
+    utt.lang   = (getVoiceLang() === 'en') ? (voice.lang || 'en-US') : 'bn-BD';
+    utt.voice  = voice;
+    currentUtterance = utt;
 
-  if (ttsWave)  ttsWave.classList.add('speaking');
-  if (ttsLabel) ttsLabel.textContent = (getVoiceLang() === 'en') ? (getAgent(agentId).name + ' speaking...') : (getAgent(agentId).name + ' বলছেন...');
+    if (ttsWave)  ttsWave.classList.add('speaking');
+    if (ttsLabel) ttsLabel.textContent = (getVoiceLang() === 'en') ? (getAgent(agentId).name + ' speaking...') : (getAgent(agentId).name + ' বলছেন...');
 
-  if (useLaser && laserWordSpans.length > 0) {
-    laserActive = true;
-    moveLaserToWord(0);
-  }
+    if (useLaser && laserWordSpans.length > 0) {
+      laserActive = true;
+      moveLaserToWord(0);
+      utt.onboundary = (event) => {
+        if (!laserActive || isPaused || event.name !== 'word') return;
+        let acc = 0;
+        for (let i = 0; i < laserWordSpans.length; i++) {
+          if (event.charIndex <= acc + laserWordSpans[i].textContent.length) { moveLaserToWord(i); break; }
+          acc += laserWordSpans[i].textContent.length + 1;
+        }
+      };
+    }
 
-  try {
-    const res = await fetch(
-      `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
-      {
-        method: 'POST',
-        headers: {
-          'Ocp-Apim-Subscription-Key': key,
-          'Content-Type': 'application/ssml+xml',
-          'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
-        },
-        body: ssml,
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearInterval(pollInterval);
+      clearTimeout(watchdog);
+      if (ttsWave)  ttsWave.classList.remove('speaking');
+      if (ttsLabel) ttsLabel.textContent = 'নীরব';
+      if (useLaser) hideLaser();
+      currentUtterance = null;
+      _releaseTtsLock();
+      resolve();
+    };
+
+    const wc      = text.trim().split(/\s+/).length;
+    const watchMs = Math.max(6000, Math.ceil((wc / tts.rate) * 700) + 3000);
+
+    const watchdog = setTimeout(() => {
+      console.warn(`[TTS] watchdog fired for ${agentId} after ${watchMs}ms`);
+      finish();
+    }, watchMs);
+
+    // Poll every 200ms as backup — Chrome onend is unreliable
+    const pollInterval = setInterval(() => {
+      if (finished) { clearInterval(pollInterval); return; }
+      if (!speechSynthesis.speaking && !speechSynthesis.pending) {
+        console.log(`[TTS] poll detected end for ${agentId}`);
+        finish();
       }
-    );
+    }, 200);
 
-    if (!res.ok) throw new Error(`Azure TTS ${res.status}`);
+    utt.onend = () => {
+      console.log(`[TTS] onend fired for ${agentId}`);
+      finish();
+    };
 
-    const blob  = await res.blob();
-    const url   = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    _currentAudio = audio;
+    utt.onerror = (e) => {
+      if (e.error !== 'interrupted' && e.error !== 'canceled') {
+        console.warn('[TTS] error:', e.error, 'agent:', agentId);
+      }
+      finish();
+    };
 
-    await new Promise(resolve => {
-      audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
-      audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
-      audio.play();
-    });
-  } catch(e) {
-    console.warn('[Azure TTS]', e.message);
-  }
+    console.log(`[TTS] ▶ ${agentId} | ${voice.name} | ${wc}w | watchdog:${watchMs}ms`);
+    speechSynthesis.speak(utt);
 
-  if (ttsWave)  ttsWave.classList.remove('speaking');
-  if (ttsLabel) ttsLabel.textContent = 'নীরব';
-  if (useLaser) hideLaser();
-  _releaseTtsLock();
+    // Chrome sometimes needs a kick if speaking hasn't started after 600ms
+    setTimeout(() => {
+      if (!finished && !speechSynthesis.speaking) {
+        console.warn('[TTS] not speaking after 600ms, retrying');
+        speechSynthesis.cancel();
+        setTimeout(() => {
+          if (!finished) speechSynthesis.speak(utt);
+        }, 100);
+      }
+    }, 600);
+  });
 }
+
 // ══════════════════════════════════════════════
 //  RED LASER POINTER
 // ══════════════════════════════════════════════
@@ -1187,37 +1285,27 @@ const sessionTimer     = document.getElementById('sessionTimer');
 
 
 
-// ══════════════════════════════════════════════
-//  UPLOAD ZONE — FIXED
-// ══════════════════════════════════════════════
-
 let uploadedFiles = [];
 
-uploadZone.addEventListener('click', () => {
-  fileInput.click();
-});
+// ══════════════════════════════════════════════
+//  UPLOAD ZONE
+// ══════════════════════════════════════════════
 
-uploadZone.addEventListener('dragover', e => {
-  e.preventDefault();
-  uploadZone.classList.add('drag-over');
-});
+let _handlingFiles = false;
 
-uploadZone.addEventListener('dragleave', () => {
-  uploadZone.classList.remove('drag-over');
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => { 
+  e.preventDefault(); 
+  uploadZone.classList.remove('dragover'); 
+  _handlingFiles = true;
+  handleFiles(Array.from(e.dataTransfer.files));
+  setTimeout(() => { _handlingFiles = false; }, 500);
 });
-
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadZone.classList.remove('drag-over');
-  const files = Array.from(e.dataTransfer.files);
-  if (files.length) handleFiles(files);
-});
-
-fileInput.addEventListener('change', () => {
-  if (!fileInput.files || fileInput.files.length === 0) return;
-  const files = Array.from(fileInput.files);
-  fileInput.value = '';
-  handleFiles(files);
+fileInput.addEventListener('change', () => { 
+  if (_handlingFiles) return;
+  handleFiles(Array.from(fileInput.files)); 
 });
 
 function handleFiles(files) {
@@ -1227,21 +1315,16 @@ function handleFiles(files) {
     uploadPreviews.classList.remove('hidden');
     uploadedFiles.forEach(file => {
       if (file.type.startsWith('image/')) {
-        const img = document.createElement('img');
-        img.className = 'preview-thumb';
-        img.src = URL.createObjectURL(file);
-        uploadPreviews.appendChild(img);
+        const img = document.createElement('img'); img.className = 'preview-thumb'; img.src = URL.createObjectURL(file); uploadPreviews.appendChild(img);
       } else {
-        const box = document.createElement('div');
-        box.className = 'preview-file';
+        const box = document.createElement('div'); box.className = 'preview-file';
         box.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>${file.name.slice(0, 12)}...</span>`;
         uploadPreviews.appendChild(box);
       }
     });
-  } else {
-    uploadPreviews.classList.add('hidden');
-  }
+  } else { uploadPreviews.classList.add('hidden'); }
 }
+
 async function toBase64(file) {
   return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file); });
 }
@@ -1259,6 +1342,8 @@ startBtn?.addEventListener('click', async () => {
   }
   _lessonStarted = true;
   sessionTopic = topic || uploadedFiles.map(f => f.name).join(', ');
+  document.documentElement.classList.remove('setup-active');
+  document.body.classList.remove('setup-active');
   uploadScreen?.classList.remove('active');
   classroomScreen?.classList.add('active');
   if (stageTopic) stageTopic.textContent = sessionTopic;
@@ -1266,7 +1351,7 @@ startBtn?.addEventListener('click', async () => {
   loadAgentVoices();
   await initDuckDB();
   ensureLaser();
-  buildNotesPanel();
+  try { buildNotesPanel(); } catch(e){ console.warn(e); }
   await startLesson();
 });
 
@@ -1399,12 +1484,6 @@ async function callAgent(agentId) {
     const isEn = getVoiceLang() === 'en';
     const match = isEn ? reply.match(/^[^.?!]+[.?!]/) : reply.match(/^[^।?!]+[।?!]/);
     reply = match ? match[0].trim() : reply.split(isEn ? /[.?!]/ : /[।?!]/)[0].trim() + (isEn ? '.' : '।');
-  } else {
-    // Cap teacher at 2 sentences even if the model overruns
-    const sentences = reply.match(/[^।?!]+[।?!]/g);
-    if (sentences && sentences.length > 2) {
-      reply = sentences.slice(0, 2).join(' ').trim();
-    }
   }
 
   return reply;
@@ -1485,7 +1564,6 @@ async function startLesson() {
 
   lessonStarting = false;
   if (!turnLoopRunning) runTurnLoop();
-  if (!notesGenerated) generateNotes();
 }
 
 async function runTurnLoop() {
@@ -1759,7 +1837,7 @@ raiseHandBtn.addEventListener('click', () => {
   const active = raiseHandBtn.classList.toggle('active');
   if (active) {
     isPaused = true;
-    if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+    speechSynthesis.cancel();
     // Release TTS lock so speak() doesn't deadlock when user sends a message
     _ttsLocked = false; _ttsLockResolve = null;
     currentUtterance = null; laserActive = false; hideLaser();
@@ -1779,16 +1857,14 @@ userInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitUserMe
 
 function submitUserMessage() {
   const msg = userInput.value.trim(); if (!msg) return;
-  if (!_fromMic) addChatBubble('user', msg, true);
-  _fromMic = false;
-  userInput.value = '';
+  addChatBubble('user', msg, true); userInput.value = '';
   pendingUserMessage = msg; userInterrupted = true;
   humanLog.typedMessages.push(msg); if (humanLog.typedMessages.length > 10) humanLog.typedMessages.shift();
   userInput.disabled = true; sendBtn.disabled = true;
   if (micBtn) micBtn.disabled = true;
   raiseHandBtn.classList.remove('active'); stopMic();
   isPaused = false; if (ttsLabel) ttsLabel.textContent = 'নীরব';
-  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+  speechSynthesis.cancel();
   _ttsLocked = false; _ttsLockResolve = null;
   hideLaser();
 }
@@ -1864,7 +1940,7 @@ function _releaseStream() { mediaStream?.getTracks().forEach(t => { try { t.stop
 function _appendTranscript(text) {
   const cleaned = text?.trim(); if (!cleaned || !userInput) return;
   userInput.value = userInput.value.trim() ? `${userInput.value.trim()} ${cleaned}` : cleaned;
-  setTimeout(() => { if (userInput.value.trim()) { _fromMic = true; submitUserMessage(); } }, 300);
+  setTimeout(() => { if (userInput.value.trim()) submitUserMessage(); }, 300);
 }
 
 async function transcribeWithWhisper(blob) {
@@ -1903,14 +1979,14 @@ if (ttsToggle) {
   ttsToggle.addEventListener('click', () => {
     ttsEnabled = !ttsEnabled;
     ttsToggle.textContent = ttsEnabled ? '🔊' : '🔇';
-    if (!ttsEnabled) { if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; } hideLaser(); }
+    if (!ttsEnabled) { speechSynthesis.cancel(); hideLaser(); }
   });
 }
 
 pauseBtn.addEventListener('click', () => {
   isPaused = !isPaused; pauseBtn.textContent = isPaused ? 'চালিয়ে যান' : 'বিরতি';
   if (isPaused) {
-    if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+    speechSynthesis.cancel();
     // Release the TTS lock so the loop can resume cleanly when unpaused
     _ttsLocked = false; _ttsLockResolve = null;
     currentUtterance = null;
@@ -1938,7 +2014,7 @@ resetBtn.addEventListener('click', () => {
   if (!confirm('ক্লাস শেষ করতে চান?')) return;
   isRunning = false; lessonStarting = false; isPaused = false;
   _lessonStarted = false; 
-  stopMic(); if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+  stopMic(); speechSynthesis.cancel();
   _ttsLocked = false; _ttsLockResolve = null;
   clearInterval(timerInterval); hideLaser();
   sessionSeconds = 0; dialogueLog = []; pdfPages = []; store.reset(); uploadedFiles = [];
@@ -1947,13 +2023,12 @@ resetBtn.addEventListener('click', () => {
   chatMessages.innerHTML = '<div class="chat-welcome">ক্লাস শুরু হলে এখানে কথোপকথন দেখা যাবে</div>';
   stageMessage.classList.add('hidden'); stageIdle.classList.remove('hidden');
   hideSlide(); clearAgentSpeaking();
-  notesPanelEl?.remove(); notesPanelEl = null; notesGenerated = false; notesGenerating = false;
   if (ttsWave)  ttsWave.classList.remove('speaking');
   if (ttsLabel) ttsLabel.textContent = 'নীরব';
   pauseBtn.textContent = 'বিরতি'; raiseHandBtn.classList.remove('active');
   userInput.disabled = true; sendBtn.disabled = true;
   if (micBtn) micBtn.disabled = true;
-  classroomScreen.classList.remove('active'); uploadScreen.classList.add('active');
+  document.documentElement.classList.add('setup-active'); document.body.classList.add('setup-active'); classroomScreen.classList.remove('active'); uploadScreen.classList.add('active');
 });
 
 // ══════════════════════════════════════════════
@@ -2134,7 +2209,6 @@ async function generateNotes() {
     if (regenBtn) { regenBtn.disabled = false; regenBtn.classList.remove('spinning'); }
   }
 }
-
 
 // ══════════════════════════════════════════════
 //  QUIZ ENGINE — Bloom's Taxonomy + ZPD

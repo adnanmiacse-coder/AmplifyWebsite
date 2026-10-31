@@ -37,8 +37,71 @@
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     
-    body:has(#upload-screen.active) { overflow-x: hidden; }
-body:has(#deeplearn-screen.active) { overflow: hidden; height: 100vh; }
+        /* ── Screen Isolation & Scroll Lock ── */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    body:has(#upload-screen.active),
+    html:has(#upload-screen.active),
+    body.setup-active,
+    html.setup-active {
+      overflow: hidden !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+    }
+    body:has(#deeplearn-screen.active),
+    html:has(#deeplearn-screen.active) {
+      overflow: hidden !important;
+      height: 100vh !important;
+    }
+
+    .screen { display: none !important; }
+
+    #deeplearn-screen:not(.active) {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      height: 0 !important;
+      max-height: 0 !important;
+      overflow: hidden !important;
+      pointer-events: none !important;
+      position: absolute !important;
+      top: -99999px !important;
+      left: -99999px !important;
+    }
+
+    #upload-screen.active {
+      display: flex !important;
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      z-index: 99 !important;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #upload-screen:not(.active) {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      height: 0 !important;
+      pointer-events: none !important;
+    }
+
+    #deeplearn-screen.active {
+      display: grid !important;
+      height: 100vh !important;
+      width: 100vw !important;
+      position: relative !important;
+      z-index: 10 !important;
+      overflow: hidden !important;
+    }
 html, body {
   height: 100%;
   font-family: var(--font-body);
@@ -72,10 +135,7 @@ body::after {
   z-index: 0;
 }
     /* ── Screens ── */
-    .screen { display: none !important; }
-    .screen.active { display: flex !important; }
-    #upload-screen.active { display: flex !important; }
-    #deeplearn-screen.active { display: grid !important; }
+    
 
     /* ══════════════════════
        UPLOAD / SETUP SCREEN
@@ -890,6 +950,179 @@ body::after {
       border: 1px solid var(--border);
       color: var(--text-muted);
     }
+
+    /* ── GIF Fetcher Panel in Chatbar ── */
+    .gif-panel {
+      background: rgba(6, 23, 38, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+      max-height: 165px;
+      overflow: hidden;
+      position: relative;
+      z-index: 5;
+    }
+    .gif-panel.collapsed {
+      max-height: 0;
+      opacity: 0;
+      border-top: none;
+      border-bottom: none;
+      pointer-events: none;
+    }
+    .gif-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      background: rgba(0, 183, 255, 0.06);
+      border-bottom: 1px solid rgba(0, 183, 255, 0.12);
+    }
+    .gif-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .gif-pill {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: linear-gradient(135deg, #00B7FF, #C44DFF);
+      color: #fff;
+      letter-spacing: 0.5px;
+    }
+    .gif-title-text {
+      font-size: 11px;
+      color: var(--text-soft);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 220px;
+    }
+    .gif-panel-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .gif-action-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .gif-action-btn:hover {
+      background: rgba(0, 183, 255, 0.18);
+      color: var(--text);
+    }
+    .gif-strip-scroll {
+      padding: 8px 10px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 183, 255, 0.25) transparent;
+    }
+    .gif-strip-scroll::-webkit-scrollbar {
+      height: 4px;
+    }
+    .gif-strip-scroll::-webkit-scrollbar-thumb {
+      background: rgba(0, 183, 255, 0.25);
+      border-radius: 2px;
+    }
+    .gif-strip {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .gif-card {
+      flex-shrink: 0;
+      height: 85px;
+      width: 120px;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      border: 1.5px solid rgba(0, 183, 255, 0.2);
+      cursor: pointer;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+      background: #061726;
+    }
+    .gif-card:hover {
+      transform: scale(1.04);
+      border-color: #00B7FF;
+      box-shadow: 0 0 12px rgba(0, 183, 255, 0.4);
+    }
+    .gif-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .gif-card .gif-send-pill {
+      position: absolute;
+      bottom: 3px;
+      right: 3px;
+      background: rgba(2, 11, 22, 0.85);
+      color: #00B7FF;
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      opacity: 0;
+      transition: opacity 0.15s;
+      font-weight: 700;
+    }
+    .gif-card:hover .gif-send-pill {
+      opacity: 1;
+    }
+    .gif-status {
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 14px 6px;
+      white-space: nowrap;
+    }
+    .gif-toggle-btn {
+      background: rgba(0, 183, 255, 0.12);
+      border: 1px solid rgba(0, 183, 255, 0.3);
+      color: #00B7FF;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      padding: 7px 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .gif-toggle-btn:hover {
+      background: rgba(0, 183, 255, 0.25);
+      border-color: #00B7FF;
+      box-shadow: 0 0 10px rgba(0, 183, 255, 0.35);
+    }
+    .chat-gif-bubble {
+      margin-top: 8px;
+      max-width: 250px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 183, 255, 0.35);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    }
+    .chat-gif-bubble img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
@@ -1079,7 +1312,28 @@ body::after {
         <div class="chat-messages" id="chatMessages">
           <div class="chat-welcome">আলোচনা শুরু হলে এখানে সম্পূর্ণ বিতর্ক দেখা যাবে</div>
         </div>
+                <!-- Topic-relevant GIF fetcher strip -->
+        <div class="gif-panel" id="gifPanel">
+          <div class="gif-panel-header">
+            <div class="gif-title-wrap">
+              <span class="gif-pill">GIF</span>
+              <span class="gif-title-text" id="gifTitleText">প্রাসঙ্গিক ভিজ্যুয়াল</span>
+            </div>
+            <div class="gif-panel-actions">
+              <button type="button" class="gif-action-btn" id="gifRefreshBtn" title="নতুন GIF রিফ্রেশ করুন">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              </button>
+              <button type="button" class="gif-action-btn" id="gifCloseBtn" title="লুকান / দেখান">✕</button>
+            </div>
+          </div>
+          <div class="gif-strip-scroll" id="gifStripScroll">
+            <div class="gif-strip" id="gifStrip">
+              <div class="gif-status">বিষয় শুরু হলে প্রাসঙ্গিক GIF লোড হবে...</div>
+            </div>
+          </div>
+        </div>
         <div class="chat-input-row">
+          <button type="button" class="gif-toggle-btn" id="gifToggleBtn" title="প্রাসঙ্গিক GIF প্যানেল">GIF</button>
           <button class="pause-input-btn" id="pauseInputBtn" disabled>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
@@ -1133,6 +1387,13 @@ body::after {
     const _env = getViteEnv();
     let _azureKey    = '';
     let _azureRegion = 'southeastasia';
+    
+    // Prevent any scroll leakage on setup screen
+    if (uploadScreen && uploadScreen.classList.contains('active')) {
+      document.documentElement.classList.add('setup-active');
+      document.body.classList.add('setup-active');
+    }
+
     loadEnvConfig().then(cfg => {
       _config = cfg;
       _azureKey    = cfg.AZURE_SPEECH_KEY    || '';
@@ -1531,9 +1792,187 @@ async function loadAndIndexPDF(file,onProgress){
       await switchToDeepLearn();
     });
 
-    async function switchToDeepLearn() {
+    
+    // ══════════════════════════════════════════════
+    //  TOPIC GIF FETCHER
+    // ══════════════════════════════════════════════
+    let currentGifQuery = '';
+    let isGifLoading = false;
+
+    const TOPIC_KEYWORD_MAP = [
+      { re: /মুক্তিযুদ্ধ|war|liberation|independence/i, term: 'liberation war bangladesh history' },
+      { re: /ত্বরণ|গতি|physics|motion|acceleration|force|বেগ/i, term: 'physics motion acceleration' },
+      { re: /সালোকসংশ্লেষণ|উদ্ভিদ|photosynthesis|chlorophyll/i, term: 'photosynthesis plant biology' },
+      { re: /ডিএনএ|dna|জিন|genetics|chromosome/i, term: 'dna double helix biology' },
+      { re: /মহাকর্ষ|space|gravity|মহাকাশ|গ্রহ|নক্ষত্র|galaxy|solar/i, term: 'galaxy gravity space science' },
+      { re: /কোষ|cell|mitosis|বিভাজন/i, term: 'cell mitosis biology' },
+      { re: /পরমাণু|atom|electron|রবার্ট|molecule|chemistry/i, term: 'chemistry atom molecule' },
+      { re: /কম্পিউটার|programming|coding|ai|আর্টিফিশিয়াল|রোবট|robot/i, term: 'technology coding artificial intelligence' },
+      { re: /গণিত|math|geometry|ত্রিকোণমিতি|বীজগণিত|algebra|calculus/i, term: 'mathematics geometry science' },
+      { re: /পরিবেশ|ecosystem|জলবায়ু|pollution|climate/i, term: 'nature climate earth environment' },
+      { re: /অর্থনীতি|economy|টাকা|finance|market/i, term: 'economy growth finance market' },
+      { re: /হৃদপিণ্ড|heart|রক্ত|blood|circulatory/i, term: 'human heart anatomy medical' }
+    ];
+
+    function extractGifSearchKeywords(topic) {
+      if (!topic || typeof topic !== 'string') return 'education science';
+      const clean = topic.trim();
+      for (const item of TOPIC_KEYWORD_MAP) {
+        if (item.re.test(clean)) return item.term;
+      }
+      const asciiWords = clean.replace(/[\u0980-\u09FF]+/g, ' ').replace(/[^\w\s]/g, ' ').trim();
+      if (asciiWords.length > 2) {
+        return asciiWords.split(/\s+/).slice(0, 3).join(' ') + ' science';
+      }
+      return 'education science idea';
+    }
+
+    async function fetchTopicGifs(queryTopic, force = false) {
+      const searchTerm = extractGifSearchKeywords(queryTopic || sessionTopic);
+      if (!force && searchTerm === currentGifQuery && !isGifLoading) return;
+      currentGifQuery = searchTerm;
+
+      const gifStrip = document.getElementById('gifStrip');
+      const gifTitleText = document.getElementById('gifTitleText');
+      if (gifTitleText) {
+        const displayLabel = (sessionTopic && sessionTopic.length > 22) 
+          ? sessionTopic.slice(0, 20) + '...' 
+          : (sessionTopic || searchTerm);
+        gifTitleText.textContent = `ভিজ্যুয়াল: ${displayLabel}`;
+      }
+      if (!gifStrip) return;
+
+      isGifLoading = true;
+      gifStrip.innerHTML = '<div class="gif-status">🔍 প্রাসঙ্গিক GIF সংগ্রহ করা হচ্ছে...</div>';
+
+      try {
+        let gifList = [];
+        try {
+          const giphyUrl = `https://api.giphy.com/v1/gifs/search?api_key=sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh&q=${encodeURIComponent(searchTerm)}&limit=10&rating=g`;
+          const gRes = await fetch(giphyUrl, { headers: { 'Accept': 'application/json' } });
+          if (gRes.ok) {
+            const gData = await gRes.json();
+            if (gData?.data?.length) {
+              gifList = gData.data.map(item => ({
+                id: item.id,
+                title: item.title || searchTerm,
+                preview: item.images?.fixed_height_small?.url || item.images?.downsized?.url || item.images?.original?.url,
+                full: item.images?.fixed_height?.url || item.images?.downsized_medium?.url || item.images?.original?.url
+              })).filter(g => !!g.preview);
+            }
+          }
+        } catch (e) {
+          console.warn('[GIF] Giphy search failed, trying Tenor fallback:', e);
+        }
+
+        if (!gifList.length) {
+          try {
+            const tenorUrl = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(searchTerm)}&key=LIVDSRZULELA&limit=10`;
+            const tRes = await fetch(tenorUrl);
+            if (tRes.ok) {
+              const tData = await tRes.json();
+              if (tData?.results?.length) {
+                gifList = tData.results.map(item => {
+                  const tiny = item.media_formats?.tinygif?.url || item.media_formats?.gif?.url;
+                  const full = item.media_formats?.gif?.url || tiny;
+                  return {
+                    id: item.id,
+                    title: item.content_description || searchTerm,
+                    preview: tiny,
+                    full: full
+                  };
+                }).filter(g => !!g.preview);
+              }
+            }
+          } catch (e) {
+            console.warn('[GIF] Tenor fallback also failed:', e);
+          }
+        }
+
+        if (!gifList.length) {
+          gifStrip.innerHTML = '<div class="gif-status">কোনো প্রাসঙ্গিক GIF পাওয়া যায়নি। রিফ্রেশ চাপুন।</div>';
+          isGifLoading = false;
+          return;
+        }
+
+        gifStrip.innerHTML = '';
+        gifList.forEach(gif => {
+          const card = document.createElement('div');
+          card.className = 'gif-card';
+          card.title = 'আলোচনায় যোগ করতে ক্লিক করুন';
+          card.innerHTML = `
+            <img src="${gif.preview}" alt="${escapeHtml(gif.title)}" loading="lazy" />
+            <span class="gif-send-pill">শেয়ার</span>
+          `;
+          card.addEventListener('click', () => {
+            sendGifToChat(gif.full, gif.title);
+          });
+          gifStrip.appendChild(card);
+        });
+
+      } catch (err) {
+        console.error('[GIF] Fetch error:', err);
+        gifStrip.innerHTML = '<div class="gif-status">GIF লোড করতে ত্রুটি হয়েছে।</div>';
+      } finally {
+        isGifLoading = false;
+      }
+    }
+
+    function sendGifToChat(gifUrl, title = '') {
+      const chatMessages = document.getElementById('chatMessages');
+      if (!chatMessages) return;
+
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-entry user-turn';
+      bubble.innerHTML = `
+        <div class="chat-header">
+          <span class="chat-speaker" style="color:var(--accent);">ভিজ্যুয়াল রেফারেন্স</span>
+          <span class="chat-time">${new Date().toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'})}</span>
+        </div>
+        <div class="chat-gif-bubble">
+          <img src="${gifUrl}" alt="${escapeHtml(title)}" />
+        </div>
+      `;
+      chatMessages.appendChild(bubble);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function initGifFetcherUI() {
+      const gifRefreshBtn = document.getElementById('gifRefreshBtn');
+      const gifCloseBtn = document.getElementById('gifCloseBtn');
+      const gifToggleBtn = document.getElementById('gifToggleBtn');
+      const gifPanel = document.getElementById('gifPanel');
+
+      if (gifRefreshBtn) {
+        gifRefreshBtn.addEventListener('click', () => {
+          fetchTopicGifs(sessionTopic, true);
+        });
+      }
+
+      if (gifCloseBtn && gifPanel) {
+        gifCloseBtn.addEventListener('click', () => {
+          gifPanel.classList.toggle('collapsed');
+          gifCloseBtn.textContent = gifPanel.classList.contains('collapsed') ? '＋' : '✕';
+        });
+      }
+
+      if (gifToggleBtn && gifPanel) {
+        gifToggleBtn.addEventListener('click', () => {
+          gifPanel.classList.toggle('collapsed');
+          if (gifCloseBtn) {
+            gifCloseBtn.textContent = gifPanel.classList.contains('collapsed') ? '＋' : '✕';
+          }
+        });
+      }
+    }
+
+async function switchToDeepLearn() {
+      document.documentElement.classList.remove('setup-active');
+      document.body.classList.remove('setup-active');
       uploadScreen.classList.remove('active');
       deeplearnScreen.classList.add('active');
+      fetchTopicGifs(sessionTopic);
+      initGifFetcherUI();
       stageTopic.textContent = sessionTopic;
       startTimer();
       loadVoices();
