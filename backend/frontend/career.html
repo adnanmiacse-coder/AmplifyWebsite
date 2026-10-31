@@ -279,6 +279,7 @@ footer{text-align:center;padding:32px;border-top:1px solid var(--border);color:v
 </div>
 <footer>&copy; 2026 Amplify · Career Engine · Powered by GROQ AI &amp; Llama 4 Scout</footer>
 
+<script src="/amplify-platform.js"></script>
 <script src="/amplify-env-bootstrap.js"></script>
 <script type="module">
 // Config loaded from server via amplify-env-bootstrap.js
@@ -477,6 +478,8 @@ function markL(i){
 async function callGroq(){
   const profile=Object.entries(ans).map(([k,v])=>`${k}: ${v}`).join('\n');
   const sys=`You are an expert career counsellor for the Bangladesh job market.
+NUMERIC FORMAT RULE: Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4, or fractions). If a fractional digit appears, ensure it is converted to and written as a decimal number (e.g. 1/2 as 0.5, 3/4 as 0.75). Express all fractional values strictly as decimal numbers.
+
 Return ONLY a valid JSON object — no markdown, no backticks — with keys:
 1. "career": Specific job title
 2. "summary": 2-3 personalised sentences on why this role suits them

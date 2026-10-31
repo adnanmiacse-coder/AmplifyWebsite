@@ -687,7 +687,7 @@ async function openRouterChat(messages, system, maxTokens = 600, temp = 0.8) {
             'X-Title': 'DeepLearn',
           },
           body: JSON.stringify({ model, max_tokens: maxTokens, temperature: temp,
-            messages: [{ role: 'system', content: system }, ...messages] }),
+            messages: [{ role: 'system', content: `${system}\n\n${'CRITICAL NUMERIC RULE: Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4, or fractions). If a fractional digit appears, ensure it is converted to and written as a decimal number (for example, write 1/2 as 0.5, 3/4 as 0.75, 1/4 as 0.25). Never output fractions or fractional digits; express all fractional values strictly as decimal numbers.'}` }, ...messages] }),
         });
         if (!res.ok) { if (res.status === 429) await sleep(1000); throw new Error(`${res.status}`); }
         const d = await res.json();

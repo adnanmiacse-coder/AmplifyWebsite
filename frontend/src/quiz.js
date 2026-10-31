@@ -133,6 +133,7 @@ Rules:
 5. Mix recall, application, and conceptual questions.
 6. Do not repeat questions.
 7. No markdown, no backticks, no extra text.
+8. - Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4). If a fractional digit appears, write it as a decimal number (e.g. 1/2 as 0.5, 3/4 as 0.75).
 
 Return only the JSON array.`;
 
@@ -320,7 +321,7 @@ btnRetry.addEventListener('click', () => {
 });
 
 btnBackToRoutine.addEventListener('click', () => {
-  window.location.assign('/index.html');
+  window.location.assign('/routine.html');
 });
 
 btnGoBack.addEventListener('click', () => {

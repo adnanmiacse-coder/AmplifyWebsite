@@ -377,7 +377,7 @@ async function openRouterChat(messages, system, maxTokens = 1000, temp = 0.7) {
             model,
             max_tokens: maxTokens,
             temperature: temp,
-            messages: [{ role: 'system', content: system }, ...messages],
+            messages: [{ role: 'system', content: `${system}\n\n${'CRITICAL NUMERIC RULE: Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4, or fractions). If a fractional digit appears, ensure it is converted to and written as a decimal number (for example, write 1/2 as 0.5, 3/4 as 0.75, 1/4 as 0.25). Never output fractions or fractional digits; express all fractional values strictly as decimal numbers.'}` }, ...messages],
           }),
         });
         if (!res.ok) {
@@ -412,7 +412,7 @@ async function groqChat(messages, system, maxTokens = 500, temp = 0.78, agentId 
           model,
           max_tokens: maxTokens,
           temperature: temp,
-          messages: [{ role: 'system', content: system }, ...messages],
+          messages: [{ role: 'system', content: `${system}\n\n${'CRITICAL NUMERIC RULE: Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4, or fractions). If a fractional digit appears, ensure it is converted to and written as a decimal number (for example, write 1/2 as 0.5, 3/4 as 0.75, 1/4 as 0.25). Never output fractions or fractional digits; express all fractional values strictly as decimal numbers.'}` }, ...messages],
         };
         if (model.includes('gpt-oss')) payload.reasoning_effort = 'low';
         else if (model.includes('qwen/')) payload.reasoning_effort = 'none';

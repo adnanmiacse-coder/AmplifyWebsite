@@ -184,6 +184,7 @@ h1 span{color:var(--acc)}
 .agent-thinking-dots span{width:5px;height:5px;border-radius:50%;background:#00ccff;animation:agentPulse 1.1s ease-in-out infinite}
 .agent-thinking-dots span:nth-child(2){animation-delay:.2s}
 .agent-thinking-dots span:nth-child(3){animation-delay:.4s}
+.chem-nav-link:hover{color:var(--acc) !important;text-shadow:0 0 8px rgba(0,255,136,0.4);}
 </style>
 </head>
 <body>
@@ -570,6 +571,7 @@ h1 span{color:var(--acc)}
   <span>34 Experiments · 7 Sections</span>
 </footer>
 
+<script src="/amplify-platform.js"></script>
 <script src="/amplify-env-bootstrap.js"></script>
 <script type="module">
 // Config will be loaded by amplify-env-bootstrap.js and available on window.AMPLIFY_ENV
@@ -1573,7 +1575,8 @@ Rules:
 - ALWAYS use tool calls — never respond with plain text
 - Keep each speak_to_student text short: 1-3 sentences max
 - Available experiment keys: ${availableKeys}
-- Call finish when done — do not loop forever`;
+- Call finish when done — do not loop forever
+- CRITICAL NUMERIC RULE: Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4, or fractions). If a fractional digit or fraction appears, ensure it is converted to and written as a decimal number (for example, write 1/2 as 0.5, 3/4 as 0.75, 1/4 as 0.25; use approximate decimals for repeating values). Never output fractions or fractional digits; express all fractional values strictly as decimal numbers.`;
 
   const messages = [
     { role: 'system', content: systemPrompt },

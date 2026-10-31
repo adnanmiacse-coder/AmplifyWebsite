@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "cleanUrls": true,
+  "trailingSlash": false,
   "builds": [
     {
       "src": "frontend/package.json",
@@ -23,6 +25,14 @@
     },
     {
       "handle": "filesystem"
+    },
+    {
+      "src": "/(career|experiments|chemistry|biology-lab|classroom|classroomai|deeplearn|amplify-tutor|dashboard|routine|quiz|einstein)",
+      "dest": "/$1.html"
+    },
+    {
+      "src": "/teacher/(.*)",
+      "dest": "/teacher/$1.html"
     },
     {
       "src": "/(.*)",

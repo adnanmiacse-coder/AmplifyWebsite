@@ -192,6 +192,7 @@ Rules:
 6. In the last 20% of days, increase revision and mock sessions.
 7. Spread subjects evenly — do not repeat the same subject more than twice in one day.
 8. Today's date is ${new Date().toISOString().split('T')[0]}.
+9. Do not ever mention any fractional digits or fraction notation (such as 1/2, 3/4). If a fractional digit appears, ensure it is written as a decimal number (e.g. 1/2 as 0.5).
 
 Return only the JSON array.`
   });

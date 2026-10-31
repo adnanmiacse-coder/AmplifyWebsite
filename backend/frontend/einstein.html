@@ -602,6 +602,7 @@
     .cyan { color: var(--cyan); }
     .amber { color: var(--amber); }
   </style>
+  <script src="/amplify-platform.js"></script>
 </head>
 <body>
 
@@ -1217,7 +1218,8 @@ STRICT RULES:
 - Reference your real experimental apparatus, equations, or observations from your era.
 - One concrete analogy from everyday life of your time period.
 - DO NOT repeat: ${lastTwo || 'nothing yet'}
-- English only. No greeting, no name, no preamble — start with the idea itself.`;
+- English only. No greeting, no name, no preamble — start with the idea itself.
+- CRITICAL NUMERIC RULE: Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4, or fractions). If a fractional digit appears, ensure it is converted to and written as a decimal number (for example, write 1/2 as 0.5, 3/4 as 0.75, 1/4 as 0.25). Never output fractions or fractional digits; express all fractional values strictly as decimal numbers.`;
 }
 
 async function callLLM(slotIdx) {

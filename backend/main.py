@@ -186,6 +186,14 @@ EXPERT_SYSTEMS = {
 - বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।""",
 }
 
+NUMERIC_FORMAT_INSTRUCTION = (
+    "CRITICAL NUMERIC FORMATTING RULE: Do not ever mention or use any fractional digits or fraction notation "
+    "(such as 1/2, 3/4, or fractions). If a fractional digit or fraction appears, ensure it is converted to and "
+    "written as a decimal number (for example, write 1/2 as 0.5, 3/4 as 0.75, 1/4 as 0.25; use approximate decimals "
+    "for repeating values). Never output fractions or fractional digits; express all fractional values strictly as "
+    "decimal numbers throughout your response."
+)
+
 EXPERT_NAMES = {
   'expert1': 'ড. আরিফ',
   'expert2': 'ড. নাফিসা',
@@ -237,7 +245,7 @@ def make_expert_node(expert_id: str):
         models_to_try = [primary_model] + [m for m in fallback_models if m != primary_model]
         prompt_text = build_expert_prompt(state)
         messages = [
-            SystemMessage(content=EXPERT_SYSTEMS[expert_id]),
+            SystemMessage(content=f"{EXPERT_SYSTEMS[expert_id]}\n\n{NUMERIC_FORMAT_INSTRUCTION}"),
             HumanMessage(content=prompt_text),
         ]
         last_err = None
@@ -296,6 +304,15 @@ class Prompt(BaseModel):
 
 def call_llm(messages: list, max_tokens: int = 2500) -> str:
     """Try each API key in order, fall back on failure."""
+    messages = [dict(message) for message in messages]
+    system_messages = [message for message in messages if message.get("role") == "system"]
+    if system_messages:
+        for message in system_messages:
+            if NUMERIC_FORMAT_INSTRUCTION not in message.get("content", ""):
+                message["content"] = f"{message.get('content', '')}\n\n{NUMERIC_FORMAT_INSTRUCTION}"
+    else:
+        messages.insert(0, {"role": "system", "content": NUMERIC_FORMAT_INSTRUCTION})
+
     last_error = None
     for i, c in enumerate(get_clients()):
         try:
@@ -715,7 +732,81 @@ async def neo4j_keepalive():
         return {"status": "error", "detail": str(e)}
 
 
+
+# ── Fallback Authentication & Profile Routes ───────────────────
+class AuthRegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    password_confirmation: str = ""
+    role: str = "student"
+
+class AuthLoginRequest(BaseModel):
+    email: str
+    password: str
+
+@app.post("/api/register")
+async def api_register(data: AuthRegisterRequest):
+    token = f"token_{uuid.uuid4().hex}"
+    user = {
+        "id": 1,
+        "name": data.name,
+        "email": data.email,
+        "role": data.role if data.role in ("student", "teacher") else "student",
+    }
+    return {
+        "message": "Registration successful.",
+        "user": user,
+        "token": token,
+    }
+
+@app.post("/api/login")
+async def api_login(data: AuthLoginRequest):
+    name = data.email.split("@")[0].capitalize() or "Student"
+    user = {
+        "id": 1,
+        "name": name,
+        "email": data.email,
+        "role": "teacher" if "teacher" in data.email.lower() else "student",
+    }
+    token = f"token_{uuid.uuid4().hex}"
+    return {
+        "message": "Login successful.",
+        "user": user,
+        "token": token,
+    }
+
+@app.get("/api/user")
+async def api_get_user():
+    return {
+        "user": {
+            "id": 1,
+            "name": "Student",
+            "email": "student@amplify.app",
+            "role": "student"
+        }
+    }
+
+@app.post("/api/logout")
+async def api_logout():
+    return {"message": "Logged out successfully."}
+
+
 if FRONTEND_DIR:
+
+    @app.middleware("http")
+    async def clean_urls_middleware(request, call_next):
+        path = request.url.path
+        if not path.startswith(("/api", "/neo4j", "/generate", "/videos", "/turn", "/models", "/static")):
+            if FRONTEND_DIR and not os.path.splitext(path)[1]:
+                clean_rel = path.strip("/")
+                html_file = os.path.join(FRONTEND_DIR, f"{clean_rel}.html")
+                if os.path.isfile(html_file):
+                    return FileResponse(html_file, media_type="text/html")
+                teacher_html = os.path.join(FRONTEND_DIR, "teacher", f"{clean_rel.replace('teacher/', '')}.html")
+                if os.path.isfile(teacher_html):
+                    return FileResponse(teacher_html, media_type="text/html")
+        return await call_next(request)
     public_dir = os.path.join(FRONTEND_DIR, "public")
     models_dir = os.path.join(public_dir, "models")
 
