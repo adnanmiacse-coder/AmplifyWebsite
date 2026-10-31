@@ -103,6 +103,38 @@ body::after {
     justify-content: space-between;
 }
 
+.nav-brand-wrap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+}
+.navbar-buildathon-logo {
+    display: inline-flex;
+    align-items: center;
+    background: #ffffff;
+    padding: 3px 8px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.navbar-buildathon-logo:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0,255,136,0.3);
+}
+.navbar-buildathon-logo img {
+    height: 22px;
+    width: auto;
+    display: block;
+    object-fit: contain;
+}
+@media (max-width: 768px) {
+    .navbar-buildathon-logo img {
+        height: 18px;
+    }
+}
+
 .logo {
     font-family: var(--font-mono);
     font-weight: 700;
@@ -419,9 +451,11 @@ body::after {
 
 /* ─── Partners / Press ───────────────────────────────────────── */
 .partners-section {
-    padding: 60px 0;
-    border-top: 1px solid rgba(0,255,136,0.08);
-    border-bottom: 1px solid rgba(0,255,136,0.08);
+    padding: 64px 0;
+    background: #ffffff;
+    border-top: none;
+    border-bottom: none;
+    overflow: hidden;
     position: relative;
 }
 

@@ -77,6 +77,38 @@ body {
     justify-content: space-between;
 }
 
+.nav-brand-wrap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+}
+.navbar-buildathon-logo {
+    display: inline-flex;
+    align-items: center;
+    background: #ffffff;
+    padding: 3px 8px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.navbar-buildathon-logo:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0,255,136,0.3);
+}
+.navbar-buildathon-logo img {
+    height: 22px;
+    width: auto;
+    display: block;
+    object-fit: contain;
+}
+@media (max-width: 768px) {
+    .navbar-buildathon-logo img {
+        height: 18px;
+    }
+}
+
 .logo {
     font-family: var(--font-display);
     font-weight: 800;
@@ -928,7 +960,12 @@ section { padding: 96px 0; }
 <header class="header" id="header">
     <div class="container">
         <nav class="nav">
-            <a href="/index.html" class="logo">Amplify</a>
+            <div class="nav-brand-wrap">
+                <a href="/index.html" class="logo">Amplify</a>
+                <a href="#buildathon" class="navbar-buildathon-logo" title="Built For Ostad Presents YUNet AIgnite Buildathon 2026">
+                    <img src="/images/AIgnite.png" alt="Ostad Presents YUNet AIgnite Buildathon 2026" />
+                </a>
+            </div>
             <div class="nav-links" id="navLinksEn">
                 <a href="https://amplifywebsite-production.up.railway.app/career.html" class="nav-link" target="_blank" rel="noopener noreferrer">Career Engine</a>
                 <a href="https://amplifywebsite-production.up.railway.app/experiments.html" class="nav-link" target="_blank" rel="noopener noreferrer">Experiments</a>
@@ -1012,30 +1049,16 @@ section { padding: 96px 0; }
         </div>
     </section>
 
-    <!-- Supported By / Featured In -->
-    <section class="partners-section">
-        <div class="container">
-            <div class="partners-label" data-en="Supported by" data-bn="সহযোগিতায়">Supported by</div>
-            
-            <div class="partners-row" id="supportedBy">
-                
-                <div class="partner-slot"><a href="https://www.facebook.com/share/1934mvVEYD/" target="_blank" rel="noopener noreferrer"><img src="/images/logos/banglalink.jpg" alt="Banglalink"></a></div>
-                <div class="partner-slot"><a href="https://www.facebook.com/photo?fbid=1274687658019788&set=pcb.1274689928019561" target="_blank" rel="noopener noreferrer"><img src="/images/logos/applink.png" alt="Applink Store"></a></div>
-                <div class="partner-slot"><img src="/images/logos/henid.png" alt="hSenid Mobile"></div>
-                <div class="partner-slot"><a href="https://aceit.fit" target="_blank" rel="noopener noreferrer"><img src="/images/logos/ace.png" alt="AceIT"></a></div>
+    <!-- Built For Buildathon Section -->
+    <section class="partners-section" id="buildathon">
+        <div class="container" style="text-align: center;">
+            <p class="partners-label" data-en="Built For Ostad Presents YUNet AIgnite Buildathon 2026" data-bn="Built For Ostad Presents YUNet AIgnite Buildathon 2026" style="justify-content: center; text-align: center; margin-bottom: 24px; font-size: 15px; letter-spacing: 0.14em; color: #111111; font-weight: 700; opacity: 1;">
+                Built For Ostad Presents YUNet AIgnite Buildathon 2026
+            </p>
+            <div style="display: flex; justify-content: center; align-items: center; padding: 12px 0;">
+                <img src="/images/AIgnite.png" alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026" style="max-height: 110px; width: auto; max-width: 90%; object-fit: contain;" />
             </div>
- 
-            <div class="partners-label" style="margin-top: 48px;" data-en="Featured in" data-bn="যেখানে প্রকাশিত হয়েছে">Featured in</div>
-            
-            <div class="partners-row" id="featuredIn">
-                <div class="partner-slot"><a href="https://www.facebook.com/reel/3053067948216520/" target="_blank" rel="noopener noreferrer"><img src="/images/logos/aspireins.jpg" alt="Aspire Institute"></a></div>
-                
-                
-                <div class="partner-slot"><a href="https://www.dhakatribune.com/business/401277/banglalink-holds-appquest-applink-hackathon-2025" target="_blank" rel="noopener noreferrer"><img src="/images/logos/dhaka.jpg" alt="Dhaka Tribune"></a></div>
-                <div class="partner-slot"><a href="https://en.prothomalo.com/corporate/e9tgkeq4vf" target="_blank" rel="noopener noreferrer"><img src="/images/logos/prothom.png" alt="Prothom Alo"></a></div>
-                <div class="partner-slot"><img src="/images/logos/tbh.png" alt="The Business Standard"></div>
-            </div>
-        </div> 
+        </div>
     </section> 
 
     <!-- Features -->
