@@ -37,7 +37,9 @@
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     
-    html, body {
+    body:has(#upload-screen.active) { overflow-x: hidden; }
+body:has(#deeplearn-screen.active) { overflow: hidden; height: 100vh; }
+html, body {
   height: 100%;
   font-family: var(--font-body);
   background: var(--bg);
@@ -70,8 +72,10 @@ body::after {
   z-index: 0;
 }
     /* ── Screens ── */
-    .screen { display: none; }
-    .screen.active { display: flex; }
+    .screen { display: none !important; }
+    .screen.active { display: flex !important; }
+    #upload-screen.active { display: flex !important; }
+    #deeplearn-screen.active { display: grid !important; }
 
     /* ══════════════════════
        UPLOAD / SETUP SCREEN
@@ -245,7 +249,7 @@ body::after {
    
     #deeplearn-screen {
       height: 100vh;
-      display: grid;
+      
       grid-template-columns: 260px 1fr 390px;
       grid-template-rows: 1fr 52px;
       grid-template-areas:

@@ -1,3 +1,10 @@
+body:has(#upload-screen.active) {
+  overflow-x: hidden;
+}
+body:has(#classroom-screen.active) {
+  overflow: hidden;
+  height: 100vh;
+}
 /* ══════════════════════════════════════════════════════════════
    AI ক্লাসরুম — Premium Stylesheet
    Palette: warm cream + deep teal-black + saffron + soft greens
@@ -102,8 +109,10 @@ button { font-family: inherit; }
 }
 
 /* Screens */
-.screen { display: none; }
-.screen.active { display: flex; }
+.screen { display: none !important; }
+.screen.active { display: flex !important; }
+#upload-screen.active { display: flex !important; }
+#classroom-screen.active { display: grid !important; }
 
 /* ══════════════════════════════════════════════════════════════
    UPLOAD SCREEN
@@ -391,7 +400,7 @@ button { font-family: inherit; }
    ══════════════════════════════════════════════════════════════ */
 #classroom-screen {
   height: 100vh;
-  display: grid;
+  
   grid-template-columns: 1fr 400px;
   grid-template-rows: 1fr 60px;
   grid-template-areas:

@@ -1,3 +1,10 @@
+body:has(#upload-screen.active) {
+  overflow-x: hidden;
+}
+body:has(#classroom-screen.active) {
+  overflow: hidden;
+  height: 100vh;
+}
 /* ══════════════════════════════════════════════════════════════
    AI ক্লাসরুম — Dark Space Stylesheet
    Palette: deep navy-black + cyan + purple — matching deeplearn.html
@@ -128,8 +135,10 @@ button { font-family: inherit; }
 }
 
 /* Screens */
-.screen { display: none; }
-.screen.active { display: flex; }
+.screen { display: none !important; }
+.screen.active { display: flex !important; }
+#upload-screen.active { display: flex !important; }
+#classroom-screen.active { display: grid !important; }
 
 /* ══════════════════════════════════════════════════════════════
    UPLOAD SCREEN
@@ -407,7 +416,7 @@ button { font-family: inherit; }
    ══════════════════════════════════════════════════════════════ */
 #classroom-screen {
   height: 100vh;
-  display: grid;
+  
   grid-template-columns: 1fr 400px;
   grid-template-rows: 1fr 60px;
   grid-template-areas:
@@ -1848,7 +1857,7 @@ button { font-family: inherit; }
     @keyframes noteSpin { to { transform: rotate(360deg); } }
 
     /* Classroom layout tweak — inject notes panel before stage */
-    #classroom-screen {
+    #classroom-screen.active {
       display: grid !important;
       grid-template-columns: auto 1fr 340px !important;
       grid-template-rows: 1fr auto !important;
