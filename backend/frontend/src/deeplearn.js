@@ -497,30 +497,32 @@ startBtn.addEventListener('click', async () => {
 });
 
 
-// ══════════════════════════════════════════════
-//  TOPIC GIF FETCHER
-// ══════════════════════════════════════════════
-let currentGifQuery = '';
+// ── Topic-Based GIF Fetcher (Wikimedia Commons API) ─────────────
+let currentGifTopic = '';
+let currentGifResults = [];
+let currentGifIndex = 0;
 let isGifLoading = false;
+let gifRequestId = 0;
+const failedGifIndices = new Set();
 
-const TOPIC_KEYWORD_MAP = [
-  { re: /মুক্তিযুদ্ধ|war|liberation|independence/i, term: 'liberation war bangladesh history' },
-  { re: /ত্বরণ|গতি|physics|motion|acceleration|force|বেগ/i, term: 'physics motion acceleration' },
-  { re: /সালোকসংশ্লেষণ|উদ্ভিদ|photosynthesis|chlorophyll/i, term: 'photosynthesis plant biology' },
-  { re: /ডিএনএ|dna|জিন|genetics|chromosome/i, term: 'dna double helix biology' },
-  { re: /মহাকর্ষ|space|gravity|মহাকাশ|গ্রহ|নক্ষত্র|galaxy|solar/i, term: 'galaxy gravity space science' },
-  { re: /কোষ|cell|mitosis|বিভাজন/i, term: 'cell mitosis biology' },
-  { re: /পরমাণু|atom|electron|রবার্ট|molecule|chemistry/i, term: 'chemistry atom molecule' },
-  { re: /কম্পিউটার|programming|coding|ai|আর্টিফিশিয়াল|রোবট|robot/i, term: 'technology coding artificial intelligence' },
-  { re: /গণিত|math|geometry|ত্রিকোণমিতি|বীজগণিত|algebra|calculus/i, term: 'mathematics geometry science' },
-  { re: /পরিবেশ|ecosystem|জলবায়ু|pollution|climate/i, term: 'nature climate earth environment' },
-  { re: /অর্থনীতি|economy|টাকা|finance|market/i, term: 'economy growth finance market' },
-  { re: /হৃদপিণ্ড|heart|রক্ত|blood|circulatory/i, term: 'human heart anatomy medical' }
+const SCIENCE_TOPIC_MAP = [
+  { re: /সালোকসংশ্লেষণ|photosynthesis/i, term: 'Photosynthesis' },
+  { re: /ডিএনএ|dna|জিন|genetics/i, term: 'DNA replication' },
+  { re: /কোষ|cell|mitosis|কোষ বিভাজন/i, term: 'Mitosis' },
+  { re: /হৃদপিণ্ড|heart|রক্ত|circulatory/i, term: 'Heart circulatory' },
+  { re: /কোয়ান্টাম|quantum/i, term: 'Quantum mechanics' },
+  { re: /পরমাণু|atom|electron/i, term: 'Atom physics' },
+  { re: /মহাকর্ষ|gravity|relativity|আপেক্ষিকতা/i, term: 'General relativity gravity' },
+  { re: /ব্ল্যাক হোল|black hole/i, term: 'Black hole' },
+  { re: /মস্তিষ্ক|brain|neuron/i, term: 'Neuron brain' },
+  { re: /সৌরজগৎ|solar system|planet|গ্রহ/i, term: 'Solar system planet orbit' },
+  { re: /তরঙ্গ|wave|optics|আলো/i, term: 'Wave light optics' },
+  { re: /ইকোসিস্টেম|ecosystem|পরিবেশ|climate/i, term: 'Ecosystem food chain' }
 ];
 
-function escapeHtml(s) {
-  if (s == null) return '';
-  return String(s)
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -528,111 +530,194 @@ function escapeHtml(s) {
     .replace(/'/g, '&#039;');
 }
 
-function extractGifSearchKeywords(topic) {
-  if (!topic || typeof topic !== 'string') return 'education science';
-  const clean = topic.trim();
-  for (const item of TOPIC_KEYWORD_MAP) {
-    if (item.re.test(clean)) return item.term;
+function normalizeGifTopic(rawTopic) {
+  if (!rawTopic || typeof rawTopic !== 'string') return 'Science physics biology';
+  const trimmed = rawTopic.trim();
+  for (const item of SCIENCE_TOPIC_MAP) {
+    if (item.re.test(trimmed)) return item.term;
   }
-  const asciiWords = clean.replace(/[\u0980-\u09FF]+/g, ' ').replace(/[^\w\s]/g, ' ').trim();
-  if (asciiWords.length > 2) {
-    return asciiWords.split(/\s+/).slice(0, 3).join(' ') + ' science';
+  const asciiOnly = trimmed.replace(/[\u0980-\u09FF]+/g, ' ').replace(/[^\w\s]/g, ' ').trim();
+  if (asciiOnly.length > 2) {
+    return asciiOnly.split(/\s+/).slice(0, 3).join(' ');
   }
-  return 'education science idea';
+  return trimmed || 'Science animation';
+}
+
+function renderCurrentGif() {
+  const gifViewBody = document.getElementById('gifViewBody');
+  const gifCounter = document.getElementById('gifCounter');
+  const gifNextBtn = document.getElementById('gifNextBtn');
+  if (!gifViewBody) return;
+
+  if (!currentGifResults || currentGifResults.length === 0) {
+    if (gifCounter) gifCounter.textContent = '0 / 0';
+    if (gifNextBtn) gifNextBtn.disabled = true;
+    gifViewBody.innerHTML = `
+      <div class="gif-status-box">
+        <span>কোনো প্রাসঙ্গিক উইকিমিডিয়া অ্যানিমেশন পাওয়া যায়নি।</span>
+        <button type="button" class="gif-retry-btn" id="gifRetryBtn">পুনরায় চেষ্টা করুন</button>
+      </div>
+    `;
+    const retryBtn = document.getElementById('gifRetryBtn');
+    if (retryBtn) {
+      retryBtn.addEventListener('click', () => fetchTopicGifs(sessionTopic, true));
+    }
+    return;
+  }
+
+  let attempts = 0;
+  while (failedGifIndices.has(currentGifIndex) && attempts < currentGifResults.length) {
+    currentGifIndex = (currentGifIndex + 1) % currentGifResults.length;
+    attempts++;
+  }
+
+  if (attempts >= currentGifResults.length) {
+    if (gifCounter) gifCounter.textContent = '0 / 0';
+    gifViewBody.innerHTML = `
+      <div class="gif-status-box">
+        <span>GIF লোড করা যায়নি (নেটওয়ার্ক বা ফাইল ত্রুটি)।</span>
+        <button type="button" class="gif-retry-btn" id="gifRetryBtn">পুনরায় অনুসন্ধান</button>
+      </div>
+    `;
+    const retryBtn = document.getElementById('gifRetryBtn');
+    if (retryBtn) {
+      retryBtn.addEventListener('click', () => fetchTopicGifs(sessionTopic, true));
+    }
+    return;
+  }
+
+  const gif = currentGifResults[currentGifIndex];
+  if (gifCounter) {
+    gifCounter.textContent = `${currentGifIndex + 1} / ${currentGifResults.length}`;
+  }
+  if (gifNextBtn) {
+    gifNextBtn.disabled = currentGifResults.length <= 1;
+  }
+
+  const safeTitle = escapeHtml(gif.title || 'Wikimedia animation');
+  const safeArtist = escapeHtml(gif.artist || 'Wikimedia Commons contributor');
+  const safeLicense = escapeHtml(gif.license || 'Wikimedia Commons');
+  const safeFileUrl = escapeHtml(gif.file_url || 'https://commons.wikimedia.org');
+
+  gifViewBody.innerHTML = `
+    <div class="gif-display-card">
+      <div class="gif-img-container">
+        <img id="gifMainImg" class="gif-main-img" 
+             src="${gif.image_url}" 
+             alt="${safeTitle}" 
+             loading="lazy" 
+             decoding="async" />
+      </div>
+      <div class="gif-info-container">
+        <div class="gif-item-title" title="${safeTitle}">${safeTitle}</div>
+        <div class="gif-attrib-item" title="Artist: ${safeArtist}">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>${safeArtist}</span>
+        </div>
+        <div class="gif-attrib-item" title="License: ${safeLicense}">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+          <span>${safeLicense}</span>
+        </div>
+        <div class="gif-attrib-footer">
+          <a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" class="gif-source-link" title="Open Wikimedia Commons file description page in new tab">
+            Source ↗
+          </a>
+          <button type="button" class="gif-share-btn" id="gifShareBtn" title="বিতর্কে এই ভিজ্যুয়াল রেফারেন্স যুক্ত করুন">
+            চ্যাটে পাঠান 💬
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const imgEl = document.getElementById('gifMainImg');
+  if (imgEl) {
+    imgEl.onerror = () => {
+      console.warn('[Wikimedia GIF] Image failed to load, trying next:', gif.image_url);
+      failedGifIndices.add(currentGifIndex);
+      advanceToNextGif();
+    };
+  }
+
+  const shareBtn = document.getElementById('gifShareBtn');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', () => {
+      sendGifToChat(gif.image_url, gif.title, safeArtist, safeLicense, safeFileUrl);
+    });
+  }
+}
+
+function advanceToNextGif() {
+  if (!currentGifResults || currentGifResults.length <= 1) return;
+  currentGifIndex = (currentGifIndex + 1) % currentGifResults.length;
+  renderCurrentGif();
 }
 
 export async function fetchTopicGifs(queryTopic, force = false) {
-  const searchTerm = extractGifSearchKeywords(queryTopic || sessionTopic);
-  if (!force && searchTerm === currentGifQuery && !isGifLoading) return;
-  currentGifQuery = searchTerm;
+  const raw = (queryTopic || sessionTopic || '').trim();
+  if (!raw) return;
 
-  const gifStrip = document.getElementById('gifStrip');
+  const normalizedQuery = normalizeGifTopic(raw);
+  if (!force && normalizedQuery.toLowerCase() === currentGifTopic.toLowerCase() && currentGifResults.length > 0) {
+    return;
+  }
+
+  currentGifTopic = normalizedQuery;
+  const thisRequestId = ++gifRequestId;
+  isGifLoading = true;
+
   const gifTitleText = document.getElementById('gifTitleText');
   if (gifTitleText) {
-    const displayLabel = (sessionTopic && sessionTopic.length > 22) 
-      ? sessionTopic.slice(0, 20) + '...' 
-      : (sessionTopic || searchTerm);
-    gifTitleText.textContent = `ভিজ্যুয়াল: ${displayLabel}`;
+    const displayLabel = (sessionTopic && sessionTopic.length > 22)
+      ? sessionTopic.slice(0, 20) + '...'
+      : (sessionTopic || normalizedQuery);
+    gifTitleText.textContent = `উইকিমিডিয়া: ${displayLabel}`;
   }
-  if (!gifStrip) return;
 
-  isGifLoading = true;
-  gifStrip.innerHTML = '<div class="gif-status">🔍 প্রাসঙ্গিক GIF সংগ্রহ করা হচ্ছে...</div>';
+  const gifViewBody = document.getElementById('gifViewBody');
+  const gifCounter = document.getElementById('gifCounter');
+  if (gifCounter) gifCounter.textContent = '...';
+  if (gifViewBody) {
+    gifViewBody.innerHTML = `
+      <div class="gif-status-box">
+        <div class="gif-spinner"></div>
+        <span>উইকিমিডিয়া কমন্স থেকে অ্যানিমেশন খোঁজা হচ্ছে...</span>
+      </div>
+    `;
+  }
 
   try {
-    let gifList = [];
-    try {
-      const giphyUrl = `https://api.giphy.com/v1/gifs/search?api_key=sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh&q=${encodeURIComponent(searchTerm)}&limit=10&rating=g`;
-      const gRes = await fetch(giphyUrl, { headers: { 'Accept': 'application/json' } });
-      if (gRes.ok) {
-        const gData = await gRes.json();
-        if (gData?.data?.length) {
-          gifList = gData.data.map(item => ({
-            id: item.id,
-            title: item.title || searchTerm,
-            preview: item.images?.fixed_height_small?.url || item.images?.downsized?.url || item.images?.original?.url,
-            full: item.images?.fixed_height?.url || item.images?.downsized_medium?.url || item.images?.original?.url
-          })).filter(g => !!g.preview);
-        }
-      }
-    } catch (e) {
-      console.warn('[GIF] Giphy search failed, trying Tenor fallback:', e);
-    }
+    const apiUrl = `/research/gifs?q=${encodeURIComponent(normalizedQuery)}`;
+    const res = await fetch(apiUrl, {
+      headers: { 'Accept': 'application/json' },
+      cache: 'default'
+    });
 
-    if (!gifList.length) {
-      try {
-        const tenorUrl = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(searchTerm)}&key=LIVDSRZULELA&limit=10`;
-        const tRes = await fetch(tenorUrl);
-        if (tRes.ok) {
-          const tData = await tRes.json();
-          if (tData?.results?.length) {
-            gifList = tData.results.map(item => {
-              const tiny = item.media_formats?.tinygif?.url || item.media_formats?.gif?.url;
-              const full = item.media_formats?.gif?.url || tiny;
-              return {
-                id: item.id,
-                title: item.content_description || searchTerm,
-                preview: tiny,
-                full: full
-              };
-            }).filter(g => !!g.preview);
-          }
-        }
-      } catch (e) {
-        console.warn('[GIF] Tenor fallback also failed:', e);
-      }
-    }
-
-    if (!gifList.length) {
-      gifStrip.innerHTML = '<div class="gif-status">কোনো প্রাসঙ্গিক GIF পাওয়া যায়নি। রিফ্রেশ চাপুন।</div>';
-      isGifLoading = false;
+    if (thisRequestId !== gifRequestId) {
       return;
     }
 
-    gifStrip.innerHTML = '';
-    gifList.forEach(gif => {
-      const card = document.createElement('div');
-      card.className = 'gif-card';
-      card.title = 'আলোচনায় যোগ করতে ক্লিক করুন';
-      card.innerHTML = `
-        <img src="${gif.preview}" alt="${escapeHtml(gif.title)}" loading="lazy" />
-        <span class="gif-send-pill">শেয়ার</span>
-      `;
-      card.addEventListener('click', () => {
-        sendGifToChat(gif.full, gif.title);
-      });
-      gifStrip.appendChild(card);
-    });
-
+    if (res.ok) {
+      const data = await res.json();
+      currentGifResults = Array.isArray(data.results) ? data.results : [];
+    } else {
+      currentGifResults = [];
+    }
   } catch (err) {
-    console.error('[GIF] Fetch error:', err);
-    gifStrip.innerHTML = '<div class="gif-status">GIF লোড করতে ত্রুটি হয়েছে।</div>';
+    if (thisRequestId !== gifRequestId) return;
+    console.error('[Wikimedia GIF] Fetch error:', err);
+    currentGifResults = [];
   } finally {
-    isGifLoading = false;
+    if (thisRequestId === gifRequestId) {
+      isGifLoading = false;
+      failedGifIndices.clear();
+      currentGifIndex = 0;
+      renderCurrentGif();
+    }
   }
 }
 
-export function sendGifToChat(gifUrl, title = '') {
+export function sendGifToChat(gifUrl, title = '', artist = '', license = '', fileUrl = '') {
   const chatMessages = document.getElementById('chatMessages');
   if (!chatMessages) return;
 
@@ -640,11 +725,15 @@ export function sendGifToChat(gifUrl, title = '') {
   bubble.className = 'chat-entry user-turn';
   bubble.innerHTML = `
     <div class="chat-header">
-      <span class="chat-speaker" style="color:var(--accent);">ভিজ্যুয়াল রেফারেন্স</span>
+      <span class="chat-speaker" style="color:var(--accent);">ভিজ্যুয়াল রেফারেন্স (উইকিমিডিয়া কমন্স)</span>
       <span class="chat-time">${new Date().toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'})}</span>
     </div>
     <div class="chat-gif-bubble">
-      <img src="${gifUrl}" alt="${escapeHtml(title)}" />
+      <img src="${gifUrl}" alt="${escapeHtml(title)}" loading="lazy" decoding="async" />
+      <div class="chat-gif-meta">
+        <span class="chat-gif-title">${escapeHtml(title)}</span>
+        <span class="chat-gif-sub">${escapeHtml(artist)} · ${escapeHtml(license)} · <a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener noreferrer">Source ↗</a></span>
+      </div>
     </div>
   `;
   chatMessages.appendChild(bubble);
@@ -653,30 +742,41 @@ export function sendGifToChat(gifUrl, title = '') {
 
 export function initGifFetcherUI() {
   const gifRefreshBtn = document.getElementById('gifRefreshBtn');
+  const gifNextBtn = document.getElementById('gifNextBtn');
   const gifCloseBtn = document.getElementById('gifCloseBtn');
   const gifToggleBtn = document.getElementById('gifToggleBtn');
   const gifPanel = document.getElementById('gifPanel');
 
+  if (gifNextBtn) {
+    gifNextBtn.onclick = (e) => {
+      e.preventDefault();
+      advanceToNextGif();
+    };
+  }
+
   if (gifRefreshBtn) {
-    gifRefreshBtn.addEventListener('click', () => {
+    gifRefreshBtn.onclick = (e) => {
+      e.preventDefault();
       fetchTopicGifs(sessionTopic, true);
-    });
+    };
   }
 
   if (gifCloseBtn && gifPanel) {
-    gifCloseBtn.addEventListener('click', () => {
+    gifCloseBtn.onclick = (e) => {
+      e.preventDefault();
       gifPanel.classList.toggle('collapsed');
       gifCloseBtn.textContent = gifPanel.classList.contains('collapsed') ? '＋' : '✕';
-    });
+    };
   }
 
   if (gifToggleBtn && gifPanel) {
-    gifToggleBtn.addEventListener('click', () => {
+    gifToggleBtn.onclick = (e) => {
+      e.preventDefault();
       gifPanel.classList.toggle('collapsed');
       if (gifCloseBtn) {
         gifCloseBtn.textContent = gifPanel.classList.contains('collapsed') ? '＋' : '✕';
       }
-    });
+    };
   }
 }
 

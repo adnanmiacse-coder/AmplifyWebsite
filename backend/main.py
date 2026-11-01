@@ -769,6 +769,117 @@ async def get_opportunities():
     }
 
 
+def clean_html_tags(raw: str | None) -> str:
+    if not raw:
+        return ""
+    import html
+    text = re.sub(r"<[^>]+>", "", str(raw))
+    return html.unescape(text).strip()
+
+
+@app.get("/research/gifs")
+async def get_research_gifs(q: str = ""):
+    """Fetch topic-based educational animations from official Wikimedia Commons MediaWiki API."""
+    import httpx
+    raw_query = q or ""
+    # 1. Validate that search query is provided
+    normalized = re.sub(r"\s+", " ", raw_query).strip()
+    if not normalized:
+        return {"query": "", "results": []}
+
+    # 2. Limit query length to 200 characters
+    query = normalized[:200]
+
+    # Search candidates: primary query with animation, fallback to without animation if needed
+    candidate_searches = [
+        f"filemime:image/gif {query} animation",
+        f"filemime:image/gif {query}",
+    ]
+
+    results = []
+    seen_urls = set()
+    user_agent = "Amplify/1.0 (educational GIF references; https://amplifywebsite.edu)"
+
+    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+        for gsrsearch in candidate_searches:
+            if len(results) >= 5:
+                break
+            params = {
+                "action": "query",
+                "generator": "search",
+                "gsrsearch": gsrsearch,
+                "gsrnamespace": "6",
+                "gsrlimit": "10",
+                "prop": "imageinfo",
+                "iiprop": "url|extmetadata",
+                "iiurlwidth": "640",
+                "format": "json",
+            }
+            try:
+                resp = await client.get(
+                    "https://commons.wikimedia.org/w/api.php",
+                    params=params,
+                    headers={"User-Agent": user_agent},
+                )
+                if resp.status_code != 200:
+                    continue
+                data = resp.json()
+                pages = data.get("query", {}).get("pages", {})
+                for pid, page in pages.items():
+                    title = page.get("title", "")
+                    # 7. Only accept files whose titles end in .gif
+                    if not title.lower().endswith(".gif"):
+                        continue
+
+                    clean_title = title[5:] if title.startswith("File:") else title
+
+                    imageinfo = page.get("imageinfo", [])
+                    if not imageinfo:
+                        continue
+                    info = imageinfo[0]
+
+                    # 6. Extract thumburl or url, and descriptionurl
+                    img_url = info.get("thumburl") or info.get("url") or ""
+                    file_url = info.get("descriptionurl") or ""
+
+                    # 8. Only accept image URLs from upload.wikimedia.org or thumb.wikimedia.org
+                    if not (img_url.startswith("https://upload.wikimedia.org/") or img_url.startswith("https://thumb.wikimedia.org/")):
+                        continue
+
+                    # 9. Only accept source links from https://commons.wikimedia.org/
+                    if not file_url.startswith("https://commons.wikimedia.org/"):
+                        continue
+
+                    if img_url in seen_urls:
+                        continue
+                    seen_urls.add(img_url)
+
+                    # Extract artist and license from extmetadata
+                    meta = info.get("extmetadata", {})
+                    artist = clean_html_tags(meta.get("Artist", {}).get("value")) or "Wikimedia Commons contributor"
+                    license_name = clean_html_tags(meta.get("LicenseShortName", {}).get("value") or meta.get("License", {}).get("value")) or "Wikimedia Commons"
+
+                    results.append({
+                        "title": clean_title,
+                        "image_url": img_url,
+                        "file_url": file_url,
+                        "artist": artist,
+                        "license": license_name,
+                    })
+
+                    # 10. Return a maximum of five valid GIF results
+                    if len(results) >= 5:
+                        break
+            except Exception:
+                # Handle failed API requests gracefully without leaking internal errors
+                continue
+
+    return {
+        "query": query,
+        "results": results[:5]
+    }
+
+
 @app.get("/api/health")
 async def health():
     return {

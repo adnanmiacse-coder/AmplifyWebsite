@@ -59,11 +59,9 @@
     return originalFetch(input, init);
   };
 
+      // ═════════════════════════════════════════════════════════════════════════
+  // 2. UNIVERSAL BACK BUTTON (ALWAYS GOES TO HOMEPAGE, NEVER ON HOMEPAGE)
   // ═════════════════════════════════════════════════════════════════════════
-  // 2. UNIVERSAL BULLETPROOF NAVIGATION & CLEARLY VISIBLE BACK BUTTON
-  // ═════════════════════════════════════════════════════════════════════════
-  const NAV_STACK_KEY = 'amplify_nav_stack';
-
   function getPageFilename(urlStr) {
     if (!urlStr) return '';
     try {
@@ -77,131 +75,29 @@
     }
   }
 
-  function getNavStack() {
-    try {
-      const raw = sessionStorage.getItem(NAV_STACK_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function saveNavStack(stack) {
-    try {
-      sessionStorage.setItem(NAV_STACK_KEY, JSON.stringify(stack));
-    } catch {}
-  }
-
-  function recordNavigationAndGetPrior() {
-    const currentPath = window.location.pathname + window.location.search;
-    const currentFile = getPageFilename(currentPath);
-    const isHome = currentFile === 'index.html' || currentFile === '';
-
-    let stack = getNavStack().filter((item) => typeof item === 'string' && item.length > 0);
-
-    if (stack.length === 0) {
-      let refPath = null;
-      if (document.referrer) {
-        try {
-          const refUrl = new URL(document.referrer);
-          if (refUrl.origin === window.location.origin) {
-            refPath = refUrl.pathname + refUrl.search;
-          }
-        } catch {}
-      }
-      if (refPath && getPageFilename(refPath) !== currentFile) {
-        stack = [refPath, currentPath];
-      } else {
-        stack = isHome ? ['/index.html'] : ['/index.html', currentPath];
-      }
-    } else {
-      const top = stack[stack.length - 1];
-      if (getPageFilename(top) === currentFile) {
-        // Refresh: preserve stack, update current query string
-        stack[stack.length - 1] = currentPath;
-      } else if (stack.length >= 2 && getPageFilename(stack[stack.length - 2]) === currentFile) {
-        // Back navigation
-        stack.pop();
-        stack[stack.length - 1] = currentPath;
-      } else {
-        // Forward navigation
-        if (stack.length > 30) stack = stack.slice(-15);
-        stack.push(currentPath);
-      }
-    }
-
-    saveNavStack(stack);
-
-    let prior = '/index.html';
-    if (stack.length >= 2) {
-      prior = stack[stack.length - 2];
-    } else if (document.referrer) {
-      try {
-        const refUrl = new URL(document.referrer);
-        if (refUrl.origin === window.location.origin && getPageFilename(refUrl.pathname) !== currentFile) {
-          prior = refUrl.pathname + refUrl.search;
-        }
-      } catch {}
-    }
-    return prior;
+  function isHomepage(urlStr) {
+    const file = getPageFilename(urlStr || window.location.pathname);
+    return file === 'index.html' || file === '';
   }
 
   window.amplifyGoBack = function (event) {
     if (event) {
       try { event.preventDefault(); event.stopPropagation(); } catch (_) {}
     }
-
-    const currentFile = getPageFilename(window.location.pathname);
-    const isTeacher = window.location.pathname.includes('/teacher');
-    const fallback = isTeacher ? '/teacher/index.html' : '/index.html';
-
-    let stack = getNavStack();
-    let prior = null;
-    while (stack.length > 0 && getPageFilename(stack[stack.length - 1]) === currentFile) {
-      stack.pop();
-    }
-    if (stack.length > 0) {
-      prior = stack.pop();
-      saveNavStack(stack);
-    }
-
-    let isInternalRef = false;
-    let refTarget = null;
-    if (document.referrer) {
-      try {
-        const u = new URL(document.referrer);
-        if (u.origin === window.location.origin && getPageFilename(u.pathname) !== currentFile) {
-          isInternalRef = true;
-          refTarget = u.pathname + u.search;
-        }
-      } catch (_) {}
-    }
-
-    const destination = prior || refTarget || fallback;
-
-    if (window.history.length > 1) {
-      let navigated = false;
-      const onNavigate = () => { navigated = true; };
-      window.addEventListener('pagehide', onNavigate, { once: true });
-      window.addEventListener('beforeunload', onNavigate, { once: true });
-
-      window.history.back();
-
-      setTimeout(() => {
-        if (!navigated) {
-          window.location.assign(destination);
-        }
-      }, 300);
-    } else {
-      window.location.assign(destination);
-    }
+    // Always navigate back to the homepage
+    window.location.assign('/index.html');
   };
 
   function setupBackButton() {
-    recordNavigationAndGetPrior();
+    const isHome = isHomepage(window.location.pathname);
+    if (isHome) {
+      // NEVER keep a back button on the homepage
+      const existingBtn = document.getElementById('amplifyUniversalBackBtn');
+      if (existingBtn) existingBtn.remove();
+      return;
+    }
 
-    // Hook any existing back elements
+    // Hook any existing back elements so they always go to homepage
     document.querySelectorAll('[data-amplify-back], .nav-back, #btnGoBack, .btn-go-back, #backToClassroom, #home-back-btn').forEach((el) => {
       el.addEventListener('click', (event) => {
         window.amplifyGoBack(event);
@@ -213,16 +109,20 @@
       backBtn = document.createElement('a');
       backBtn.id = 'amplifyUniversalBackBtn';
       backBtn.className = 'amplify-universal-back-btn';
-      backBtn.href = 'javascript:void(0)';
-      backBtn.setAttribute('aria-label', 'Go back to previous page');
-      backBtn.setAttribute('title', 'Go back to previous page');
+      backBtn.href = '/index.html';
+      backBtn.setAttribute('aria-label', 'Back to Home');
+      backBtn.setAttribute('title', 'Back to Home');
       backBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg><span class="back-text">Back</span>';
       document.body.appendChild(backBtn);
+    } else {
+      backBtn.href = '/index.html';
+      backBtn.setAttribute('aria-label', 'Back to Home');
+      backBtn.setAttribute('title', 'Back to Home');
     }
 
-    backBtn.addEventListener('click', (event) => {
+    backBtn.onclick = function (event) {
       window.amplifyGoBack(event);
-    });
+    };
   }
 // ═════════════════════════════════════════════════════════════════════════
   // 3. AMPLIFY VOICE & LANGUAGE SYSTEM (ENGLISH / BANGLA TOGGLE + TTS)
