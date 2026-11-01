@@ -244,7 +244,7 @@
     },
 
     setupLanguageToggle() {
-      const canonical = getCanonicalPage(window.location.pathname);
+      const canonical = window.location.pathname;
       const isTargetPage = TARGET_PAGES_REGEX.test(canonical) || TARGET_PAGES_REGEX.test(window.location.href);
       if (!isTargetPage) return;
 

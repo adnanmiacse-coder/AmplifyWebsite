@@ -118,13 +118,13 @@ async function initNeo4j() {
 
 
 const OPENROUTER_MODEL = 'openrouter/free';
-const VISION_MODEL = 'qwen/qwen3.6-27b';
+const VISION_MODEL = 'qwen/qwen3.8-27b';
 
 // Primary model for all lecture + chat generation
 const GROQ_MODELS = [
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
-  'qwen/qwen3.6-27b',
+  'qwen/qwen3.8-27b',
 ];
 
 
@@ -292,6 +292,7 @@ const MAX_PAGES    = 40;
 const TOP_K        = 4;
 const PAGE_SCALE   = 2.0;
 const IMG_QUALITY  = 0.85;
+const OCR_TEXT_THRESHOLD = 80;
 
 // ── Lecture settings ──────────────────────────────────
 // Each segment = a few chunks fed to the LLM at once.
@@ -747,15 +748,6 @@ async function pageToBase64(page) {
   return canvas.toDataURL('image/jpeg',IMG_QUALITY).split(',')[1];
 }
 
-async function detectPDFMode(doc) {
-  const n=Math.min(3,doc.numPages); let total=0;
-  for(let i=1;i<=n;i++){
-    const pg=await doc.getPage(i);
-    total+=(await extractPageText(pg)).length;
-  }
-  return (total/n)<80?'image':'text';
-}
-
 // ─────────────────────────────────────────────────────
 // GROQ API  — key rotation with per-model fallback
 // ─────────────────────────────────────────────────────
@@ -826,7 +818,7 @@ async function groqChat(messages, system, maxTokens=400, temperature=0.72) {
     const model = GROQ_MODELS[mi];
     for (let ki = 0; ki < groqKeys().length; ki++) {
       try {
-        console.log(`[Groq] model: ${model} | key: ${ki+1}/${groqKeys().length} | key starts: ${groqKeys()[ki]?.slice(0,12)}`);
+        console.log(`[Groq] model: ${model} | key: ${ki+1}/${groqKeys().length}`);
         return await groqCallModel(model, messages, system, maxTokens, temperature, groqKeys()[ki]);
       } catch(e) {
         console.warn(`[Groq] key ${ki+1} model ${model} error: ${e.message}`);
@@ -862,7 +854,7 @@ async function groqOnlyChat(messages, system, maxTokens=400, temperature=0.72) {
 }
 
 async function groqVisionOCR(base64Img, pageNum) {
-  for (let ki = 0; ki < groqKeys().length; ki++) {
+  groqKeyLoop: for (let ki = 0; ki < groqKeys().length; ki++) {
     let attempts = 0;
     while (attempts < 2) { // max 2 attempts per key (1 retry after 429)
       attempts++;
@@ -899,12 +891,21 @@ async function groqVisionOCR(base64Img, pageNum) {
 
         if (!res.ok) {
           console.warn(`[Vision] Groq key ${ki+1} error ${res.status}, trying next key`);
+          if (res.status === 404) {
+            console.warn(`[Vision] Groq vision model ${VISION_MODEL} is unavailable; skipping remaining Groq keys`);
+            break groqKeyLoop;
+          }
           break; // move to next key
         }
 
         const d = await res.json();
+        const content = d.choices?.[0]?.message?.content;
+        if (typeof content !== 'string' || !content.trim()) {
+          console.warn(`[Vision] Groq key ${ki+1} returned no OCR text, trying fallback`);
+          break groqKeyLoop;
+        }
         console.log(`[Vision] Groq key ${ki+1} succeeded for page ${pageNum}`);
-        return d.choices?.[0]?.message?.content || '';
+        return content;
 
       } catch(e) {
         console.warn(`[Vision] Groq key ${ki+1} failed: ${e.message}, trying next key`);
@@ -959,8 +960,13 @@ async function groqVisionOCR(base64Img, pageNum) {
         }
 
         const d = await res.json();
+        const content = d.choices?.[0]?.message?.content;
+        if (typeof content !== 'string' || !content.trim()) {
+          console.warn(`[Vision] OpenRouter key ${i+1} returned no OCR text`);
+          break;
+        }
         console.log(`[Vision] OpenRouter key ${i+1} succeeded for page ${pageNum}`);
-        return d.choices?.[0]?.message?.content || '';
+        return content;
 
       } catch(e) {
         console.warn(`[Vision] OpenRouter key ${i+1} failed: ${e.message}`);
@@ -970,7 +976,7 @@ async function groqVisionOCR(base64Img, pageNum) {
   }
 
   console.error(`[Vision] All providers failed for page ${pageNum}`);
-  return '';
+  throw new Error(`OCR providers returned no text for page ${pageNum}`);
 }
 
 
@@ -1640,25 +1646,33 @@ async function loadAndIndex(file) {
     document.getElementById('pdf-controls').style.display='flex';
     await renderPage(1);
 
-    showBar(true,'PDF ধরন শনাক্ত হচ্ছে…');
-    const mode=await detectPDFMode(pdfDoc);
-
     const pages=Math.min(totalPages,MAX_PAGES);
     const allChunks=[];
+    let textPageCount=0;
+    let ocrPageCount=0;
+    let ocrFailures=0;
     store.reset();
 
     for(let i=1;i<=pages;i++){
       const pct=Math.round((i/pages)*75)+5;
       setProgress(pct);
       const pg=await pdfDoc.getPage(i);
-      let pageText='';
-      if(mode==='text'){
+      const extractedText=await extractPageText(pg);
+      let pageText=extractedText;
+      if(extractedText.trim().length >= OCR_TEXT_THRESHOLD){
+        textPageCount++;
         showBar(true,`পৃষ্ঠা ${i}/${pages} পড়া হচ্ছে…`);
-        pageText=await extractPageText(pg);
       }else{
+        ocrPageCount++;
         showBar(true,`পৃষ্ঠা ${i}/${pages} — ছবি থেকে লেখা পড়া হচ্ছে…`);
-        try{const b64=await pageToBase64(pg);pageText=await queuedOCR(b64,i);}
-        catch(e){console.warn(`[Page ${i}] OCR failed:`,e.message);pageText=await extractPageText(pg);}
+        try{
+          const b64=await pageToBase64(pg);
+          const ocrText=await queuedOCR(b64,i);
+          if(ocrText.trim().length > pageText.trim().length) pageText=ocrText;
+        }catch(e){
+          ocrFailures++;
+          console.warn(`[Page ${i}] OCR failed; keeping extracted PDF text:`,e.message);
+        }
       }
       const chunks=chunkText(pageText,i);
       for(const c of chunks) store.addChunk(c);
@@ -1667,7 +1681,9 @@ async function loadAndIndex(file) {
 
     if(allChunks.length===0){
       showBar(false);
-      showMsg('❌ কোনো পাঠ্য পাওয়া যায়নি। API Key সঠিক আছে তো?');
+      showMsg(ocrFailures
+        ? '❌ PDF থেকে লেখা পড়া যায়নি। স্ক্যান করা পৃষ্ঠাগুলোর OCR অনুরোধ ব্যর্থ হয়েছে; API configuration পরীক্ষা করে আবার চেষ্টা করুন।'
+        : '❌ PDF থেকে কোনো পাঠ্য পাওয়া যায়নি।');
       return;
     }
 
@@ -1683,7 +1699,11 @@ async function loadAndIndex(file) {
 
     document.getElementById('stat-chunks').textContent=`${allChunks.length} অংশ`;
     document.getElementById('stat-pages').textContent=`${pages} পৃষ্ঠা`;
-    document.getElementById('stat-mode').textContent=mode==='image'?'📷 ছবি-ভিত্তিক':'📝 টেক্সট';
+    const mode=textPageCount===0?'image':ocrPageCount===0?'text':'mixed';
+    const modeLabel=mode==='image'?'📷 ছবি-ভিত্তিক':mode==='mixed'?'📷+📝 মিশ্র':'📝 টেক্সট';
+    document.getElementById('stat-mode').textContent=ocrFailures
+      ? `${modeLabel} · ⚠️ OCR ${ocrFailures} পৃষ্ঠা ব্যর্থ`
+      : modeLabel;
     document.getElementById('index-status').classList.add('visible');
     setTimeout(()=>showBar(false),800);
     enableChat();
