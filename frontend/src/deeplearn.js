@@ -1397,8 +1397,8 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
       const startBtn = document.getElementById('startBtn');
       if (startBtn) {
         startBtn.innerHTML = isEn 
-          ? '🚀 Start Deep Discussion' 
-          : '🚀 গভীর আলোচনা শুরু করুন';
+          ? 'Start Deep Discussion'
+          : 'গভীর আলোচনা শুরু করুন';
       }
       const topicInput = document.getElementById('topicInput');
       if (topicInput) {
