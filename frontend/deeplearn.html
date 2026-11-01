@@ -75,6 +75,7 @@
     #upload-screen.active {
       background: var(--bg, #020B16) !important;
       display: flex !important;
+      flex-direction: column !important;
       position: fixed !important;
       inset: 0 !important;
       width: 100vw !important;
@@ -83,8 +84,10 @@
       overflow-y: auto !important;
       overflow-x: hidden !important;
       z-index: 99 !important;
-      padding: 14px 16px !important;
+      padding: 10px 16px 18px !important;
       box-sizing: border-box !important;
+      align-items: center !important;
+      justify-content: flex-start !important;
     }
 
     #upload-screen:not(.active) {
@@ -142,22 +145,26 @@ body::after {
        UPLOAD / SETUP SCREEN
     ══════════════════════ */
     #upload-screen {
-  min-height: 100vh;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  position: relative;
-  z-index: 1;
-}
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      background: transparent;
+      position: relative;
+      z-index: 1;
+      padding: 10px 16px 18px;
+      box-sizing: border-box;
+    }
 
     .upload-container {
       width: 100%;
-      max-width: 530px;
-      margin: auto;
-      padding: 16px 24px 14px;
+      max-width: 470px;
+      margin: auto auto;
+      padding: 8px 16px 8px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 5px;
       position: relative;
       z-index: 1;
       box-sizing: border-box;
@@ -171,24 +178,26 @@ body::after {
 
     .upload-title {
       font-family: var(--font-display);
-      font-size: 1.45rem;
-      font-weight: 500;
+      font-size: 1.15rem;
+      font-weight: 600;
       color: var(--text);
       line-height: 1.2;
+      margin: 0;
     }
     .upload-title span { color: var(--expert1-color); }
 
     .upload-subtitle {
-      font-size: 0.8rem;
+      font-size: 0.72rem;
       color: var(--text-muted);
-      line-height: 1.4;
-      margin-top: -4px;
+      line-height: 1.35;
+      margin-top: -2px;
+      margin-bottom: 2px;
     }
 
     /* Expert preview cards on upload screen */
     .expert-preview {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
     
     .expert-preview-card {
@@ -196,10 +205,10 @@ body::after {
       border: 1px solid var(--border);
       background: var(--bg-card);
       border-radius: var(--radius-sm);
-      padding: 8px 10px;
+      padding: 5px 8px;
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 2px;
       transition: box-shadow 0.25s ease, border-color 0.25s ease;
     }
 
@@ -210,25 +219,25 @@ body::after {
 
 
     .ep-avatar {
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       font-weight: 700;
       color: #fff;
     }
     .ep-name {
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       font-weight: 700;
       color: var(--text);
     }
     .ep-role {
-      font-size: 0.67rem;
+      font-size: 0.62rem;
       color: var(--text-muted);
-      line-height: 1.25;
+      line-height: 1.2;
     }
 
     
@@ -236,20 +245,23 @@ body::after {
       border: 1.5px dashed var(--border);
       background: var(--bg-card);
       border-radius: var(--radius-sm);
-      padding: 12px 16px;
+      padding: 7px 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
+      gap: 2px;
       cursor: pointer;
       transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
     }
+    .upload-zone svg { width: 22px; height: 22px; }
+    .upload-zone-text { font-size: 0.76rem; font-weight: 600; color: var(--text); }
+    .upload-zone-hint { font-size: 0.64rem; color: var(--text-muted); }
     .preview-file svg { color: var(--expert1-color); }
 
     .topic-row {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 2px;
     }
     .topic-or {
       font-size: 0.7rem;
@@ -259,31 +271,33 @@ body::after {
     }
     .topic-input {
       width: 100%;
-      padding: 7px 12px;
+      padding: 5px 10px;
       border: 1.5px solid var(--border);
       border-radius: var(--radius-sm);
       background: var(--bg-card);
       font-family: var(--font-body);
-      font-size: 0.84rem;
+      font-size: 0.78rem;
       color: var(--text);
       outline: none;
+      box-sizing: border-box;
       transition: border-color 0.2s;
     }
     .topic-input:focus { border-color: var(--expert1-color); }
     .topic-input::placeholder { color: var(--text-muted); }
 
     .start-btn {
-      padding: 9px 20px;
-      background: #7A5CFF;
-      color: #fff;
+      padding: 8px 16px;
+      background: #00B7FF;
+      color: #020B16;
       border: none;
       border-radius: var(--radius-sm);
       font-family: var(--font-body);
-      font-size: 0.9rem;
-      font-weight: 600;
+      font-size: 0.86rem;
+      font-weight: 700;
       cursor: pointer;
-      box-shadow: 0 0 16px rgba(122, 92, 255, 0.35);
-      transition: box-shadow 0.25s ease, transform 0.15s ease, opacity 0.2s;
+      box-shadow: 0 2px 10px rgba(0, 183, 255, 0.35);
+      transition: box-shadow 0.25s ease, transform 0.15s ease, opacity 0.2s, background-color 0.2s;
+      letter-spacing: 0.01em;
     }
 .start-btn:hover {
   box-shadow: 0 0 32px rgba(0,183,255,0.5), 0 0 60px rgba(196,77,255,0.2);
@@ -1130,7 +1144,7 @@ body::after {
 .setup-lang-wrap {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 2px;
       margin: 0;
     }
 .setup-lang-label {
@@ -1151,15 +1165,15 @@ body::after {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      padding: 6px 10px;
+      gap: 5px;
+      padding: 4px 10px;
       border-radius: 6px;
       border: 1px solid transparent;
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
       font-family: var(--font-body);
-      font-size: 0.82rem;
+      font-size: 0.76rem;
       font-weight: 600;
       transition: background 0.18s, color 0.18s;
     }
@@ -1183,10 +1197,109 @@ body::after {
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
   <link rel="icon" href="data:,">
+<style id="amplify-universal-back-styles">
+  .amplify-universal-back-btn {
+    position: fixed !important;
+    top: 14px !important;
+    left: 16px !important;
+    z-index: 2147483647 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 18px !important;
+    border-radius: 999px !important;
+    background: rgba(3, 12, 24, 0.95) !important;
+    border: 1.5px solid #00B7FF !important;
+    color: #00B7FF !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hind Siliguri", sans-serif !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.02em !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.75), 0 0 12px rgba(0, 183, 255, 0.45) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    user-select: none !important;
+  }
+  .amplify-universal-back-btn:hover,
+  .amplify-universal-back-btn:focus-visible {
+    background: #00B7FF !important;
+    color: #020B16 !important;
+    border-color: #00B7FF !important;
+    box-shadow: 0 6px 24px rgba(0, 183, 255, 0.65), 0 0 20px rgba(0, 183, 255, 0.5) !important;
+    transform: translateY(-2px) !important;
+    outline: none !important;
+  }
+  .amplify-universal-back-btn:hover svg,
+  .amplify-universal-back-btn:focus-visible svg {
+    stroke: #020B16 !important;
+    transform: translateX(-3px) !important;
+  }
+  .amplify-universal-back-btn:active {
+    transform: translateY(0) scale(0.97) !important;
+  }
+  .amplify-universal-back-btn svg {
+    width: 17px !important;
+    height: 17px !important;
+    stroke: currentColor !important;
+    stroke-width: 2.8 !important;
+    transition: transform 0.2s ease !important;
+    flex-shrink: 0 !important;
+  }
+  @media (min-width: 641px) {
+    .hdr .nav,
+    .header .nav,
+    .topbar,
+    .page .nav,
+    nav.nav,
+    .stage-header {
+      padding-left: 115px !important;
+    }
+    .nav-back,
+    #home-back-btn {
+      display: none !important;
+    }
+  }
+  @media (max-width: 640px) {
+    .amplify-universal-back-btn {
+      top: 10px !important;
+      left: 10px !important;
+      padding: 6px 12px !important;
+      font-size: 12px !important;
+      gap: 5px !important;
+    }
+    .amplify-universal-back-btn svg {
+      width: 15px !important;
+      height: 15px !important;
+    }
+    .hdr .nav,
+    .header .nav,
+    .topbar,
+    .page .nav,
+    nav.nav {
+      padding-left: 90px !important;
+    }
+    .nav-back,
+    #home-back-btn {
+      display: none !important;
+    }
+  }
+</style>
 </head>
 <input type="file" id="fileInput" multiple accept=".pdf,image/*,.txt,.doc,.docx" style="display:none">
 
 <body>
+  <!-- Universal Back Button -->
+  <a href="javascript:void(0)" class="amplify-universal-back-btn" id="amplifyUniversalBackBtn" title="Go back to previous page" aria-label="Go back to previous page" onclick="if(window.amplifyGoBack){window.amplifyGoBack(event)}else if(window.history.length>1){window.history.back()}else{window.location.href='/index.html'}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+    <span class="back-text">Back</span>
+  </a>
+
 
   <!-- ══ Upload / Setup Screen ══ -->
   <div id="upload-screen" class="screen active">
@@ -1198,7 +1311,7 @@ body::after {
       </div>
 
       <h1 class="upload-title">
-        বিশেষজ্ঞ <span>আলোচনা</span><br/>ও বিতর্ক
+        বিশেষজ্ঞ <span>আলোচনা</span> ও বিতর্ক
       </h1>
 
       <p class="upload-subtitle">
@@ -1227,7 +1340,7 @@ body::after {
       <!-- PDF Upload -->
       <div class="upload-zone" id="uploadZone">
         <div class="upload-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
             <line x1="12" y1="18" x2="12" y2="12"/>

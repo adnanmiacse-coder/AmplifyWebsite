@@ -1456,7 +1456,7 @@ button { font-family: inherit; }
 .quiz-next-btn {
   width: 100%;
   padding: 13px;
-  background: linear-gradient(135deg, #7A5CFF, #5b3fdd);
+  background: #7A5CFF;
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
@@ -1468,7 +1468,7 @@ button { font-family: inherit; }
   box-shadow: 0 0 16px rgba(122, 92, 255, 0.3);
 }
 .quiz-next-btn:hover {
-  background: linear-gradient(135deg, #6040dd, #4a2fc0);
+  background: #6849e8;
   box-shadow: 0 0 24px rgba(122, 92, 255, 0.45);
   transform: translateY(-1px);
 }
@@ -1591,7 +1591,7 @@ button { font-family: inherit; }
 .revise-btn {
   flex: 1;
   padding: 13px;
-  background: linear-gradient(135deg, var(--accent), #0090CC);
+  background: #00B7FF;
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
@@ -1607,7 +1607,7 @@ button { font-family: inherit; }
   box-shadow: 0 0 16px rgba(0, 183, 255, 0.3);
 }
 .revise-btn:hover {
-  background: linear-gradient(135deg, #0090CC, #0077aa);
+  background: #1ac0ff;
   box-shadow: 0 0 24px rgba(0, 183, 255, 0.45);
   transform: translateY(-1px);
 }
