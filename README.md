@@ -47,6 +47,7 @@
 12. [Troubleshooting](#troubleshooting)
 13. [Contributing](#contributing)
 14. [NCTB Textbook Q&A Assistant](#nctb-textbook-qa-assistant)
+    - [Fully Offline Local Installation and Use](#fully-offline-local-installation-and-use)
 15. [License](#license)
 16. [Flutter Mobile App](#flutter-mobile-app)
 
@@ -679,9 +680,9 @@ Each textbook index contains document embeddings, source and chapter metadata, a
 - `nctb_bangla_index_v2` - Bengali textbook
 - `nctb_ict_index_better` - ICT textbook
 
-### Running the chatbot locally
+### Running the API-powered chatbot locally
 
-The standalone chatbot requires Python 3.8 or newer, a Groq API key, and approximately 2-4 GB of disk space for the textbook indexes. Install its dependencies and configure the key before starting Gradio:
+The API-powered `app.py` chatbot requires Python 3.8 or newer, a Groq API key, and the textbook indexes. Install its dependencies and configure the key before starting Gradio:
 
 ```bash
 pip install gradio langchain-community langchain-huggingface langchain-groq faiss-cpu fpdf sentence-transformers
@@ -689,7 +690,89 @@ export GROQ_API_KEY="your-groq-api-key-here"
 python app.py
 ```
 
-The local interface is served at `http://127.0.0.1:7860`. Place the pre-built FAISS indexes in the application root before asking questions. The active model can be changed through the model mapping, for example:
+The local interface is served at `http://127.0.0.1:7860`. Place the pre-built FAISS indexes in the application root before asking questions. This mode sends questions to Groq and therefore requires internet access and an API key.
+
+### Fully Offline Local Installation and Use
+
+Use the separate `app_offline.py` application in the [offline-nctb repository](https://github.com/adnanmiacse-coder/offline-nctb) for local model inference. It retrieves passages from the bundled FAISS indexes and sends questions to Ollama running on your own computer; it does not need a Groq API key.
+
+#### Requirements
+
+- Windows, macOS, or Linux
+- Python 3.10 or newer (Python 3.11 is recommended)
+- [Git](https://git-scm.com/) and [Git LFS](https://git-lfs.com/) to download the textbook indexes
+- [Ollama](https://ollama.com/download) installed and running locally
+- Enough free disk space for Python packages, the embedding model, and at least one Ollama model. Ollama model sizes vary; check the model download size before choosing one.
+
+#### Install
+
+The first setup requires internet access to install packages and download the embedding and Ollama models. Once these are installed, textbook Q&A and model inference run locally.
+
+1. Install Git LFS, then clone the chatbot repository and download its index files:
+
+   ```bash
+   git lfs install
+   git clone https://github.com/adnanmiacse-coder/offline-nctb.git
+   cd offline-nctb
+   git lfs pull
+   ```
+
+   The checkout should contain `app_offline.py` and all three index directories: `nctb_english_index_v2`, `nctb_bangla_index_v2`, and `nctb_ict_index_better`. The FAISS indexes contain serialized data; only use index files obtained from a source you trust.
+
+2. Create and activate a virtual environment in the cloned project directory:
+
+   ```bash
+   python -m venv .venv
+   ```
+
+   On Windows PowerShell:
+
+   ```powershell
+   .\.venv\Scripts\Activate.ps1
+   ```
+
+   On macOS or Linux:
+
+   ```bash
+   source .venv/bin/activate
+   ```
+
+3. Install the project requirements and the additional dependencies used by the offline app:
+
+   ```bash
+   python -m pip install --upgrade pip
+   python -m pip install -r requirements.txt
+   python -m pip install langchain-huggingface fpdf ollama
+   ```
+
+4. Install and start Ollama. Pull the default model shown in the app before disconnecting from the internet:
+
+   ```bash
+   ollama pull gemma3:4b
+   ollama list
+   ```
+
+   The model dropdown also offers `gemma3:1b`, `phi3.5`, and `deepseek-r1:1.5b`; pull any additional models you intend to use with `ollama pull <model-name>`. If Ollama is installed but not running, start its local service in a separate terminal with `ollama serve`.
+
+5. Start the offline chatbot from the project directory with the virtual environment activated:
+
+   ```bash
+   python app_offline.py
+   ```
+
+   On first launch, the multilingual sentence-transformer embedding model is downloaded and the three FAISS indexes are loaded. Wait for those steps to finish; then open **http://127.0.0.1:7860** in a browser on the same computer.
+
+#### Use and run without internet
+
+1. Select English, Bangla, or ICT, choose a model already downloaded in Ollama, enter a question, and select **Ask**.
+2. The app searches the selected local textbook index and asks the selected local Ollama model to answer from retrieved textbook passages.
+3. Chat history is saved in `chat_history.json` in the project directory. Keep this file if you want to retain the history between runs.
+4. To use the app without an internet connection, first complete installation and launch it once while online so the Python packages, embedding model, and selected Ollama model are available locally. Confirm the Ollama model appears in `ollama list`, then disconnect and run `python app_offline.py` as usual.
+5. Stop the app with **Ctrl+C** in the terminal running it.
+
+The core text-question and answer flow is local after setup. Browser speech recognition, externally hosted fonts, and the PDF export's Bengali-font download may require internet access; they are optional and do not provide the core model inference. If the interface reports an Ollama connection error, start Ollama and verify that the chosen model is listed. If a textbook index fails to load, check that its directory contains both `index.faiss` and `index.pkl` and that Git LFS downloaded the real files rather than pointer files.
+
+The online app's active model can be changed through the model mapping, for example:
 
 ```python
 GROQ_MODELS = {
