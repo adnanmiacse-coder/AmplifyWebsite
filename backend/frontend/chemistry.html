@@ -1899,8 +1899,7 @@ function runGuidedSession() {
   if (stopBtn) stopBtn.style.display = 'block';
 
   const currentKey = SESSION.queue[SESSION.index];
-  const voiceEntry = VOICE_MAP.find(v => v.key === currentKey);
-  const expName = voiceEntry ? voiceEntry.name : currentKey;
+  const expName = getSpokenExperimentName(currentKey);
   const expData = EXP[currentKey];
   const summary = expData ? expData.reagents[0].obs.split('.')[0] + '.' : '';
 
@@ -1923,13 +1922,14 @@ function runGuidedSession() {
           const nextKey = SESSION.queue[SESSION.index + 1];
           const nextEntry = VOICE_MAP.find(v => v.key === nextKey);
           const nextName = nextEntry ? nextEntry.name : nextKey;
-          speak(`Great! Shall I show the next reaction — ${nextName}? Say yes or no.`, () => {
+          const spokenNextName = getSpokenExperimentName(nextKey);
+          speak(`Great! Shall I show the next reaction — ${spokenNextName}? Say yes or no.`, () => {
             showToast(`🎙️ Next: ${nextName}? Say yes or no...`);
             listenForYesNo((ans2) => {
               hideToast();
               if (ans2 === 'yes') {
                 SESSION.index++;
-                speak(`Opening ${nextName}.`, () => {
+                speak(`Opening ${spokenNextName}.`, () => {
                   closeModal();
                   setTimeout(() => {
                     openLab(nextName, SESSION.queue[SESSION.index]);
@@ -2119,6 +2119,11 @@ function matchExperiment(transcript){
   return null;
 }
 
+function getSpokenExperimentName(key){
+  const entry = VOICE_MAP.find(v => v.key === key);
+  return (entry ? entry.name : key).replace(/\s*\([^)]*\)/g, '').trim();
+}
+
 function autoRunExperiment(exp){
   const reagents = exp.reagents;
   let i = 0;
@@ -2211,7 +2216,7 @@ function startVoiceCommand(){
       }
       const firstName = VOICE_MAP.find(v => v.key === SESSION.queue[0])?.name || SESSION.queue[0];
       showToast(`▶ Starting ${section.label} session — ${SESSION.queue.length} experiments`);
-      speak(`Starting ${section.label}. ${SESSION.queue.length} experiments. Beginning with ${firstName}.`, () => {
+      speak(`Starting ${section.label}. ${SESSION.queue.length} experiments. Beginning with ${getSpokenExperimentName(SESSION.queue[0])}.`, () => {
         hideToast();
         openLab(firstName, SESSION.queue[0]);
         setTimeout(() => {
@@ -2231,7 +2236,7 @@ function startVoiceCommand(){
       if (found) {
         SESSION.active = false;
         showToast(`✅ Opening: ${found.name}`);
-        speak(`Opening the ${found.name}. Starting the experiment now.`, () => {
+        speak(`Opening the ${getSpokenExperimentName(found.key)}. Starting the experiment now.`, () => {
           hideToast();
           openLab(found.name, found.key);
           setTimeout(() => {

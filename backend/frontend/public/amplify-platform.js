@@ -422,6 +422,70 @@
     AmplifyVoice.setupLanguageToggle();
   }
 
+  const USAGE_STORAGE_KEY = 'amplify_platform_usage_v1';
+  const USAGE_EVENT_LIMIT = 1200;
+  const pageName = (window.location.pathname.split('/').pop() || 'index.html')
+    .replace(/\.html?$/i, '')
+    .toLowerCase();
+
+  function readUsageEvents() {
+    const saved = localStorage.getItem(USAGE_STORAGE_KEY);
+    if (!saved) return [];
+    const events = JSON.parse(saved);
+    if (!Array.isArray(events)) throw new Error('Stored platform usage data is not an array.');
+    return events;
+  }
+
+  function recordUsage(type, action) {
+    try {
+      const events = readUsageEvents();
+      events.push({ type, page: pageName, at: new Date().toISOString(), ...(action ? { action } : {}) });
+      localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(events.slice(-USAGE_EVENT_LIMIT)));
+    } catch (error) {
+      console.warn('[Amplify usage] Could not save usage data:', error);
+    }
+  }
+
+  window.AmplifyAnalytics = {
+    track(action) {
+      if (typeof action !== 'string' || !/^[a-z0-9_-]{1,60}$/i.test(action)) {
+        console.warn('[Amplify usage] Ignoring invalid action name.');
+        return;
+      }
+      recordUsage('interaction', action);
+    },
+    getEvents: readUsageEvents,
+  };
+
+  recordUsage('page_view');
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element
+      ? event.target.closest('a[href], button, [role="button"], input[type="submit"]')
+      : null;
+    if (!target || target.closest('.amplify-platform-lang-toggle')) return;
+    const href = target.getAttribute('href');
+    const action = target.dataset.analytics
+      || target.id
+      || (href ? new URL(href, window.location.origin).pathname.split('/').pop() : target.tagName.toLowerCase());
+    recordUsage('interaction', String(action).replace(/[^a-z0-9_-]/gi, '_').slice(0, 60));
+  }, true);
+
+  let activeSince = document.visibilityState === 'hidden' ? null : Date.now();
+  let activeMilliseconds = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && activeSince !== null) {
+      activeMilliseconds += Date.now() - activeSince;
+      activeSince = null;
+    } else if (document.visibilityState === 'visible' && activeSince === null) {
+      activeSince = Date.now();
+    }
+  });
+  window.addEventListener('pagehide', () => {
+    if (activeSince !== null) activeMilliseconds += Date.now() - activeSince;
+    const seconds = Math.round(activeMilliseconds / 1000);
+    if (seconds > 0) recordUsage('study_time', String(seconds));
+  }, { once: true });
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initPlatformAddons, { once: true });
   } else {

@@ -79,7 +79,7 @@ function updateLocalDocumentChat(docId, role, content) {
   const doc = docs.find(d => d.docId === docId);
   if (!doc) return;
   doc.chatHistory = doc.chatHistory || [];
-  doc.chatHistory.push({ role, content });
+  doc.chatHistory.push({ role, content, timestamp: new Date().toISOString() });
   saveLocalDocuments(docs);
 }
 
@@ -3149,6 +3149,12 @@ document.addEventListener('DOMContentLoaded', async function(){
   showHomeScreen(true);
   if (_neo4jEnabled) await initNeo4j();
   await loadSavedDocuments();
+  const requestedDocId = new URLSearchParams(window.location.search).get('open')
+    || sessionStorage.getItem('amplify_open_doc');
+  if (requestedDocId) {
+    sessionStorage.removeItem('amplify_open_doc');
+    await loadDocumentFromStorage(requestedDocId);
+  }
   document.getElementById('home-new-btn').onclick = () => {
     showHomeScreen(false);
     document.getElementById('upload-zone').style.display = 'block';

@@ -943,7 +943,9 @@ section { padding: 96px 0; }
     .dash-session { grid-template-columns: 1fr auto; gap: 8px; }
     .dash-time { grid-column: 1/-1; margin-bottom: -4px; }
     .dashboard-header { flex-direction: column; }
-    .nav-links { display: none; }
+    .nav { flex-wrap: wrap; }
+    .nav-links { order: 3; width: 100%; flex-wrap: nowrap; overflow-x: auto; }
+    .nav-link { flex: 0 0 auto; white-space: nowrap; }
     .footer-inner { flex-direction: column; gap: 12px; text-align: center; }
     .hero-visual-card { grid-template-columns: 1fr; }
     .partner-slot { width: 150px; height: 64px; }
@@ -967,6 +969,7 @@ section { padding: 96px 0; }
                 </a>
             </div>
             <div class="nav-links" id="navLinksEn">
+                <a href="/dashboard.html" class="nav-link" data-en="Dashboard" data-bn="ড্যাশবোর্ড">Dashboard</a>
                 <a href="/career.html" class="nav-link">Career Engine</a>
                 <a href="/experiments.html" class="nav-link">Experiments</a>
                 <a href="/pdf-tutor.html" class="nav-link">PDF Tutor</a>

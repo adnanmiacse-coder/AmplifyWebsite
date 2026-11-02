@@ -654,251 +654,192 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════
-// CONFIG & KEYS
+// STUDENT DATA
 // ═══════════════════════════════════════════════════════════
 const LS_DOCS_KEY = 'amplify_tutor_documents';
-function getNeo4jConfig() {
-  const env = window.AMPLIFY_ENV || {};
-  const cached = JSON.parse(localStorage.getItem('amplify_neo4j_cfg') || '{}');
-  return { host:(env.NEO4J_HOST||cached.host||'').replace(/\/$/,''), user:env.NEO4J_USER||cached.user||'neo4j', pass:env.NEO4J_PASS||cached.pass||'' };
-}
-let _neo4jEnabled=false,_cfg={};
-function checkNeo4j(){ _cfg=getNeo4jConfig(); _neo4jEnabled=Boolean(_cfg.host&&_cfg.pass); return _neo4jEnabled; }
-async function neo4jRun(cypher,params={}){
-  const res=await fetch(`${_cfg.host}/db/neo4j/tx/commit`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+btoa(`${_cfg.user}:${_cfg.pass}`)},body:JSON.stringify({statements:[{statement:cypher,parameters:params}]})});
-  if(!res.ok)throw new Error(`Neo4j ${res.status}`);
-  const d=await res.json(); if(d.errors&&d.errors.length)throw new Error(d.errors[0].message); return d;
-}
-function neo4jRows(result,idx=0){return(result.results?.[idx]?.data||[]).map(r=>r.row);}
+const LS_USAGE_KEY = 'amplify_platform_usage_v1';
+const LS_QUIZ_KEY = 'amplify_quiz_results';
 
-// ═══════════════════════════════════════════════════════════
-// DATA FETCHING
-// ═══════════════════════════════════════════════════════════
-async function fetchDocuments() {
-  return [
-    {
-      docId:    'doc_cell_division_001',
-      filename: 'Cell Division – Mitosis & Meiosis.pdf',
-      date:     '2026-06-01T10:00:00Z',
-      pages:    48,
-      chunkCount: 22,
-      conceptMastery: {
-        'Mitosis Phases':       { score: 0.88, attempts: 6, hintCount: 1 },
-        'Meiosis I & II':       { score: 0.72, attempts: 5, hintCount: 2 },
-        'Chromatin Structure':  { score: 0.65, attempts: 4, hintCount: 3 },
-        'Spindle Formation':    { score: 0.55, attempts: 4, hintCount: 4 },
-        'Cytokinesis':          { score: 0.48, attempts: 3, hintCount: 3 },
-        'Cell Cycle Checkpoints':{ score: 0.40, attempts: 3, hintCount: 5 },
-        'Crossing Over':        { score: 0.35, attempts: 2, hintCount: 5 },
-        'Karyotype Analysis':   { score: 0.30, attempts: 2, hintCount: 6 },
-      },
-      graphNodes: [
-        { id: 'Mitosis',           freq: 18, pages: [3,5,7,10,12] },
-        { id: 'Meiosis',           freq: 15, pages: [14,16,18,21] },
-        { id: 'Cell Cycle',        freq: 12, pages: [2,4,6,8]     },
-        { id: 'Chromosomes',       freq: 11, pages: [5,9,15,20]   },
-        { id: 'Spindle Fibers',    freq:  9, pages: [7,11,17]     },
-        { id: 'Interphase',        freq:  8, pages: [3,4]         },
-        { id: 'Prophase',          freq:  8, pages: [5,6]         },
-        { id: 'Metaphase',         freq:  7, pages: [7,8]         },
-        { id: 'Anaphase',          freq:  7, pages: [9,10]        },
-        { id: 'Telophase',         freq:  6, pages: [11,12]       },
-        { id: 'Crossing Over',     freq:  6, pages: [18,19]       },
-        { id: 'Cytokinesis',       freq:  5, pages: [12,13,22]    },
-        { id: 'DNA Replication',   freq:  5, pages: [2,3]         },
-        { id: 'Checkpoints (G1/S/G2)', freq: 4, pages: [4,6]     },
-        { id: 'Homologous Pairs',  freq:  4, pages: [15,16]       },
-      ],
-      keywords: [],
-      chatHistory: Array.from({ length: 34 }, (_, i) => ({
-        role: i % 2 === 0 ? 'user' : 'assistant',
-      })),
-    },
-    {
-      docId:    'doc_cell_division_002',
-      filename: 'HSC Biology Chapter 5 – Cell Division Notes.pdf',
-      date:     '2026-06-04T14:30:00Z',
-      pages:    31,
-      chunkCount: 14,
-      conceptMastery: {
-        'Mitosis Phases':     { score: 0.90, attempts: 4, hintCount: 0 },
-        'Meiosis I & II':     { score: 0.68, attempts: 3, hintCount: 2 },
-        'Crossing Over':      { score: 0.38, attempts: 2, hintCount: 4 },
-        'Karyotype Analysis': { score: 0.32, attempts: 1, hintCount: 5 },
-        'Sister Chromatids':  { score: 0.75, attempts: 4, hintCount: 1 },
-        'Binary Fission':     { score: 0.82, attempts: 5, hintCount: 1 },
-      },
-      graphNodes: [
-        { id: 'Mitosis',          freq: 14, pages: [2,5,8,12] },
-        { id: 'Meiosis',          freq: 11, pages: [13,16,19] },
-        { id: 'Sister Chromatids',freq:  7, pages: [5,7,9]   },
-        { id: 'Binary Fission',   freq:  5, pages: [20,21]   },
-        { id: 'Cell Cycle',       freq:  8, pages: [1,2,3]   },
-        { id: 'Chromosomes',      freq:  9, pages: [4,6,8]   },
-        { id: 'Crossing Over',    freq:  4, pages: [15,17]   },
-      ],
-      chatHistory: Array.from({ length: 21 }, (_, i) => ({
-        role: i % 2 === 0 ? 'user' : 'assistant',
-      })),
-    },
-    {
-      docId:    'doc_cell_division_003',
-      filename: 'Model Test – Cell Division MCQ Set.pdf',
-      date:     '2026-06-07T09:00:00Z',
-      pages:    12,
-      chunkCount: 6,
-      conceptMastery: {
-        'Mitosis Phases':          { score: 0.85, attempts: 8, hintCount: 0 },
-        'Cell Cycle Checkpoints':  { score: 0.42, attempts: 4, hintCount: 4 },
-        'Spindle Formation':       { score: 0.58, attempts: 5, hintCount: 3 },
-        'Meiosis I & II':          { score: 0.70, attempts: 6, hintCount: 2 },
-      },
-      graphNodes: [
-        { id: 'Mitosis',          freq: 10, pages: [1,3,5,7]  },
-        { id: 'Cell Cycle',       freq:  8, pages: [2,4]       },
-        { id: 'Spindle Fibers',   freq:  6, pages: [5,6]       },
-        { id: 'Meiosis',          freq:  7, pages: [8,9,10]    },
-      ],
-      chatHistory: Array.from({ length: 16 }, (_, i) => ({
-        role: i % 2 === 0 ? 'user' : 'assistant',
-      })),
-    },
-  ];
+function loadStoredArray(key) {
+  const saved = localStorage.getItem(key);
+  if (!saved) return [];
+  const parsed = JSON.parse(saved);
+  if (!Array.isArray(parsed)) throw new Error(`Stored data for ${key} is not an array.`);
+  return parsed;
 }
- 
-async function fetchConceptMastery() {
-  return [
-    // Sorted ascending by score (weakest first — matches original sort)
-    { concept: 'Karyotype Analysis',        score: 0.31, attempts: 3,  hintCount: 11, docId: 'doc_cell_division_001' },
-    { concept: 'Crossing Over',             score: 0.36, attempts: 4,  hintCount: 9,  docId: 'doc_cell_division_001' },
-    { concept: 'Cell Cycle Checkpoints',    score: 0.41, attempts: 7,  hintCount: 9,  docId: 'doc_cell_division_001' },
-    { concept: 'Cytokinesis',               score: 0.48, attempts: 3,  hintCount: 3,  docId: 'doc_cell_division_001' },
-    { concept: 'Spindle Formation',         score: 0.56, attempts: 9,  hintCount: 7,  docId: 'doc_cell_division_001' },
-    { concept: 'Chromatin Structure',       score: 0.65, attempts: 4,  hintCount: 3,  docId: 'doc_cell_division_001' },
-    { concept: 'Meiosis I & II',            score: 0.70, attempts: 14, hintCount: 6,  docId: 'doc_cell_division_001' },
-    { concept: 'Sister Chromatids',         score: 0.75, attempts: 4,  hintCount: 1,  docId: 'doc_cell_division_002' },
-    { concept: 'Binary Fission',            score: 0.82, attempts: 5,  hintCount: 1,  docId: 'doc_cell_division_002' },
-    { concept: 'Mitosis Phases',            score: 0.88, attempts: 18, hintCount: 1,  docId: 'doc_cell_division_001' },
-    { concept: 'Interphase',                score: 0.90, attempts: 7,  hintCount: 0,  docId: 'doc_cell_division_001' },
-    { concept: 'DNA Replication (S Phase)', score: 0.78, attempts: 6,  hintCount: 2,  docId: 'doc_cell_division_001' },
-  ];
-}
- 
-async function fetchTopicNodes() {
-  return [
-    { id: 'Mitosis',               freq: 42, pages: [3,5,7,10,12,2,5,8,12,1,3,5,7], docId: 'doc_cell_division_001' },
-    { id: 'Meiosis',               freq: 33, pages: [14,16,18,21,13,16,19,8,9,10],  docId: 'doc_cell_division_001' },
-    { id: 'Cell Cycle',            freq: 28, pages: [2,4,6,8,1,2,3,2,4],            docId: 'doc_cell_division_001' },
-    { id: 'Chromosomes',           freq: 20, pages: [5,9,15,20,4,6,8],              docId: 'doc_cell_division_001' },
-    { id: 'Spindle Fibers',        freq: 15, pages: [7,11,17,5,6],                  docId: 'doc_cell_division_001' },
-    { id: 'Crossing Over',         freq: 10, pages: [18,19,15,17],                  docId: 'doc_cell_division_001' },
-    { id: 'Sister Chromatids',     freq:  7, pages: [5,7,9],                        docId: 'doc_cell_division_002' },
-    { id: 'Cytokinesis',           freq:  5, pages: [12,13,22],                     docId: 'doc_cell_division_001' },
-    { id: 'DNA Replication',       freq:  5, pages: [2,3],                          docId: 'doc_cell_division_001' },
-    { id: 'Checkpoints (G1/S/G2)', freq:  4, pages: [4,6],                          docId: 'doc_cell_division_001' },
-  ];
-}
- 
-async function fetchMessages() {
-  // 71 simulated messages spread over the last 14 days
-  const msgs = [];
-  const now = Date.now();
-  const day = 86400000;
-  const schedule = [5, 4, 0, 6, 8, 0, 5, 7, 4, 0, 6, 9, 7, 5]; // msgs per day going back
-  schedule.forEach((count, i) => {
-    for (let j = 0; j < count; j++) {
-      msgs.push({
-        ts: now - i * day + j * 300000,
-        role: j % 2 === 0 ? 'user' : 'assistant',
-      });
+
+function loadLocal() { return loadStoredArray(LS_DOCS_KEY); }
+function loadUsage() { return loadStoredArray(LS_USAGE_KEY); }
+function loadQuizResults() { return loadStoredArray(LS_QUIZ_KEY); }
+function fetchDocuments() { return loadLocal(); }
+
+function aggregateConceptsFromDocs(docs, quizResults) {
+  const concepts = new Map();
+  const add = (name, score, attempts = 1, hintCount = 0, reviewedAt = null) => {
+    if (!name || !Number.isFinite(score) || !Number.isFinite(attempts)) return;
+    const entry = concepts.get(name) || { concept: name, totalScore: 0, attempts: 0, hintCount: 0, lastReviewedAt: null };
+    entry.totalScore += score * attempts;
+    entry.attempts += attempts;
+    entry.hintCount += Number.isFinite(hintCount) ? hintCount : 0;
+    if (reviewedAt && (!entry.lastReviewedAt || new Date(reviewedAt) > new Date(entry.lastReviewedAt))) {
+      entry.lastReviewedAt = reviewedAt;
     }
-  });
-  return msgs;
-}
- 
-async function fetchMessages(){
-  if(_neo4jEnabled){
-    try{
-      const r=await neo4jRun('MATCH (m:Message) RETURN m.timestamp AS ts,m.role AS role ORDER BY m.timestamp DESC LIMIT 500');
-      const rows=neo4jRows(r).map(([ts,role])=>({ts,role}));
-      if(rows.length) return rows;
-    }catch(e){}
-  }
-  const docs=loadLocal();
-  const msgs=[];
-  docs.forEach(doc=>{
-    const ts=parseInt((doc.docId||'').split('_').pop())||new Date(doc.date||Date.now()).getTime();
-    const history=doc.chatHistory||doc.chat_history||doc.messages||[];
-    history.forEach(m=>msgs.push({ts,role:m.role||'user'}));
-  });
-  return msgs;
-}
-async function fetchAttentionSessions(){
-  if(_neo4jEnabled){try{const r=await neo4jRun('MATCH (a:AttentionSession) RETURN a.date AS date,a.focused AS focused,a.confused AS confused,a.distracted AS distracted,a.noFace AS noFace,a.durationSeconds AS duration,a.total AS total,a.docId AS docId ORDER BY a.date DESC LIMIT 10');const rows=neo4jRows(r);if(rows.length)return rows.map(([date,focused,confused,distracted,noFace,duration,total,docId])=>({date,focused:focused||0,confused:confused||0,distracted:distracted||0,noFace:noFace||0,duration:duration||0,total:total||1,docId}));}catch(e){}}
-  try{const log=window._attentionLog||(window.opener&&window.opener._attentionLog)||[];if(log.length){const focused=log.filter(e=>e.state==='focused').length,confused=log.filter(e=>e.state==='confused').length,distracted=log.filter(e=>e.state==='distracted').length,noFace=log.filter(e=>e.state==='no_face').length,duration=Math.floor((Date.now()-(window._sessionStart||Date.now()))/1000);return[{date:new Date().toISOString(),focused,confused,distracted,noFace,duration,total:log.length,live:true}];}}catch(e){}
-  try{const saved=JSON.parse(localStorage.getItem('amplify_attention_sessions')||'[]');if(Array.isArray(saved)&&saved.length)return saved.slice(0,10);}catch(e){}
-  return null;
-}
-async function fetchCoOccurrenceLinks(){
-  if(_neo4jEnabled){try{const r=await neo4jRun('MATCH (t:Topic) WITH t.id AS concept,collect(DISTINCT t.docId) AS docIds WHERE size(docIds)>1 RETURN concept,docIds ORDER BY size(docIds) DESC LIMIT 20');return neo4jRows(r).map(([concept,docIds])=>({a:concept,b:concept,w:docIds.length,docA:docIds[0],docB:docIds[1],allDocIds:docIds}));}catch(e){return[];}}
-  return[];
-}
-function loadLocal(){try{const raw=localStorage.getItem(LS_DOCS_KEY);const parsed=raw?JSON.parse(raw):[];return Array.isArray(parsed)?parsed:[];}catch{return[];}}
+    concepts.set(name, entry);
+  };
 
-function aggregateConceptsFromDocs(docs){
-  const map={};
-  docs.forEach(doc=>{
-    const mastery=doc.conceptMastery||doc.concept_mastery||{};
-    Object.entries(mastery).forEach(([concept,data])=>{
-      if(!concept||typeof data!=='object')return;
-      if(!map[concept])map[concept]={concept,totalScore:0,attempts:0,hintCount:0,count:0};
-      map[concept].totalScore+=data.score||0;
-      map[concept].attempts+=data.attempts||0;
-      map[concept].hintCount+=data.hintCount||data.hint_count||0;
-      map[concept].count++;
+  docs.forEach((doc) => {
+    const mastery = doc.conceptMastery || doc.concept_mastery || {};
+    Object.entries(mastery).forEach(([name, data]) => {
+      if (data && typeof data === 'object') {
+        add(name, Number(data.score), Number(data.attempts) || 1, Number(data.hintCount || data.hint_count) || 0, data.lastReviewedAt || doc.date);
+      }
     });
-    if(!Object.keys(mastery).length){
-      (doc.quizResults||doc.quiz_results||[]).forEach(q=>{
-        const concept=q.concept||q.topic||q.question||'Unknown';
-        if(!map[concept])map[concept]={concept,totalScore:0,attempts:0,hintCount:0,count:0};
-        map[concept].totalScore+=q.correct?1:q.score!=null?q.score:0;
-        map[concept].attempts+=1;
-        map[concept].hintCount+=q.hintCount||q.hints||0;
-        map[concept].count++;
-      });
-    }
+    (doc.quizResults || doc.quiz_results || []).forEach((result) => {
+      const name = result.concept || result.topic || result.question;
+      const score = typeof result.correct === 'boolean'
+        ? (result.correct ? 1 : 0)
+        : Number(result.score);
+      add(name, score, 1, Number(result.hintCount || result.hints) || 0);
+    });
   });
-  return Object.values(map)
-    .map(d=>({concept:d.concept,score:Math.min(1,d.totalScore/Math.max(1,d.count)),attempts:d.attempts,hintCount:d.hintCount}))
-    .sort((a,b)=>a.score-b.score);
+
+  quizResults.forEach((result) => {
+    const topic = String(result.topic || '').trim();
+    const subject = String(result.subject || '').trim();
+    const name = topic && subject ? `${subject} · ${topic}` : topic || subject;
+    const score = Number.isFinite(Number(result.score))
+      ? Number(result.score)
+      : Number(result.correct) / Number(result.total);
+    add(name, score, 1, 0, result.completedAt);
+  });
+
+  return [...concepts.values()]
+    .map(({ totalScore, ...concept }) => ({ ...concept, score: totalScore / Math.max(1, concept.attempts) }))
+    .sort((a, b) => a.score - b.score);
+}
+
+function fetchConceptMastery(docs = loadLocal(), quizResults = loadQuizResults()) {
+  return aggregateConceptsFromDocs(docs, quizResults);
+}
+
+function fetchTopicNodes(docs = loadLocal()) {
+  const topics = new Map();
+  docs.forEach((doc) => {
+    (doc.graphNodes || []).forEach((node) => {
+      if (!node.id) return;
+      const entry = topics.get(node.id) || { id: node.id, freq: 0, pages: [], docId: doc.docId, docIds: [] };
+      entry.freq += Number(node.freq) || (Array.isArray(node.chunks) ? node.chunks.length : 0);
+      if (doc.docId && !entry.docIds.includes(doc.docId)) entry.docIds.push(doc.docId);
+      const chunks = Array.isArray(node.chunks) ? node.chunks : [];
+      chunks.forEach((chunkIndex) => {
+        const pageNum = doc.chunks?.[chunkIndex]?.pageNum;
+        if (Number.isFinite(pageNum) && !entry.pages.includes(pageNum)) entry.pages.push(pageNum);
+      });
+      topics.set(node.id, entry);
+    });
+  });
+  return [...topics.values()].sort((a, b) => b.freq - a.freq);
+}
+
+function fetchMessages(docs = loadLocal()) {
+  return docs.flatMap((doc) => {
+    const history = doc.chatHistory || doc.chat_history || doc.messages || [];
+    return history.map((message) => ({
+      ts: message.timestamp || message.ts || doc.date,
+      role: message.role || 'user',
+    }));
+  }).filter((message) => message.ts);
+}
+
+function fetchAttentionSessions() {
+  const sessions = loadStoredArray('amplify_attention_sessions')
+    .filter((session) => session && typeof session === 'object')
+    .sort((a, b) => new Date(b.date || b.timestamp || 0) - new Date(a.date || a.timestamp || 0));
+  return sessions.length ? sessions.slice(0, 10) : null;
+}
+
+function fetchCoOccurrenceLinks() { return []; }
+
+function buildActivityFromUsage(events, docs, messages) {
+  const dayMap = new Map();
+  const addActivity = (date) => {
+    const timestamp = new Date(date);
+    if (Number.isNaN(timestamp.getTime())) return;
+    const day = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate()).getTime();
+    dayMap.set(day, (dayMap.get(day) || 0) + 1);
+  };
+  events.forEach((event) => {
+    if (event.page !== 'index' && event.page !== 'dashboard'
+      && (event.type === 'page_view' || event.type === 'interaction')) addActivity(event.at);
+  });
+  docs.forEach((doc) => addActivity(doc.date));
+  messages.forEach((message) => addActivity(message.ts));
+
+  return Array.from({ length: 30 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (29 - index));
+    return { date, count: dayMap.get(date.getTime()) || 0 };
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
 // SPACED REPETITION
 // ═══════════════════════════════════════════════════════════
-function computeNextReview(score,attempts,hintCount){let days;if(score>=0.85)days=14;else if(score>=0.70)days=7;else if(score>=0.50)days=3;else if(score>=0.35)days=1;else days=0;days=Math.max(0,days-(hintCount||0));const daysSinceReview=Math.min(attempts||0,days);return Date.now()+(days-daysSinceReview)*86400000;}
+function computeNextReview(score, attempts, hintCount, lastReviewedAt) {
+  let intervalDays = score >= 0.85 ? 14 : score >= 0.7 ? 7 : score >= 0.5 ? 3 : score >= 0.35 ? 1 : 0;
+  intervalDays = Math.max(0, intervalDays - (hintCount || 0));
+  const parsedReviewTime = lastReviewedAt ? new Date(lastReviewedAt).getTime() : Date.now();
+  const baseTime = Number.isFinite(parsedReviewTime) ? parsedReviewTime : Date.now();
+  return baseTime + intervalDays * 86400000;
+}
 function reviewDueLabel(ts){const diff=ts-Date.now();const days=Math.floor(diff/86400000);if(diff<=0)return{label:'মেয়াদ উত্তীর্ণ',cls:'due-overdue'};if(days===0)return{label:'আজ',cls:'due-today'};if(days===1)return{label:'আগামীকাল',cls:'due-tomorrow'};return{label:`${days} দিনে`,cls:'due-later'};}
 
 // ═══════════════════════════════════════════════════════════
 // ACTIVITY / STREAK
 // ═══════════════════════════════════════════════════════════
-function buildActivityFromMessages(messages){const dayMap={};messages.forEach(({ts})=>{if(!ts)return;const d=new Date(typeof ts==='string'?ts:ts).toDateString();dayMap[d]=(dayMap[d]||0)+1;});const result=[];const today=new Date();for(let i=29;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);result.push({date:d,count:dayMap[d.toDateString()]||0});}return result;}
-function buildActivityFromDocs(docs){const dayMap={};docs.forEach(doc=>{if(doc.date){const d=new Date(doc.date).toDateString();dayMap[d]=(dayMap[d]||0)+1;}});const result=[];const today=new Date();for(let i=29;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);result.push({date:d,count:dayMap[d.toDateString()]||0});}return result;}
-function computeStreak(activity){let streak=0;for(let i=activity.length-1;i>=0;i--){if(activity[i].count>0)streak++;else if(i<activity.length-1)break;}return streak;}
+function computeStreak(activity) {
+  let index = activity.length - 1;
+  if (index >= 0 && activity[index].count === 0) index--;
+  let streak = 0;
+  while (index >= 0 && activity[index].count > 0) {
+    streak++;
+    index--;
+  }
+  return streak;
+}
 
 // ═══════════════════════════════════════════════════════════
 // CROSS-DOC
 // ═══════════════════════════════════════════════════════════
-function buildCrossDocFromTopics(topics,docs){const docMap={};topics.forEach(t=>{if(!t.docId)return;if(!docMap[t.id])docMap[t.id]=new Set();docMap[t.id].add(t.docId);});const docNames={};docs.forEach(d=>{if(d.docId)docNames[d.docId]=d.filename||d.docId;});return Object.entries(docMap).filter(([,s])=>s.size>1).map(([concept,docIds])=>({concept,docs:[...docIds].map(id=>docNames[id]||id)})).sort((a,b)=>b.docs.length-a.docs.length).slice(0,8);}
+function buildCrossDocFromTopics(topics,docs){const docMap={};topics.forEach(t=>{const ids=t.docIds||[t.docId];ids.filter(Boolean).forEach(id=>{if(!docMap[t.id])docMap[t.id]=new Set();docMap[t.id].add(id);});});const docNames={};docs.forEach(d=>{if(d.docId)docNames[d.docId]=d.filename||d.docId;});return Object.entries(docMap).filter(([,s])=>s.size>1).map(([concept,docIds])=>({concept,docs:[...docIds].map(id=>docNames[id]||id)})).sort((a,b)=>b.docs.length-a.docs.length).slice(0,8);}
 function buildCrossDocFromLinks(links,docs){const docNames={};docs.forEach(d=>{if(d.docId)docNames[d.docId]=d.filename||d.docId;});return links.map(({a,allDocIds,docA,docB})=>{const docIds=allDocIds||[docA,docB].filter(Boolean);return{concept:a,docs:[...new Set(docIds)].map(id=>docNames[id]||id)};}).slice(0,8);}
 function computeSkills(concepts,topicCount,msgCount){if(!concepts.length)return[];const total=concepts.length;const strong=concepts.filter(c=>c.score>=0.7).length;const weak=concepts.filter(c=>c.score<0.4).length;const hintAvg=concepts.reduce((s,c)=>s+(c.hintCount||0),0)/total;const attemptAvg=concepts.reduce((s,c)=>s+(c.attempts||0),0)/total;const avgScore=concepts.reduce((s,c)=>s+c.score,0)/total;return[{label:'ধারণা বোঝার দক্ষতা',pips:Math.round((strong/total)*5),max:5},{label:'স্বাধীন চিন্তাভাবনা',pips:hintAvg<1?4:hintAvg<2?3:2,max:5},{label:'নিয়মিত অনুশীলন',pips:Math.min(5,Math.round(attemptAvg)),max:5},{label:'দুর্বল অধ্যায় মেরামত',pips:weak===0?5:weak<=1?4:weak<=2?3:2,max:5},{label:'সামগ্রিক দক্ষতা',pips:Math.round(avgScore*5),max:5}];}
 
 // ═══════════════════════════════════════════════════════════
 // RENDER HELPERS (unchanged from original)
 // ═══════════════════════════════════════════════════════════
-function renderMetrics(avgMastery,dueToday,msgCount,streak){const data=[{icon:'🧠',label:'সামগ্রিক দখল',value:avgMastery+'%',sub:'ধারণা জুড়ে',cls:'c-purple'},{icon:'📅',label:'পর্যালোচনা বাকি',value:dueToday,sub:'আজকের জন্য',cls:'c-amber'},{icon:'💬',label:'মোট বার্তা',value:msgCount,sub:'সব নথিতে',cls:'c-blue'},{icon:'🔥',label:'ধারাবাহিক দিন',value:streak+' দিন',sub:'পড়ার ধারা',cls:'c-teal'}];document.getElementById('metrics-row').innerHTML=data.map(m=>`<div class="metric-card ${m.cls}"><div class="metric-icon">${m.icon}</div><div class="metric-label">${m.label}</div><div class="metric-value">${m.value}</div><div class="metric-sub">${m.sub}</div></div>`).join('');}
-function renderConcepts(concepts){document.getElementById('concept-count').textContent=concepts.length||'—';if(!concepts.length){document.getElementById('concept-body').innerHTML=`<div class="empty-state">এখনো কুইজ দেওয়া হয়নি।<br/>প্রথম কুইজের পরে এখানে ধারণাগুলো দেখাবে।</div>`;return;}document.getElementById('concept-body').innerHTML=concepts.slice(0,8).map((c,i)=>{const pct=Math.round((c.score||0)*100);const barCls=pct>=70?'bar-strong':pct>=40?'bar-medium':'bar-weak';const pctCls=pct>=70?'pct-strong':pct>=40?'pct-medium':'pct-weak';const weakB=pct<40?`<span class="badge badge-weak">দুর্বল</span>`:'';const nr=computeNextReview(c.score,c.attempts,c.hintCount);const dueB=pct>=40&&nr<=Date.now()+86400000?`<span class="badge badge-due">review</span>`:'';return`<div class="concept-row" style="animation-delay:${i*0.05}s"><div class="concept-name">${c.concept}${weakB}${dueB}</div><div class="bar-track"><div class="bar-fill ${barCls}" style="width:0" data-w="${pct}%"></div></div><div class="bar-pct ${pctCls}">${pct}%</div></div>`;}).join('');setTimeout(()=>{document.querySelectorAll('.bar-fill[data-w]').forEach(el=>{el.style.transition='width 1.2s cubic-bezier(0.16,1,0.3,1)';el.style.width=el.dataset.w;});},120);}
-function renderReview(concepts){const due=concepts.map(c=>({...c,nextReview:computeNextReview(c.score,c.attempts,c.hintCount)})).filter(c=>c.nextReview<=Date.now()+2*86400000).slice(0,4);document.getElementById('review-count').textContent=due.length||'—';if(!due.length){document.getElementById('review-body').innerHTML=`<div class="empty-state">🎉 আজকের জন্য কোনো পর্যালোচনা নেই!</div>`;return;}document.getElementById('review-body').innerHTML=due.map((c,i)=>{const{label,cls}=reviewDueLabel(c.nextReview);const pct=Math.round((c.score||0)*100);return`<div class="review-row" style="animation-delay:${i*0.06}s"><div class="review-left"><div class="review-concept">${c.concept}</div><div class="review-sub"><span>${pct}% দখল</span><span class="review-sub-dot"></span><span>${c.hintCount||0} ইঙ্গিত</span></div></div><span class="due-tag ${cls}">${label}</span></div>`;}).join('')+`<button class="review-start-btn" onclick="startReview()">▶ আজকের পর্যালোচনা শুরু করুন</button>`;}
+function renderMetrics(docs, messages, activity, events) {
+  const activeDays = activity.filter((day) => day.count > 0).length;
+  const seconds = events
+    .filter((event) => event.type === 'study_time' && event.page !== 'index' && event.page !== 'dashboard')
+    .reduce((total, event) => total + Math.max(0, Number(event.action) || 0), 0);
+  const minutes = Math.round(seconds / 60);
+  const toolsUsed = new Set(events
+    .filter((event) => event.type === 'page_view' && event.page !== 'dashboard')
+    .map((event) => event.page)).size;
+  const data = [
+    { icon: '📆', label: 'সক্রিয় দিন', value: activeDays, sub: 'গত ৩০ দিনে', cls: 'c-purple' },
+    { icon: '⏱️', label: 'পড়ার সময়', value: `${minutes} মিনিট`, sub: 'সংরক্ষিত সক্রিয় সময়', cls: 'c-amber' },
+    { icon: '💬', label: 'টিউটর বার্তা', value: messages.length, sub: 'সংরক্ষিত কথোপকথন', cls: 'c-blue' },
+    { icon: '🧰', label: 'ব্যবহৃত টুল', value: toolsUsed, sub: `${docs.length}টি PDF নথি`, cls: 'c-teal' },
+  ];
+  document.getElementById('metrics-row').innerHTML = data.map((metric) =>
+    `<div class="metric-card ${metric.cls}"><div class="metric-icon">${metric.icon}</div><div class="metric-label">${metric.label}</div><div class="metric-value">${metric.value}</div><div class="metric-sub">${metric.sub}</div></div>`
+  ).join('');
+}
+function renderConcepts(concepts){document.getElementById('concept-count').textContent=concepts.length||'—';if(!concepts.length){document.getElementById('concept-body').innerHTML=`<div class="empty-state">এখনো কুইজ দেওয়া হয়নি।<br/>প্রথম কুইজের পরে এখানে ধারণাগুলো দেখাবে।</div>`;return;}document.getElementById('concept-body').innerHTML=concepts.slice(0,8).map((c,i)=>{const pct=Math.round((c.score||0)*100);const barCls=pct>=70?'bar-strong':pct>=40?'bar-medium':'bar-weak';const pctCls=pct>=70?'pct-strong':pct>=40?'pct-medium':'pct-weak';const weakB=pct<40?`<span class="badge badge-weak">দুর্বল</span>`:'';const nr=computeNextReview(c.score,c.attempts,c.hintCount,c.lastReviewedAt);const dueB=pct>=40&&nr<=Date.now()+86400000?`<span class="badge badge-due">review</span>`:'';return`<div class="concept-row" style="animation-delay:${i*0.05}s"><div class="concept-name">${c.concept}${weakB}${dueB}</div><div class="bar-track"><div class="bar-fill ${barCls}" style="width:0" data-w="${pct}%"></div></div><div class="bar-pct ${pctCls}">${pct}%</div></div>`;}).join('');setTimeout(()=>{document.querySelectorAll('.bar-fill[data-w]').forEach(el=>{el.style.transition='width 1.2s cubic-bezier(0.16,1,0.3,1)';el.style.width=el.dataset.w;});},120);}
+function renderReview(concepts){const due=concepts.map(c=>({...c,nextReview:computeNextReview(c.score,c.attempts,c.hintCount,c.lastReviewedAt)})).filter(c=>c.nextReview<=Date.now()+2*86400000).slice(0,4);document.getElementById('review-count').textContent=due.length||'—';if(!due.length){document.getElementById('review-body').innerHTML=`<div class="empty-state">🎉 আজকের জন্য কোনো পর্যালোচনা নেই!</div>`;return;}document.getElementById('review-body').innerHTML=due.map((c,i)=>{const{label,cls}=reviewDueLabel(c.nextReview);const pct=Math.round((c.score||0)*100);return`<div class="review-row" style="animation-delay:${i*0.06}s"><div class="review-left"><div class="review-concept">${c.concept}</div><div class="review-sub"><span>${pct}% দখল</span><span class="review-sub-dot"></span><span>${c.hintCount||0} ইঙ্গিত</span></div></div><span class="due-tag ${cls}">${label}</span></div>`;}).join('')+`<button class="review-start-btn" onclick="startReview()">▶ আজকের পর্যালোচনা শুরু করুন</button>`;}
 function renderTopics(topics){document.getElementById('topic-count').textContent=topics.length||'—';if(!topics.length){document.getElementById('topic-body').innerHTML=`<div class="empty-state">গ্রাফ ডেটা পাওয়া যায়নি।</div>`;return;}const maxFreq=Math.max(...topics.map(t=>t.freq||1),1);document.getElementById('topic-body').innerHTML=topics.slice(0,10).map((t,i)=>{const pct=Math.round(((t.freq||1)/maxFreq)*100);const pages=Array.isArray(t.pages)?[...new Set(t.pages)].slice(0,3):[];const pagesLabel=pages.length?`পৃষ্ঠা ${pages.join(', ')}`:'';return`<div class="topic-row" style="animation-delay:${i*0.05}s"><div class="topic-name">${t.id}</div>${pagesLabel?`<span class="topic-pages">${pagesLabel}</span>`:''}<div class="topic-freq-bar"><div class="topic-freq-fill" style="width:${pct}%"></div></div><div class="topic-freq-num">${t.freq||1}</div></div>`;}).join('');}
 function renderHeatmap(activity){document.getElementById('heatmap-grid').innerHTML=activity.map(day=>{const lvl=day.count===0?0:day.count===1?1:day.count<=3?2:3;const lbl=day.date.toLocaleDateString('bn-BD',{day:'numeric',month:'short'});return`<div class="heat-cell heat-${lvl}"><div class="tooltip">${lbl}: ${day.count}টি</div></div>`;}).join('');const last7=activity.slice(-7);document.getElementById('streak-dots').innerHTML=last7.map(d=>`<div class="streak-dot ${d.count>0?'streak-on':'streak-off'}"></div>`).join('');}
 function renderCrossDoc(cross){if(!cross.length){document.getElementById('cross-body').innerHTML=`<div class="empty-state">একাধিক নথি পড়লে এখানে ধারণার মিল দেখাবে।</div>`;return;}document.getElementById('cross-body').innerHTML=cross.map((c,i)=>`<div class="cross-row" style="animation-delay:${i*0.05}s"><div class="cross-concept">${c.concept}</div><div class="cross-docs">${c.docs.slice(0,2).map(d=>`<span class="cross-doc-chip">${d}</span>`).join('')}${c.docs.length>2?`<span class="badge badge-cross">+${c.docs.length-2}</span>`:''}</div></div>`).join('');}
@@ -1551,7 +1492,7 @@ function initBrain() {
 function updateBrainData(concepts, topics, attentionSessions, streak, msgCount, activity, docs, dueToday) {
   // Build the _brainData object consumed by tooltip renderer
   const avgMastery = concepts.length
-    ? Math.round(concepts.reduce((s,c)=>s+c.score,0)/concepts.length*100) : 0;
+    ? Math.round(concepts.reduce((s,c)=>s+c.score,0)/concepts.length*100) : null;
   const strongCount = concepts.filter(c=>c.score>=0.7).length;
   const weakCount   = concepts.filter(c=>c.score<0.4).length;
 
@@ -1570,7 +1511,7 @@ function updateBrainData(concepts, topics, attentionSessions, streak, msgCount, 
   const activeDays = activity.filter(d=>d.count>0).length;
   const dueToday0 = dueToday;
   const nextDue = concepts
-    .map(c=>({concept:c.concept,nr:computeNextReview(c.score,c.attempts,c.hintCount)}))
+    .map(c=>({concept:c.concept,nr:computeNextReview(c.score,c.attempts,c.hintCount,c.lastReviewedAt)}))
     .filter(c=>c.nr>Date.now())
     .sort((a,b)=>a.nr-b.nr)[0];
   const nextLabel = nextDue
@@ -1605,14 +1546,14 @@ function updateBrainData(concepts, topics, attentionSessions, streak, msgCount, 
       let intensity = 0.5;
       if (zone.dataKey === 'attention' && attData)  intensity = attData.focPct / 100;
       if (zone.dataKey === 'topics')                 intensity = Math.min(1, topics.length / 20);
-      if (zone.dataKey === 'mastery')                intensity = avgMastery / 100;
+      if (zone.dataKey === 'mastery')                intensity = (avgMastery || 0) / 100;
       if (zone.dataKey === 'streak')                 intensity = Math.min(1, streak / 14);
       if (zone.dataKey === 'memory')                 intensity = Math.max(0.1, 1 - dueToday0 / 10);
       // Lerp between dim grey and zone colour based on intensity
       const dimCol = new THREE.Color(0.08, 0.08, 0.12);
       sphere.material.color.lerpColors(dimCol, zone.color, intensity);
     });
-    document.getElementById('brain-status-text').textContent = 'Live Sync · Neural Map';
+    document.getElementById('brain-status-text').textContent = 'Usage Data · Neural Map';
   }
 }
 
@@ -1620,63 +1561,29 @@ function updateBrainData(concepts, topics, attentionSessions, streak, msgCount, 
 // MAIN LOAD
 // ═══════════════════════════════════════════════════════════
 async function loadAndRender() {
-  setLoading('ডেটা উৎস শনাক্ত করা হচ্ছে…', '');
-  const hasNeo4j = checkNeo4j();
-  let usingNeo4j = false;
-
-  if (hasNeo4j) {
-    setLoading('Neo4j-এ সংযুক্ত হচ্ছে…', '');
-    try {
-      await neo4jRun('RETURN 1 AS ping');
-      usingNeo4j = true;
-      setLoading('Neo4j থেকে ডেটা লোড হচ্ছে…', '🔵 Neo4j');
-    } catch(e) {
-      usingNeo4j = false;
-      setLoading(' লোড হচ্ছে…', '🟣 ');
-    }
-  } else {
-    setLoading(' লোড হচ্ছে…', '🟣 ');
-  }
+  setLoading('আপনার শেখার তথ্য লোড হচ্ছে…', 'এই ডিভাইস');
 
   const badge = document.getElementById('data-source-badge');
   badge.style.display = 'inline-flex';
-  if (usingNeo4j) {
-    badge.className = 'source-badge source-neo4j';
-    badge.textContent = '🔵 Neo4j';
-  } else {
-    badge.className = 'source-badge source-local';
-    badge.textContent = '🟣';
-  }
+  badge.className = 'source-badge source-local';
+  badge.textContent = 'এই ডিভাইস';
 
   try {
-    const [docs, concepts, topics, messages, crossLinks, attentionSessions] = await Promise.all([
-      fetchDocuments().catch(()=>loadLocal()),
-      fetchConceptMastery().catch(()=>aggregateConceptsFromDocs(loadLocal())),
-      fetchTopicNodes().catch(()=>[]),
-      fetchMessages().catch(()=>[]),
-      fetchCoOccurrenceLinks().catch(()=>[]),
-      fetchAttentionSessions().catch(()=>null),
-    ]);
-
-    const activity = messages.length ? buildActivityFromMessages(messages) : buildActivityFromDocs(docs);
+    const docs = fetchDocuments();
+    const concepts = fetchConceptMastery(docs);
+    const topics = fetchTopicNodes(docs);
+    const messages = fetchMessages(docs);
+    const attentionSessions = fetchAttentionSessions();
+    const events = loadUsage();
+    const activity = buildActivityFromUsage(events, docs, messages);
     const streak = computeStreak(activity);
-    const activeDays = activity.filter(d=>d.count>0).length;
-
-    let cross = crossLinks.length
-      ? buildCrossDocFromLinks(crossLinks, docs)
-      : buildCrossDocFromTopics(topics, docs);
-    if (!cross.length) {
-      const localDocs = loadLocal();
-      cross = buildCrossDocFromTopics(localDocs.flatMap(d=>(d.graphNodes||[]).map(n=>({...n,docId:d.docId}))),localDocs);
-    }
-
-    const avgMastery = concepts.length ? Math.round(concepts.reduce((s,c)=>s+(c.score||0),0)/concepts.length*100) : 0;
-    const dueToday = concepts.filter(c=>{const nr=computeNextReview(c.score,c.attempts,c.hintCount);return nr<=Date.now()+86400000;}).length;
+    const cross = buildCrossDocFromTopics(topics, docs);
+    const dueToday = concepts.filter(c=>{const nr=computeNextReview(c.score,c.attempts,c.hintCount,c.lastReviewedAt);return nr<=Date.now()+86400000;}).length;
     const msgCount = messages.length;
     const skills = computeSkills(concepts, topics.length, msgCount);
 
     // Render all panels
-    renderMetrics(avgMastery, dueToday, msgCount, streak);
+    renderMetrics(docs, messages, activity, events);
     renderConcepts(concepts);
     renderReview(concepts);
     renderTopics(topics);
@@ -1704,13 +1611,31 @@ async function loadAndRender() {
   }
 }
 
-function openDoc(docId) { try{sessionStorage.setItem('amplify_open_doc',docId);}catch(e){} history.back(); }
-function startReview() { try{sessionStorage.setItem('amplify_start_review','1');}catch(e){} showToast('মূল অ্যাপে ফিরে যাচ্ছে…'); setTimeout(()=>history.back(),1200); }
+function openDoc(docId) {
+  window.location.assign(`/amplify-tutor.html?open=${encodeURIComponent(docId)}`);
+}
+function startReview() {
+  const weakest = fetchConceptMastery()[0];
+  if (!weakest) {
+    showToast('পর্যালোচনার জন্য আগে একটি কুইজ সম্পন্ন করুন।');
+    return;
+  }
+  const [subject, ...topicParts] = weakest.concept.split(' · ');
+  const detail = topicParts.join(' · ') || subject;
+  const quizSubject = topicParts.length ? subject : '';
+  window.location.assign(`/quiz.html?subject=${encodeURIComponent(quizSubject)}&detail=${encodeURIComponent(detail)}&level=HSC`);
+}
 function setLoading(text,source) { document.getElementById('loading-text').textContent=text; document.getElementById('loading-source').textContent=source; }
 function showToast(msg) { const t=document.getElementById('toast'); document.getElementById('toast-msg').textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
 
 document.addEventListener('DOMContentLoaded', () => {
-  initBrain();
+  try {
+    initBrain();
+  } catch (error) {
+    console.error('[Dashboard] Neural map is unavailable:', error);
+    document.getElementById('brain-status-text').textContent = 'Neural map unavailable';
+    document.getElementById('brainLoading').style.display = 'none';
+  }
   loadAndRender();
 });
 </script>

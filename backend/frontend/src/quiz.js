@@ -254,6 +254,23 @@ function showResults(fromTimer = false) {
   const total = questions.length;
   const correct = userAnswers.filter((ans, i) => ans === questions[i].answer).length;
   const pct = Math.round((correct / total) * 100);
+  const quizResult = {
+    subject,
+    topic: detail,
+    correct,
+    total,
+    score: pct / 100,
+    completedAt: new Date().toISOString(),
+  };
+  try {
+    const savedResults = JSON.parse(localStorage.getItem('amplify_quiz_results') || '[]');
+    if (!Array.isArray(savedResults)) throw new Error('Stored quiz results are not an array.');
+    savedResults.push(quizResult);
+    localStorage.setItem('amplify_quiz_results', JSON.stringify(savedResults.slice(-500)));
+  } catch (error) {
+    console.error('Could not save quiz result for the dashboard:', error);
+  }
+  window.AmplifyAnalytics?.track('quiz_completed');
 
   document.getElementById('resultHeading').textContent = fromTimer ? 'Time is up' : 'Quiz Complete';
   document.getElementById('scoreText').textContent = `${correct} / ${total}`;
