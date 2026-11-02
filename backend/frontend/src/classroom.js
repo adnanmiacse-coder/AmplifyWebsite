@@ -76,7 +76,8 @@ Strict rules:
 ✗ No third-person narration, no thank-yous, no flattery.
 ✗ Never repeat what has already been said.
 ✗ Never say phrases like "As stated in the document".
-✓ Exactly ONE insightful question or observation.
+✓ Ask exactly ONE relevant question about the teacher's latest explanation.
+✓ Speak only as yourself; do not answer for another student or start a group discussion.
 ✓ CRITICAL NUMERIC RULE: Never use any fractions (1/2, 3/4). Convert to decimal numbers (e.g. 0.5).`,
     },
     skeptic: {
@@ -90,7 +91,8 @@ Strict rules:
 ✗ No third-person narration, no flattery.
 ✗ Never repeat what has already been said.
 ✗ Never say "According to the document".
-✓ Exactly ONE probing question or alternative perspective.
+✓ Ask exactly ONE probing question about the teacher's latest explanation or an edge case.
+✓ Speak only as yourself; do not answer for another student or start a group discussion.
 ✓ CRITICAL NUMERIC RULE: Never use any fractions (1/2, 3/4). Convert to decimal numbers (e.g. 0.5).`,
     },
     achiever: {
@@ -104,7 +106,8 @@ Strict rules:
 ✗ No third-person narration, no flattery.
 ✗ Never repeat what has already been said.
 ✗ Never say "According to the document".
-✓ Exactly ONE concise sentence connecting the discussion to a concrete real-world application.
+✓ Ask exactly ONE concise question connecting the teacher's latest explanation to a real-world application.
+✓ Speak only as yourself; do not answer for another student or start a group discussion.
 ✓ CRITICAL NUMERIC RULE: Never use any fractions (1/2, 3/4). Convert to decimal numbers (e.g. 0.5).`,
     },
   },
@@ -137,7 +140,8 @@ Strict rules:
 ✗ তৃতীয় পুরুষ, ধন্যবাদ, প্রশংসা নিষিদ্ধ
 ✗ আগে যা বলা হয়েছে তা আবার বলা নিষিদ্ধ
 ✗ "ডকুমেন্টে বলা আছে" জাতীয় বাক্যাংশ নিষিদ্ধ
-✓ ঠিক ১টি বাক্য
+✓ শিক্ষকের সর্বশেষ ব্যাখ্যা নিয়ে ঠিক ১টি প্রাসঙ্গিক প্রশ্ন করো
+✓ শুধু নিজের হয়ে বলো; অন্য শিক্ষার্থীর উত্তর দেবে না বা দলীয় আলোচনা শুরু করবে না
 ✓ CRITICAL NUMERIC RULE: ভগ্নাংশ নিষিদ্ধ, দশমিকে লিখবে (০.৫)।
 ✓ বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`,
     },
@@ -152,8 +156,9 @@ Strict rules:
 ✗ তৃতীয় পুরুষ, ধন্যবাদ, প্রশংসা নিষিদ্ধ
 ✗ আগে যা বলা হয়েছে তা আবার বলা নিষিদ্ধ
 ✗ "ডকুমেন্টে বলা আছে" জাতীয় বাক্যাংশ নিষিদ্ধ
-✓ ঠিক ১টি বাক্য 
-✓ "কিন্তু", "তাহলে কি", "ধরি যদি" দিয়ে শুরু করো
+✓ শিক্ষকের সর্বশেষ ব্যাখ্যা বা কোনো ব্যতিক্রম নিয়ে ঠিক ১টি প্রশ্ন করো
+✓ "কিন্তু", "তাহলে কি", "ধরি যদি" দিয়ে প্রশ্ন শুরু করো
+✓ শুধু নিজের হয়ে বলো; অন্য শিক্ষার্থীর উত্তর দেবে না বা দলীয় আলোচনা শুরু করবে না
 ✓ CRITICAL NUMERIC RULE: ভগ্নাংশ নিষিদ্ধ, দশমিকে লিখবে (০.৫)।
 ✓ বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`,
     },
@@ -168,8 +173,8 @@ Strict rules:
 ✗ তৃতীয় পুরুষ, ধন্যবাদ, প্রশংসা নিষিদ্ধ
 ✗ আগে যা বলা হয়েছে তা আবার বলা নিষিদ্ধ
 ✗ "ডকুমেন্টে বলা আছে" জাতীয় বাক্যাংশ নিষিদ্ধ
-✓ ঠিক ১টি বাক্য — আগের আলোচনায় নতুন কিছু যোগ করো
-✓ "এটা আসলে", "বাস্তবে", "এর সাথে যোগ করলে" দিয়ে শুরু করো
+✓ শিক্ষকের সর্বশেষ ব্যাখ্যার বাস্তব প্রয়োগ নিয়ে ঠিক ১টি প্রশ্ন করো
+✓ শুধু নিজের হয়ে বলো; অন্য শিক্ষার্থীর উত্তর দেবে না বা দলীয় আলোচনা শুরু করবে না
 ✓ CRITICAL NUMERIC RULE: ভগ্নাংশ নিষিদ্ধ, দশমিকে লিখবে (০.৫)।
 ✓ বাংলা বানান: "হল" লিখতে হবে "হলো" হিসেবে, "বল" লিখতে হবে "বলো" হিসেবে, "কর" লিখতে হবে "করো" হিসেবে।`,
     },
@@ -233,7 +238,7 @@ function updateAgentDomCards() {
   });
 }
 
-const TURN_ORDER = ['teacher', 'curious', 'skeptic', 'achiever'];
+const TURN_ORDER = ['teacher', 'curious', 'teacher', 'skeptic', 'teacher', 'achiever'];
 
 const ALL_NAME_PREFIXES = [
   'শিক্ষক', 'Teacher', 'teacher',
@@ -1463,13 +1468,13 @@ Begin teaching from the context above. Deliver your first opening lesson sentenc
 Recent dialogue:
 ${transcript}
 
-Instruction: Speak in natural English. Connect to the discussion and teach clearly.`
+Instruction: Speak in natural English. If the latest speaker is a student, answer that student's question first, then teach one new, connected portion of the topic. If the latest speaker is the teacher, continue with the next small portion. Never write dialogue for students or ask multiple students questions at once.`
         : `বিষয়: ${sessionTopic}
 
 সর্বশেষ কথোপকথন:
 ${transcript}
 
-নির্দেশ: শুধুমাত্র উপরের প্রসঙ্গের তথ্য ব্যবহার করো, এর বাইরে কিছু বলা নিষিদ্ধ। কিন্তু "ডকুমেন্টে" শব্দটি বা এই ধরনের কোনো উল্লেখ কখনো করবে না — এটা যেন তোমার নিজের পাঠদান, প্রাকৃতিক ক্লাসরুম কথোপকথনের মতো শোনায়।`) +
+নির্দেশ: শুধুমাত্র উপরের প্রসঙ্গের তথ্য ব্যবহার করো, এর বাইরে কিছু বলা নিষিদ্ধ। কিন্তু "ডকুমেন্টে" শব্দটি বা এই ধরনের কোনো উল্লেখ কখনো করবে না — এটা যেন তোমার নিজের পাঠদান, প্রাকৃতিক ক্লাসরুম কথোপকথনের মতো শোনায়। সর্বশেষ বক্তা শিক্ষার্থী হলে আগে তার প্রশ্নের উত্তর দাও, তারপর বিষয়ের পরবর্তী ছোট অংশটি শেখাও। সর্বশেষ বক্তা শিক্ষক হলে পরের ছোট অংশটি শেখাও। শিক্ষার্থীদের হয়ে কথা বলবে না বা একসঙ্গে একাধিক শিক্ষার্থীকে প্রশ্ন করবে না।`) +
       depthNote,
   }];
 }
@@ -1499,11 +1504,11 @@ async function callAgent(agentId) {
     ? `\n\nCRITICAL: Output ONLY your final English response. Speak in natural, engaging conversational English. No markdown, no meta-commentary, no repeating instructions. Start teaching immediately.\n\nYou HAVE been given the document content above in the user message. Teach directly from it.` +
       (isTeacher
         ? `\n\nHARD LIMIT: Maximum TWO short sentences only. Stop after the second period or question mark. This is a fast-paced group discussion.`
-        : `\n\nHARD LIMIT: Exactly ONE sentence only. Stop after first period or question mark.`)
+        : `\n\nHARD LIMIT: Exactly ONE question in one sentence, directed to the teacher about the latest explanation. Do not answer it or address other students. Stop after the first question mark.`)
     : `\n\nCRITICAL: Output ONLY your final Bangla response. No reasoning, no English, no meta-commentary, no repeating instructions. Start teaching immediately.\n\nYou HAVE been given the document content above in the user message. It is there. Read it and teach from it. Never say you cannot access it.` +
       (isTeacher
         ? `\n\nHARD LIMIT: Maximum TWO short sentences only. Stop after the second । or ?. This is a fast-paced group discussion — keep it brief so students can jump in.`
-        : `\n\nHARD LIMIT: Exactly ONE sentence only. Stop after first । or ?`)
+        : `\n\nHARD LIMIT: শিক্ষকের সর্বশেষ ব্যাখ্যা নিয়ে ঠিক একটি প্রশ্ন করবে। অন্য শিক্ষার্থীর হয়ে উত্তর দেবে না বা তাদের উদ্দেশে কথা বলবে না। প্রথম প্রশ্নচিহ্নের পর থামবে।`)
   );
 
   const raw  = await groqChat(buildMessages(agentId), system, maxTok, 0.78, agentId);
@@ -1633,7 +1638,7 @@ _turnInProgress = false;
   turnLoopRunning = false;
 }
 // ══════════════════════════════════════════════
-//  TEACHER 3-PHASE TURN
+//  TEACHER RESPONSE TURN
 // ══════════════════════════════════════════════
 
 async function runTeacherTurn() {
