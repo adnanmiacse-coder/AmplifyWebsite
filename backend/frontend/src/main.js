@@ -24,6 +24,7 @@ let currentLang = localStorage.getItem('amplify_lang') || 'en';
 function setLang(lang) {
     currentLang = lang;
     localStorage.setItem('amplify_lang', lang);
+    localStorage.setItem('amplify_voice_lang', lang);
 
     // Update toggle buttons
     document.getElementById('langEn')?.classList.toggle('active', lang === 'en');

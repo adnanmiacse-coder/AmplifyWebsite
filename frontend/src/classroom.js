@@ -181,10 +181,29 @@ function getVoiceLang() {
     return window.AmplifyVoice.getLanguage();
   }
   try {
-    return localStorage.getItem('amplify_voice_lang') || 'en';
+    return localStorage.getItem('amplify_voice_lang') || localStorage.getItem('amplify_lang') || 'en';
   } catch {
     return 'en';
   }
+}
+
+function isEnglish() {
+  return getVoiceLang() === 'en';
+}
+
+function applyClassroomTranslations(lang = getVoiceLang()) {
+  const activeLang = lang === 'bn' ? 'bn' : 'en';
+  document.querySelectorAll('[data-en], [data-bn]').forEach(el => {
+    const text = el.getAttribute(`data-${activeLang}`);
+    if (text !== null) el.textContent = text;
+  });
+  document.querySelectorAll('[data-en-placeholder], [data-bn-placeholder], [data-en-title], [data-bn-title], [data-en-aria-label], [data-bn-aria-label]').forEach(el => {
+    ['placeholder', 'title', 'aria-label'].forEach(attribute => {
+      const value = el.getAttribute(`data-${activeLang}-${attribute}`);
+      if (value !== null) el.setAttribute(attribute, value);
+    });
+  });
+  document.documentElement.lang = activeLang;
 }
 
 function getAgent(agentId) {
@@ -777,20 +796,22 @@ async function detectPDFMode(doc) {
 async function loadAndIndexPDF(file, onProgress) {
   store.reset();
   pdfPages = [];
-  onProgress?.(0, 'PDF খোলা হচ্ছে…');
+  onProgress?.(0, isEnglish() ? 'Opening PDF…' : 'PDF খোলা হচ্ছে…');
 
   const buf    = await file.arrayBuffer();
   const pdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
   const pages  = Math.min(pdfDoc.numPages, MAX_PAGES);
 
-  onProgress?.(5, 'PDF ধরন শনাক্ত হচ্ছে…');
+  onProgress?.(5, isEnglish() ? 'Detecting PDF type…' : 'PDF ধরন শনাক্ত হচ্ছে…');
   const mode = await detectPDFMode(pdfDoc);
   console.log(`[PDF] mode: ${mode}, pages: ${pages}`);
 
   for (let i = 1; i <= pages; i++) {
     onProgress?.(
       Math.round((i / pages) * 80) + 5,
-      `পৃষ্ঠা ${i}/${pages}${mode === 'image' ? ' (OCR)' : ''} পড়া হচ্ছে…`
+      isEnglish()
+        ? `Reading page ${i}/${pages}${mode === 'image' ? ' (OCR)' : ''}…`
+        : `পৃষ্ঠা ${i}/${pages}${mode === 'image' ? ' (OCR)' : ''} পড়া হচ্ছে…`
     );
 
     const pg = await pdfDoc.getPage(i);
@@ -975,7 +996,7 @@ async function speak(text, agentId, useLaser = false) {
       clearInterval(pollInterval);
       clearTimeout(watchdog);
       if (ttsWave)  ttsWave.classList.remove('speaking');
-      if (ttsLabel) ttsLabel.textContent = 'নীরব';
+      if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব';
       if (useLaser) hideLaser();
       currentUtterance = null;
       _releaseTtsLock();
@@ -1142,7 +1163,7 @@ function hideSlide() {
 
 function showSlideLoading() {
   const el = getSlideEl(); el.classList.remove('hiding');
-  el.innerHTML = `<div class="slide-loading"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>স্লাইড তৈরি হচ্ছে...</div>`;
+  el.innerHTML = `<div class="slide-loading"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>${isEnglish() ? 'Creating slide...' : 'স্লাইড তৈরি হচ্ছে...'}</div>`;
 }
 
 function renderTable(data, caption) {
@@ -1186,17 +1207,24 @@ async function renderSlideSpec(spec) {
 }
 
 async function fetchTeacherSlide(teacherText, topic) {
+  const isEn = isEnglish();
   const prompt = `A Bangladeshi classroom teacher just said: "${teacherText}"
 Topic: ${topic}
 
 Choose ONE visual: "table" (compare/list), "mermaid" (process/flow), "cards" (define 2-5 terms), "none" (conversational).
 
 Return ONLY valid JSON:
-table:   {"type":"table","caption":"বাংলা","data":[["Col1","Col2"],["v1","v2"]]}
+${isEn
+    ? `table:   {"type":"table","caption":"English","data":[["Col1","Col2"],["v1","v2"]]}
+mermaid: {"type":"mermaid","caption":"English","code":"graph TD\\n  A[English] --> B[English]"}
+cards:   {"type":"cards","caption":"English","items":[{"term":"Term","definition":"Definition"}]}
+All visible text in English.`
+    : `table:   {"type":"table","caption":"বাংলা","data":[["Col1","Col2"],["v1","v2"]]}
 mermaid: {"type":"mermaid","caption":"বাংলা","code":"graph TD\\n  A[বাংলা] --> B[বাংলা]"}
 cards:   {"type":"cards","caption":"বাংলা","items":[{"term":"শব্দ","definition":"সংজ্ঞা"}]}
+All visible text in Bangla.`}
 none:    {"type":"none"}
-All visible text in Bangla. mermaid: graph TD/LR only, ≤8 nodes.`;
+mermaid: graph TD/LR only, ≤8 nodes.`;
 
   try { return await groqJsonChat([{ role: 'user', content: prompt }], 'Return only valid JSON. No markdown.', 500, 0.3); }
   catch (e) { console.warn('Slide fetch error:', e); return { type: 'none' }; }
@@ -1337,7 +1365,7 @@ startBtn?.addEventListener('click', async () => {
   if (_lessonStarted) return;
   const topic = topicInput?.value.trim();
   if (!topic && uploadedFiles.length === 0) {
-    alert('অনুগ্রহ করে একটি বিষয় লিখুন অথবা ফাইল আপলোড করুন।');
+    alert(isEnglish() ? 'Please enter a topic or upload a file.' : 'অনুগ্রহ করে একটি বিষয় লিখুন অথবা ফাইল আপলোড করুন।');
     return;
   }
   _lessonStarted = true;
@@ -1538,7 +1566,7 @@ async function startLesson() {
   // Process PDF files FIRST
   for (const file of uploadedFiles) {
     if (file.type === 'application/pdf') {
-      if (idleP) idleP.textContent = `"${file.name}" পড়া হচ্ছে…`;
+      if (idleP) idleP.textContent = isEnglish() ? `Reading "${file.name}"…` : `"${file.name}" পড়া হচ্ছে…`;
       try {
         await loadAndIndexPDF(file, (pct, label) => { if (idleP) idleP.textContent = label; });
         console.log(`[PDF] indexed ${store.chunks.length} chunks from ${file.name}`);
@@ -1547,7 +1575,9 @@ async function startLesson() {
   }
   console.log(`[PDF] store.ready:${store.ready} chunks:${store.chunks.length} pages:${pdfPages.length}`);
   if (store.chunks.length === 0) {
-    if (idleP) idleP.textContent = '⚠️ PDF পড়া যায়নি। বিষয়ভিত্তিক পাঠ চলবে।';
+    if (idleP) idleP.textContent = isEnglish()
+      ? '⚠️ Could not read the PDF. The lesson will continue using the topic.'
+      : '⚠️ PDF পড়া যায়নি। বিষয়ভিত্তিক পাঠ চলবে।';
     await sleep(2000);
   }
 
@@ -1558,8 +1588,10 @@ async function startLesson() {
   }
 
   if (idleP) idleP.textContent = store.chunks.length > 0
-    ? `${store.chunks.length}টি অংশ ইন্ডেক্স হয়েছে। পাঠ শুরু হচ্ছে…`
-    : 'পাঠ শুরু হচ্ছে…';
+    ? (isEnglish()
+      ? `${store.chunks.length} sections indexed. Starting lesson…`
+      : `${store.chunks.length}টি অংশ ইন্ডেক্স হয়েছে। পাঠ শুরু হচ্ছে…`)
+    : (isEnglish() ? 'Starting lesson…' : 'পাঠ শুরু হচ্ছে…');
     
     
 
@@ -1754,6 +1786,7 @@ ${extraData.lastMCQ ? `- শেষ MCQ: ${extraData.lastMCQ.correct ? 'সঠি
 // ══════════════════════════════════════════════
 
 function showCheckinPrompt() {
+  const isEn = isEnglish();
   return new Promise(resolve => {
     document.getElementById('checkin-overlay')?.remove();
     const overlay = document.createElement('div');
@@ -1762,10 +1795,10 @@ function showCheckinPrompt() {
     overlay.innerHTML = `
       <div style="background:#fff;border-radius:18px;padding:28px 24px;max-width:380px;width:100%;border:2px solid #e2e8f0;color:#1e293b;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.18);">
         <div style="font-size:2rem;margin-bottom:10px;">🙋</div>
-        <div style="font-size:1.05rem;font-weight:600;line-height:1.6;margin-bottom:22px;">তোমরা কি বুঝতে পেরেছ?<br/>না বুঝলে বলো আমাকে!</div>
+        <div style="font-size:1.05rem;font-weight:600;line-height:1.6;margin-bottom:22px;">${isEn ? 'Did you understand?' : 'তোমরা কি বুঝতে পেরেছ?'}<br/>${isEn ? 'Tell me if you need help!' : 'না বুঝলে বলো আমাকে!'}</div>
         <div style="display:flex;gap:10px;">
-          <button id="ci-yes" style="flex:1;padding:12px;background:#f0fdf4;border:2px solid #4ade80;border-radius:12px;color:#166534;font-size:.97rem;font-weight:700;cursor:pointer;">✅ বুঝতে পেরেছি</button>
-          <button id="ci-no"  style="flex:1;padding:12px;background:#fef2f2;border:2px solid #f87171;border-radius:12px;color:#991b1b;font-size:.97rem;font-weight:700;cursor:pointer;">🔁 আরেকবার বলুন</button>
+          <button id="ci-yes" style="flex:1;padding:12px;background:#f0fdf4;border:2px solid #4ade80;border-radius:12px;color:#166534;font-size:.97rem;font-weight:700;cursor:pointer;">${isEn ? '✅ I understood' : '✅ বুঝতে পেরেছি'}</button>
+          <button id="ci-no"  style="flex:1;padding:12px;background:#fef2f2;border:2px solid #f87171;border-radius:12px;color:#991b1b;font-size:.97rem;font-weight:700;cursor:pointer;">${isEn ? '🔁 Explain again' : '🔁 আরেকবার বলুন'}</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -1808,7 +1841,7 @@ function showTyping(agentId) {
   typingBubbleEl = document.createElement('div');
   typingBubbleEl.className = `chat-bubble typing-bubble bubble-${agentId}`;
   typingBubbleEl.innerHTML = `
-    <div class="bubble-meta"><span class="bubble-dot" style="background:${agent.color}"></span>${agent.name} লিখছেন...</div>
+    <div class="bubble-meta"><span class="bubble-dot" style="background:${agent.color}"></span>${agent.name} ${isEnglish() ? 'is typing...' : 'লিখছেন...'}</div>
     <div class="bubble-text"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>`;
   chatMessages.appendChild(typingBubbleEl); scrollChat();
 }
@@ -1817,12 +1850,13 @@ function hideTyping() { typingBubbleEl?.remove(); typingBubbleEl = null; }
 function addChatBubble(agentId, text, isUser = false) {
   if (!text?.trim()) return;
   const banglaChars = (text.match(/[\u0980-\u09FF]/g) || []).length;
-  if (text.replace(/\s/g, '').length > 30 && (banglaChars / text.replace(/\s/g, '').length) < 0.25 && !isUser) return;
+  const visibleChars = text.replace(/\s/g, '').length;
+  if (!isEnglish() && visibleChars > 30 && (banglaChars / visibleChars) < 0.25 && !isUser) return;
   const agent  = isUser ? null : AGENTS[agentId];
   const bubble = document.createElement('div');
   bubble.className = isUser ? 'chat-bubble user-bubble bubble-user' : `chat-bubble bubble-${agentId}`;
   bubble.innerHTML = isUser
-    ? `<div class="bubble-meta" style="justify-content:flex-end">আপনি</div><div class="bubble-text">${escapeHtml(text)}</div>`
+    ? `<div class="bubble-meta" style="justify-content:flex-end">${isEnglish() ? 'You' : 'আপনি'}</div><div class="bubble-text">${escapeHtml(text)}</div>`
     : `<div class="bubble-meta"><span class="bubble-dot" style="background:${agent.color}"></span>${agent.name}</div><div class="bubble-text">${escapeHtml(text)}</div>`;
   chatMessages.appendChild(bubble); scrollChat();
 }
@@ -1843,11 +1877,11 @@ raiseHandBtn.addEventListener('click', () => {
     _ttsLocked = false; _ttsLockResolve = null;
     currentUtterance = null; laserActive = false; hideLaser();
     if (ttsWave)  ttsWave.classList.remove('speaking');
-    if (ttsLabel) ttsLabel.textContent = 'বিরতি — আপনার পালা';
+    if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Paused — your turn' : 'বিরতি — আপনার পালা';
     userInput.disabled = false; sendBtn.disabled = false;
     if (micBtn) micBtn.disabled = false; userInput.focus();
   } else {
-    isPaused = false; if (ttsLabel) ttsLabel.textContent = 'নীরব';
+    isPaused = false; if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব';
     userInput.disabled = true; sendBtn.disabled = true;
     if (micBtn) micBtn.disabled = true; stopMic();
   }
@@ -1864,7 +1898,7 @@ function submitUserMessage() {
   userInput.disabled = true; sendBtn.disabled = true;
   if (micBtn) micBtn.disabled = true;
   raiseHandBtn.classList.remove('active'); stopMic();
-  isPaused = false; if (ttsLabel) ttsLabel.textContent = 'নীরব';
+  isPaused = false; if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব';
   speechSynthesis.cancel();
   _ttsLocked = false; _ttsLockResolve = null;
   hideLaser();
@@ -1897,23 +1931,25 @@ function setMicState(state) {
   micState = state; if (!micBtn) return;
   micBtn.classList.toggle('mic-active',     state === 'recording');
   micBtn.classList.toggle('mic-processing', state === 'processing');
-  setMicLabel(state === 'recording' ? 'থামান' : state === 'processing' ? 'বুঝছে…' : 'বলুন');
+  setMicLabel(state === 'recording'
+    ? (isEnglish() ? 'Stop' : 'থামান')
+    : state === 'processing' ? (isEnglish() ? 'Listening…' : 'বুঝছে…') : (isEnglish() ? 'Speak' : 'বলুন'));
 }
 
 async function startRecording() {
-  if (!navigator.mediaDevices?.getUserMedia) { alert('আপনার ব্রাউজার মাইক্রোফোন সমর্থন করে না।'); return; }
+  if (!navigator.mediaDevices?.getUserMedia) { alert(isEnglish() ? 'Your browser does not support microphone access.' : 'আপনার ব্রাউজার মাইক্রোফোন সমর্থন করে না।'); return; }
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: 16000 } });
   } catch (err) {
-    if (err.name === 'NotAllowedError') alert('মাইক্রোফোনের অনুমতি দিন।');
-    else if (err.name === 'NotFoundError') alert('কোনো মাইক্রোফোন পাওয়া যায়নি।');
-    else alert('মাইক্রোফোন চালু করা যায়নি।');
+    if (err.name === 'NotAllowedError') alert(isEnglish() ? 'Please allow microphone access.' : 'মাইক্রোফোনের অনুমতি দিন।');
+    else if (err.name === 'NotFoundError') alert(isEnglish() ? 'No microphone was found.' : 'কোনো মাইক্রোফোন পাওয়া যায়নি।');
+    else alert(isEnglish() ? 'Could not start the microphone.' : 'মাইক্রোফোন চালু করা যায়নি।');
     return;
   }
   audioChunks = [];
   const mime = pickMime();
   try { mediaRecorder = mime ? new MediaRecorder(mediaStream, { mimeType: mime }) : new MediaRecorder(mediaStream); }
-  catch (err) { alert('রেকর্ডার তৈরি করা যায়নি।'); _releaseStream(); return; }
+  catch (err) { alert(isEnglish() ? 'Could not create the audio recorder.' : 'রেকর্ডার তৈরি করা যায়নি।'); _releaseStream(); return; }
 
   mediaRecorder.ondataavailable = e => { if (e.data?.size > 0) audioChunks.push(e.data); };
   mediaRecorder.onstop = async () => {
@@ -1922,7 +1958,7 @@ async function startRecording() {
     setMicState('processing');
     const blob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || 'audio/webm' });
     try { _appendTranscript(await transcribeWithWhisper(blob)); }
-    catch (err) { console.warn('[mic] transcription failed:', err); alert('ট্রান্সক্রিপশনে সমস্যা।'); }
+    catch (err) { console.warn('[mic] transcription failed:', err); alert(isEnglish() ? 'Transcription failed.' : 'ট্রান্সক্রিপশনে সমস্যা।'); }
     finally { setMicState('idle'); }
   };
 
@@ -1949,7 +1985,7 @@ async function transcribeWithWhisper(blob) {
   const fd  = new FormData();
   fd.append('file', blob, `voice.${ext}`);
   fd.append('model', GROQ_WHISPER_MODEL);
-  fd.append('language', 'bn');
+  fd.append('language', isEnglish() ? 'en' : 'bn');
   fd.append('response_format', 'json');
   fd.append('temperature', '0');
 
@@ -1985,24 +2021,26 @@ if (ttsToggle) {
 }
 
 pauseBtn.addEventListener('click', () => {
-  isPaused = !isPaused; pauseBtn.textContent = isPaused ? 'চালিয়ে যান' : 'বিরতি';
+  isPaused = !isPaused; pauseBtn.textContent = isPaused
+    ? (isEnglish() ? 'Resume' : 'চালিয়ে যান')
+    : (isEnglish() ? 'Pause' : 'বিরতি');
   if (isPaused) {
     speechSynthesis.cancel();
     // Release the TTS lock so the loop can resume cleanly when unpaused
     _ttsLocked = false; _ttsLockResolve = null;
     currentUtterance = null;
     if (ttsWave)  ttsWave.classList.remove('speaking');
-    if (ttsLabel) ttsLabel.textContent = 'বিরতি';
+    if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Paused' : 'বিরতি';
     hideLaser(); laserActive = false; stopMic();
   } else {
-    if (ttsLabel) ttsLabel.textContent = 'নীরব';
+    if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব';
   }
 });
 
 exportBtn.addEventListener('click', () => {
   exportWarehouse();                    // ← ADD THIS LINE FIRST
   const lines = Array.from(chatMessages.querySelectorAll('.chat-bubble')).map(b => {
-    const name = b.querySelector('.bubble-meta')?.textContent?.trim() || 'অজানা';
+    const name = b.querySelector('.bubble-meta')?.textContent?.trim() || (isEnglish() ? 'Unknown' : 'অজানা');
     const text = b.querySelector('.bubble-text')?.textContent?.trim() || '';
     return `${name}: ${text}`;
   });
@@ -2012,7 +2050,7 @@ exportBtn.addEventListener('click', () => {
 });
 
 resetBtn.addEventListener('click', () => {
-  if (!confirm('ক্লাস শেষ করতে চান?')) return;
+  if (!confirm(isEnglish() ? 'End the class?' : 'ক্লাস শেষ করতে চান?')) return;
   isRunning = false; lessonStarting = false; isPaused = false;
   _lessonStarted = false; 
   stopMic(); speechSynthesis.cancel();
@@ -2021,12 +2059,12 @@ resetBtn.addEventListener('click', () => {
   sessionSeconds = 0; dialogueLog = []; pdfPages = []; store.reset(); uploadedFiles = [];
   uploadPreviews.innerHTML = ''; uploadPreviews.classList.add('hidden');
   topicInput.value = ''; fileInput.value = '';
-  chatMessages.innerHTML = '<div class="chat-welcome">ক্লাস শুরু হলে এখানে কথোপকথন দেখা যাবে</div>';
+  chatMessages.innerHTML = `<div class="chat-welcome">${isEnglish() ? 'The discussion will appear here when class begins.' : 'ক্লাস শুরু হলে এখানে কথোপকথন দেখা যাবে'}</div>`;
   stageMessage.classList.add('hidden'); stageIdle.classList.remove('hidden');
   hideSlide(); clearAgentSpeaking();
   if (ttsWave)  ttsWave.classList.remove('speaking');
-  if (ttsLabel) ttsLabel.textContent = 'নীরব';
-  pauseBtn.textContent = 'বিরতি'; raiseHandBtn.classList.remove('active');
+  if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব';
+  pauseBtn.textContent = isEnglish() ? 'Pause' : 'বিরতি'; raiseHandBtn.classList.remove('active');
   userInput.disabled = true; sendBtn.disabled = true;
   if (micBtn) micBtn.disabled = true;
   document.documentElement.classList.add('setup-active'); document.body.classList.add('setup-active'); classroomScreen.classList.remove('active'); classroomScreen.style.setProperty('display', 'none', 'important'); uploadScreen.classList.add('active');
@@ -2040,8 +2078,9 @@ function startTimer() {
   sessionSeconds = 0; clearInterval(timerInterval);
   timerInterval = setInterval(() => {
     sessionSeconds++;
-    const m = String(Math.floor(sessionSeconds / 60)).padStart(2, '০');
-    const s = String(sessionSeconds % 60).padStart(2, '০');
+    const digit = isEnglish() ? '0' : '০';
+      const m = String(Math.floor(sessionSeconds / 60)).padStart(2, digit);
+    const s = String(sessionSeconds % 60).padStart(2, digit);
     sessionTimer.textContent = `${m}:${s}`;
   }, 1000);
 }
@@ -2057,17 +2096,18 @@ let notesGenerated    = false;
 let notesGenerating   = false;
 
 function buildNotesPanel() {
+  const isEn = isEnglish();
   // Insert notes panel as first child of classroom-screen
   notesPanelEl = document.createElement('div');
   notesPanelEl.className = 'notes-panel';
   notesPanelEl.innerHTML = `
-    <div class="notes-collapsed-label">নোট</div>
+    <div class="notes-collapsed-label" data-en="Notes" data-bn="নোট">${isEn ? 'Notes' : 'নোট'}</div>
     <div class="notes-panel-header">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      <span class="notes-panel-title">লেকচার নোট</span>
-      <button class="notes-regen-btn" id="notesRegenBtn" title="নোট পুনরায় তৈরি করুন">
+      <span class="notes-panel-title" data-en="Lesson notes" data-bn="লেকচার নোট">${isEn ? 'Lesson notes' : 'লেকচার নোট'}</span>
+      <button class="notes-regen-btn" id="notesRegenBtn" title="${isEn ? 'Regenerate notes' : 'নোট পুনরায় তৈরি করুন'}" data-en-title="Regenerate notes" data-bn-title="নোট পুনরায় তৈরি করুন">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        পুনরায়
+        <span data-en="Regenerate" data-bn="পুনরায়">${isEn ? 'Regenerate' : 'পুনরায়'}</span>
       </button>
     </div>
     <div class="notes-panel-inner" id="notesPanelInner">
@@ -2080,13 +2120,14 @@ function buildNotesPanel() {
       <div class="notes-divider hidden" id="notesDivider"></div>
       <div class="notes-pq-section hidden" id="notesPqSection"></div>
     </div>
-    <button class="notes-toggle-btn" id="notesToggleBtn" title="নোট প্যানেল লুকান/দেখান">
+    <button class="notes-toggle-btn" id="notesToggleBtn" title="${isEn ? 'Hide/show notes panel' : 'নোট প্যানেল লুকান/দেখান'}" data-en-title="Hide/show notes panel" data-bn-title="নোট প্যানেল লুকান/দেখান">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="notesToggleIcon">
         <polyline points="15 18 9 12 15 6"/>
       </svg>
     </button>
   `;
   classroomScreen.insertBefore(notesPanelEl, classroomScreen.firstChild);
+  applyClassroomTranslations();
 
   document.getElementById('notesToggleBtn').addEventListener('click', () => {
     const collapsed = notesPanelEl.classList.toggle('collapsed');
@@ -2118,12 +2159,35 @@ async function generateNotes() {
   pqSection?.classList.add('hidden');
   if (regenBtn) { regenBtn.disabled = true; regenBtn.classList.add('spinning'); }
 
+  const isEn = isEnglish();
   const docCtx = getRelevantContext(sessionTopic, 6000);
   const docBlock = docCtx
-    ? `নিচে আপলোড করা উপকরণ থেকে নেওয়া তথ্য:\n\n${docCtx}\n\n`
+    ? (isEn ? `Information from the uploaded material:\n\n${docCtx}\n\n` : `নিচে আপলোড করা উপকরণ থেকে নেওয়া তথ্য:\n\n${docCtx}\n\n`)
     : '';
 
-  const prompt = `${docBlock}বিষয়: ${sessionTopic}
+  const prompt = isEn
+    ? `${docBlock}Topic: ${sessionTopic}
+
+You are an experienced teacher. Create complete lesson notes using the context above.
+
+Rules:
+- Write entirely in English.
+- Use HTML (h1, h2, p, ul, li, strong tags).
+- Put key facts inside <div class="note-highlight">...</div>.
+- End with a JSON block in this format:
+
+<!--PQ_START-->
+[
+  {"q":"Question 1","a":"Answer 1"},
+  {"q":"Question 2","a":"Answer 2"},
+  {"q":"Question 3","a":"Answer 3"},
+  {"q":"Question 4","a":"Answer 4"},
+  {"q":"Question 5","a":"Answer 5"}
+]
+<!--PQ_END-->
+
+Include 5 practice questions of different types (definition, analysis, application).`
+    : `${docBlock}বিষয়: ${sessionTopic}
 
 তুমি একজন অভিজ্ঞ বাংলাদেশি শিক্ষক। উপরের উপকরণ থেকে একটি সম্পূর্ণ লেকচার নোট তৈরি করো।
 
@@ -2148,7 +2212,9 @@ async function generateNotes() {
   try {
     const raw = await groqChat(
       [{ role: 'user', content: prompt }],
-      'তুমি একজন বাংলাদেশি শিক্ষক যিনি সুন্দর HTML লেকচার নোট তৈরি করেন। শুধুমাত্র HTML এবং নির্দেশিত JSON আউটপুট দাও।',
+      isEn
+        ? 'You are a teacher who creates clear HTML lesson notes. Return only HTML and the specified JSON.'
+        : 'তুমি একজন বাংলাদেশি শিক্ষক যিনি সুন্দর HTML লেকচার নোট তৈরি করেন। শুধুমাত্র HTML এবং নির্দেশিত JSON আউটপুট দাও।',
       3000, 0.5
     );
 
@@ -2177,13 +2243,13 @@ async function generateNotes() {
       pqSection.innerHTML = `
         <div class="notes-pq-title">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          অনুশীলন প্রশ্ন
+          ${isEn ? 'Practice questions' : 'অনুশীলন প্রশ্ন'}
         </div>
         ${pqItems.map((item, idx) => `
           <div class="notes-pq-item" data-idx="${idx}">
-            <div class="notes-pq-num">প্রশ্ন ${idx + 1}</div>
+            <div class="notes-pq-num">${isEn ? 'Question' : 'প্রশ্ন'} ${idx + 1}</div>
             <div class="notes-pq-q">${escapeHtml(item.q)}</div>
-            <div class="notes-pq-hint">উত্তর দেখতে ক্লিক করুন</div>
+            <div class="notes-pq-hint">${isEn ? 'Click to reveal the answer' : 'উত্তর দেখতে ক্লিক করুন'}</div>
             <div class="notes-pq-answer">${escapeHtml(item.a)}</div>
           </div>
         `).join('')}
@@ -2201,7 +2267,7 @@ async function generateNotes() {
   } catch (e) {
     console.error('[Notes] generation failed:', e);
     if (content) {
-      content.innerHTML = `<p style="color:#dc2626;font-family:'Hind Siliguri',sans-serif;font-size:13px;">নোট তৈরিতে সমস্যা হয়েছে। আবার চেষ্টা করুন।</p>`;
+      content.innerHTML = `<p style="color:#dc2626;font-family:'Hind Siliguri',sans-serif;font-size:13px;">${isEn ? 'Could not generate notes. Please try again.' : 'নোট তৈরিতে সমস্যা হয়েছে। আবার চেষ্টা করুন।'}</p>`;
       content.classList.remove('hidden');
       skeleton?.classList.add('hidden');
     }
@@ -2243,11 +2309,11 @@ const quizZpdEl       = document.getElementById('quizZpd');
 const reviseBtn       = document.getElementById('reviseBtn');
 const quizCloseBtn    = document.getElementById('quizCloseBtn');
 
-if (quizBtn) quizBtn.addEventListener('click', () => { if (!sessionTopic) { alert('আগে একটি ক্লাস শুরু করুন।'); return; } startQuiz(); });
+if (quizBtn) quizBtn.addEventListener('click', () => { if (!sessionTopic) { alert(isEnglish() ? 'Start a class first.' : 'আগে একটি ক্লাস শুরু করুন।'); return; } startQuiz(); });
 
 async function startQuiz() {
-  isPaused = true; speechSynthesis.cancel(); hideLaser(); pauseBtn.textContent = 'চালিয়ে যান';
-  if (ttsLabel) ttsLabel.textContent = 'কুইজ চলছে...';
+  isPaused = true; speechSynthesis.cancel(); hideLaser(); pauseBtn.textContent = isEnglish() ? 'Resume' : 'চালিয়ে যান';
+  if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Quiz in progress...' : 'কুইজ চলছে...';
   quizQuestions = []; quizIndex = 0; quizActive = true; quizResults = []; weakTopics = [];
   BLOOM_LEVELS.forEach(l => { bloomPerf[l] = { correct: 0, total: 0 }; });
   zpd.unassisted = { correct: 0, total: 0 }; zpd.assisted = { correct: 0, total: 0 };
@@ -2257,16 +2323,26 @@ async function startQuiz() {
   quizQuestions = await fetchQuizQuestions(sessionTopic);
   quizLoading.classList.add('hidden');
   if (!quizQuestions.length) {
-    quizContent.innerHTML = '<p style="padding:16px;font-family:\'Hind Siliguri\',sans-serif;color:#dc2626;">প্রশ্ন লোড করতে সমস্যা। আবার চেষ্টা করুন।</p>';
+    quizContent.innerHTML = `<p style="padding:16px;font-family:'Hind Siliguri',sans-serif;color:#dc2626;">${isEnglish() ? 'Could not load questions. Please try again.' : 'প্রশ্ন লোড করতে সমস্যা। আবার চেষ্টা করুন।'}</p>`;
     quizContent.classList.remove('hidden'); return;
   }
   quizContent.classList.remove('hidden'); showQuestion();
 }
 
 async function fetchQuizQuestions(topic) {
+  const isEn = isEnglish();
   const docCtx  = getRelevantContext(topic, 3000);
-  const docBlock = docCtx ? `\nডকুমেন্ট:\n${docCtx}\n` : '';
-  const prompt  = `তুমি বাংলাদেশের SSC/HSC বোর্ড পরীক্ষার MCQ বিশেষজ্ঞ।${docBlock}
+  const docBlock = docCtx ? (isEn ? `\nDocument:\n${docCtx}\n` : `\nডকুমেন্ট:\n${docCtx}\n`) : '';
+  const prompt = isEn
+    ? `You are an expert multiple-choice question writer for Bangladeshi secondary and higher secondary students.${docBlock}
+Create 10 NCTB-standard MCQs about "${topic}".
+Bloom's levels: 2 Remember, 2 Understand, 2 Apply, 2 Analyze, 1 Evaluate, 1 Create.
+Write all question content, options, hints, explanations, and topics in English.
+
+Return only a JSON array:
+[{"bloom":"Remember","topic":"Subtopic","question":"Question","options":["A) ...","B) ...","C) ...","D) ..."],"answer":0,"hint":"Hint","explanation":"Explanation"}]
+answer = correct option index (0-3).`
+    : `তুমি বাংলাদেশের SSC/HSC বোর্ড পরীক্ষার MCQ বিশেষজ্ঞ।${docBlock}
 "${topic}" বিষয়ে NCTB মানের ১০টি MCQ তৈরি করো।
 Bloom's: ২টি Remember, ২টি Understand, ২টি Apply, ২টি Analyze, ১টি Evaluate, ১টি Create।
 
@@ -2293,7 +2369,11 @@ function nextQuestionIndex() {
   return quizIndex < quizQuestions.length ? quizIndex : -1;
 }
 
-function bloomBangla(l) { return { Remember:'স্মরণ',Understand:'বোঝা',Apply:'প্রয়োগ',Analyze:'বিশ্লেষণ',Evaluate:'মূল্যায়ন',Create:'সৃজন' }[l] || l; }
+function bloomLabel(l) {
+  return isEnglish()
+    ? l
+    : ({ Remember:'স্মরণ',Understand:'বোঝা',Apply:'প্রয়োগ',Analyze:'বিশ্লেষণ',Evaluate:'মূল্যায়ন',Create:'সৃজন' }[l] || l);
+}
 
 function showQuestion() {
   adaptBloomLevel();
@@ -2301,8 +2381,8 @@ function showQuestion() {
   if (idx === -1 || quizIndex >= quizQuestions.length) { endQuiz(); return; }
   quizIndex = idx;
   const q = quizQuestions[quizIndex]; hintUsed = false; questionShownAt = Date.now();
-  quizProgress.textContent   = `প্রশ্ন ${quizIndex + 1} / ${quizQuestions.length}`;
-  quizBloomBadge.textContent = bloomBangla(q.bloom);
+  quizProgress.textContent   = isEnglish() ? `Question ${quizIndex + 1} / ${quizQuestions.length}` : `প্রশ্ন ${quizIndex + 1} / ${quizQuestions.length}`;
+  quizBloomBadge.textContent = bloomLabel(q.bloom);
   quizBloomBadge.className   = `bloom-badge bloom-${q.bloom.toLowerCase()}`;
   quizQuestionEl.textContent = q.question;
   quizOptionsEl.innerHTML = '';
@@ -2333,7 +2413,9 @@ function handleAnswer(chosen, q) {
   dbLog('quiz_results', { session_id: SESSION_ID, bloom: q.bloom, topic: q.topic, correct: entry.correct, hint_used: entry.usedHint, response_ms: entry.responseMs, ts: 'NOW()' }); 
   runAssessor('mcq_answered', { lastMCQ: entry });
   quizResults.push({ question: q.question, bloom: q.bloom, topic: q.topic, correct, hintUsed });
-  quizFeedback.textContent = correct ? `✓ সঠিক! ${q.explanation}` : `✗ ভুল। সঠিক: ${q.options[q.answer]}। ${q.explanation}`;
+  quizFeedback.textContent = correct
+    ? `✓ ${isEnglish() ? 'Correct!' : 'সঠিক!'} ${q.explanation}`
+    : `✗ ${isEnglish() ? 'Incorrect. Correct answer:' : 'ভুল। সঠিক:'} ${q.options[q.answer]}. ${q.explanation}`;
   quizFeedback.className = `quiz-feedback ${correct ? 'feedback-correct' : 'feedback-wrong'}`;
   quizNextBtn.classList.remove('hidden');
 }
@@ -2347,19 +2429,21 @@ if (quizNextBtn) quizNextBtn.addEventListener('click', () => { quizIndex++; show
 function endQuiz() {
   quizActive = false; quizContent.classList.add('hidden'); quizResultPanel.classList.remove('hidden');
   const total = quizResults.length, correct = quizResults.filter(r => r.correct).length;
-  quizScoreEl.textContent = `${correct} / ${total} সঠিক`;
+  quizScoreEl.textContent = isEnglish() ? `${correct} / ${total} correct` : `${correct} / ${total} সঠিক`;
   quizBloomChart.innerHTML = '';
   BLOOM_LEVELS.forEach(level => {
     const p = bloomPerf[level]; if (p.total === 0) return;
     const pct = Math.round((p.correct / p.total) * 100);
     const bar = document.createElement('div'); bar.className = 'bloom-bar-row';
-    bar.innerHTML = `<span class="bloom-bar-label">${bloomBangla(level)}</span><div class="bloom-bar-track"><div class="bloom-bar-fill" style="width:${pct}%;background:${pct>=70?'#16a34a':pct>=40?'#ca8a04':'#dc2626'}"></div></div><span class="bloom-bar-pct">${pct}%</span>`;
+    bar.innerHTML = `<span class="bloom-bar-label">${bloomLabel(level)}</span><div class="bloom-bar-track"><div class="bloom-bar-fill" style="width:${pct}%;background:${pct>=70?'#16a34a':pct>=40?'#ca8a04':'#dc2626'}"></div></div><span class="bloom-bar-pct">${pct}%</span>`;
     quizBloomChart.appendChild(bar);
   });
   const uRate = zpd.unassisted.total > 0 ? Math.round((zpd.unassisted.correct / zpd.unassisted.total) * 100) : 0;
   const aRate = zpd.assisted.total   > 0 ? Math.round((zpd.assisted.correct   / zpd.assisted.total)   * 100) : 0;
   const gap   = aRate - uRate;
-  quizZpdEl.innerHTML = `<div>স্বাধীন দক্ষতা: <strong>${uRate}%</strong></div><div>সহায়তা সহ: <strong>${aRate}%</strong></div><div>ZPD ব্যবধান: <strong>${gap>0?'+':''}${gap}%</strong> ${gap>20?'(বেশি সহায়তা প্রয়োজন)':gap>0?'(স্বাভাবিক)':'(স্বাধীনভাবে দক্ষ)'}</div>`;
+  quizZpdEl.innerHTML = isEnglish()
+    ? `<div>Independent mastery: <strong>${uRate}%</strong></div><div>With support: <strong>${aRate}%</strong></div><div>ZPD gap: <strong>${gap>0?'+':''}${gap}%</strong> ${gap>20?'(more support needed)':gap>0?'(typical)':'(independent mastery)'}</div>`
+    : `<div>স্বাধীন দক্ষতা: <strong>${uRate}%</strong></div><div>সহায়তা সহ: <strong>${aRate}%</strong></div><div>ZPD ব্যবধান: <strong>${gap>0?'+':''}${gap}%</strong> ${gap>20?'(বেশি সহায়তা প্রয়োজন)':gap>0?'(স্বাভাবিক)':'(স্বাধীনভাবে দক্ষ)'}</div>`;
   const weakSet = new Set();
   quizResults.forEach(r => { if (!r.correct && !r.hintUsed) weakSet.add(r.topic); if (r.correct && r.hintUsed) weakSet.add(r.topic); });
   weakTopics = [...weakSet];
@@ -2368,38 +2452,35 @@ function endQuiz() {
 
 if (reviseBtn) reviseBtn.addEventListener('click', () => {
   if (!weakTopics.length) return;
-  quizPanel.classList.add('hidden'); isPaused = false; pauseBtn.textContent = 'বিরতি';
-  if (ttsLabel) ttsLabel.textContent = 'নীরব';
-  dialogueLog.push({ name: 'সিস্টেম', text: `শিক্ষার্থী কুইজে দুর্বলতা দেখিয়েছে: ${weakTopics.join(', ')}। এখন শুধু এই বিষয়গুলো নিয়ে আলোচনা করো।` });
+  quizPanel.classList.add('hidden'); isPaused = false; pauseBtn.textContent = isEnglish() ? 'Pause' : 'বিরতি';
+  if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব';
+  dialogueLog.push({
+    name: isEnglish() ? 'System' : 'সিস্টেম',
+    text: isEnglish()
+      ? `The student struggled with these quiz topics: ${weakTopics.join(', ')}. Discuss only these topics now.`
+      : `শিক্ষার্থী কুইজে দুর্বলতা দেখিয়েছে: ${weakTopics.join(', ')}। এখন শুধু এই বিষয়গুলো নিয়ে আলোচনা করো।`
+  });
   currentTurnIndex = 0;
 });
 
 if (quizCloseBtn) quizCloseBtn.addEventListener('click', () => {
   quizPanel.classList.add('hidden'); quizActive = false;
-  if (isRunning) { isPaused = false; pauseBtn.textContent = 'বিরতি'; if (ttsLabel) ttsLabel.textContent = 'নীরব'; }
+  if (isRunning) { isPaused = false; pauseBtn.textContent = isEnglish() ? 'Pause' : 'বিরতি'; if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব'; }
 });
 
 // ── Wire Setup Language Toggle ──
 function syncClassroomSetupLang(lang) {
   const isEn = lang === 'en';
+  applyClassroomTranslations(lang);
+  updateAgentDomCards();
+  if (sessionTimer) sessionTimer.textContent = isEn ? '00:00' : '০০:০০';
+  if (pauseBtn) pauseBtn.textContent = isPaused
+    ? (isEn ? 'Resume' : 'চালিয়ে যান')
+    : (isEn ? 'Pause' : 'বিরতি');
+  if (micState) setMicState(micState);
   document.querySelectorAll('.setup-lang-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.lang === lang);
   });
-  const startBtn = document.getElementById('startBtn');
-  if (startBtn) {
-    const span = startBtn.querySelector('span');
-    if (span) {
-      span.textContent = isEn ? 'Start Interactive Class' : 'ক্লাস শুরু করুন';
-    } else {
-      startBtn.textContent = isEn ? 'Start Interactive Class' : 'ক্লাস শুরু করুন';
-    }
-  }
-  const topicInput = document.getElementById('topicInput');
-  if (topicInput) {
-    topicInput.placeholder = isEn 
-      ? "e.g. Newton's Laws of Motion, Quantum Physics, Cell Biology..." 
-      : 'যেমন: বাংলাদেশের মুক্তিযুদ্ধ, ত্বরণ ও গতি…';
-  }
 }
 
 if (typeof document !== 'undefined') {

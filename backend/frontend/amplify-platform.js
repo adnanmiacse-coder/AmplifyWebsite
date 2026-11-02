@@ -133,7 +133,7 @@
   const AmplifyVoice = {
     getLanguage() {
       try {
-        const saved = localStorage.getItem(LANG_STORAGE_KEY);
+        const saved = localStorage.getItem(LANG_STORAGE_KEY) || localStorage.getItem('amplify_lang');
         if (saved === 'en' || saved === 'bn') return saved;
       } catch {}
       return 'en'; // English is primary by default
@@ -143,6 +143,7 @@
       if (lang !== 'en' && lang !== 'bn') lang = 'en';
       try {
         localStorage.setItem(LANG_STORAGE_KEY, lang);
+        localStorage.setItem('amplify_lang', lang);
       } catch {}
 
       // Update all toggle buttons in DOM
