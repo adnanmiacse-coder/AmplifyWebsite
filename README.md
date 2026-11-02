@@ -624,172 +624,96 @@ GET /api/analytics/classroom/{id}/dashboard
 
 ## NCTB Textbook Q&A Assistant
 
-Amplify also includes a dedicated Retrieval-Augmented Generation (RAG) chatbot for Class 11-12 NCTB textbook questions. The assistant grounds its answers in the selected textbook rather than relying only on the language model's general knowledge. It supports English, Bangla, and ICT materials and is available as a standalone deployed application on Hugging Face:
+Amplify includes a retrieval-augmented generation (RAG) assistant for questions grounded in NCTB Class 11–12 English, Bangla, and ICT textbooks. It retrieves passages from the selected book and asks a language model to answer from those excerpts. The chatbot code and prebuilt indexes live in the regular [`book-chatbot-better/` folder](book-chatbot-better/), inside this repository.
 
-**Live chatbot:** [NCTB Textbook Q&A Assistant on Hugging Face](https://huggingface.co/spaces/addyjeddy/book-chatbot-better/tree/main)
+- **Hosted/API-powered app:** [NCTB Textbook Q&A Assistant](https://huggingface.co/spaces/addyjeddy/book-chatbot-better)
+- **Detailed chatbot documentation:** [book-chatbot-better/README.md](book-chatbot-better/README.md)
 
-### Capabilities
+### Textbook indexing pipeline
 
-- **Multi-subject support:** English, Bangla (বাংলা), and ICT textbooks
-- **Hybrid retrieval:** Combines semantic similarity from FAISS with keyword matching to retrieve relevant textbook passages
-- **LLM inference:** Uses Groq-hosted models, including GPT-OSS 120B, with a configurable model mapping
-- **Language-aware processing:** Performs Bengali spelling correction when needed and preserves the language of the student's question
-- **Voice input:** Uses the browser Web Speech API for English and Bengali speech-to-text input
-- **Conversation history:** Saves conversations with timestamps and restores them across browser sessions
-- **Revision export:** Generates PDF revision material from chat history, including Noto Sans Bengali font support
-- **Graceful failures:** Retries transient API errors with exponential backoff and provides a useful response when a retrieval or model service is unavailable
-
-### RAG architecture
+The three checked-in, subject-specific LangChain FAISS indexes are under `nctb_english_index_v2/`, `nctb_bangla_index_v2/`, and `nctb_ict_index_better/`. Each contains `index.faiss` vectors and an `index.pkl` document store/ID mapping. Both app modes use the multilingual `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` embedding model.
 
 ```mermaid
 flowchart LR
-   Q[Student question] --> S[Subject selection]
-   S --> R1[FAISS semantic search]
-   S --> R2[Keyword matching]
-   R1 --> M[Merge and rank context]
-   R2 --> M
-   M --> C[Textbook-grounded prompt]
-   C --> G[Groq LLM inference]
-   G --> H[Save chat history]
-   H --> A[Display answer or export PDF]
+    A[Textbook source] --> B[Extract or OCR text]
+    B --> C[Clean and split into passages]
+    C --> D[Add source metadata]
+    D --> E[Create multilingual embeddings]
+    E --> F[Build subject-specific FAISS index]
+    F --> G[index.faiss plus index.pkl]
+    G --> H[Retrieve passages for student questions]
 ```
 
-The retrieval process searches the FAISS index for the selected textbook and combines the best semantic results with keyword matches. The resulting context is truncated to a controlled size before it is passed to the LLM, which reduces irrelevant context and helps keep answers grounded in NCTB content. The default retrieval configuration is:
+The source textbooks and index-building/extraction scripts are not included in this repository. Therefore the exact source editions, OCR tooling, chunk size/overlap, and build settings cannot be verified or reproduced from the checked-in project. The diagram describes the general indexing pipeline; it is not a claim that a particular OCR engine or build script is present. `index.pkl` loading uses serialized data, so only use index files from a trusted source.
 
-| Parameter | Value | Purpose |
-|-----------|-------|---------|
-| Semantic results (`semantic_k`) | 3 | Top vector-similarity matches |
-| Keyword results (`keyword_n`) | 2 | Additional exact or lexical matches |
-| Combined results (`max_results`) | 4 | Maximum context documents sent onward |
-| Per-document limit (`truncate_chars`) | 800 characters | Keeps individual passages focused |
-| Total context limit (`context_chars`) | 2,000 characters | Bounds the final prompt context |
+### Question-to-answer flow
 
-### Technology stack and index structure
+```mermaid
+flowchart TD
+    Q[Question and selected textbook] --> I[Load that subject FAISS index]
+    I --> S[Semantic retrieval]
+    I --> K[Keyword retrieval in local app]
+    S --> M[Merge and de-duplicate passages]
+    K --> M
+    M --> P[Prompt constrained to textbook excerpts]
+    P --> R{Runtime}
+    R -->|Hosted| G[Groq Llama 3.1 8B Instant]
+    R -->|Local| O[Ollama model on student's computer]
+    G --> A[Display answer]
+    O --> A
+```
 
-- **Interface:** Gradio with custom responsive dark-theme CSS
-- **Embeddings:** `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
-- **Vector database:** FAISS (`faiss-cpu`) with 384-dimensional multilingual embeddings
-- **Language model:** Groq API using `openai/gpt-oss-120b` by default
-- **PDF generation:** FPDF with Noto Sans Bengali font support
-- **Speech recognition:** Browser-side Web Speech API
-- **Conversation persistence:** JSON-backed history and browser session persistence
+The two runtimes share the indexes and embedding model, but differ in retrieval and inference:
 
-Each textbook index contains document embeddings, source and chapter metadata, and a document store containing the original passage text. The expected index directories are:
+| Runtime | Entry point | Retrieval and answer generation |
+|---|---|---|
+| Hosted/API-powered | `app.py` | Top 10 semantic matches; Groq `llama-3.1-8b-instant` generates an answer. Requires internet and `GROQ_API_KEY`. |
+| Local inference | `app_offline.py` | Top 3 semantic matches plus top 2 keyword matches; de-duplicates and keeps up to 4 excerpts, truncating each to 800 characters and total context to 2,000. Ollama generates the answer locally. |
 
-- `nctb_english_index_v2` - English textbook
-- `nctb_bangla_index_v2` - Bengali textbook
-- `nctb_ict_index_better` - ICT textbook
+The local app also includes Bangla/ICT passage cleanup, saved Q&A history, voice input in supported browsers, and text/PDF revision export. The first local setup requires internet to install dependencies and download embedding/Ollama models. After setup, the core retrieval and inference can run locally; optional speech recognition, externally hosted fonts, and Bengali PDF font download may still need connectivity.
 
-### Running the API-powered chatbot locally
+### Run the chatbot
 
-The API-powered `app.py` chatbot requires Python 3.8 or newer, a Groq API key, and the textbook indexes. Install its dependencies and configure the key before starting Gradio:
+From the repository root, enter the chatbot folder and create a Python environment there:
 
 ```bash
-pip install gradio langchain-community langchain-huggingface langchain-groq faiss-cpu fpdf sentence-transformers
-export GROQ_API_KEY="your-groq-api-key-here"
+cd book-chatbot-better
+python -m venv .venv
+```
+
+Activate the environment and install the shared dependencies:
+
+```powershell
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+On macOS/Linux, activate it with `source .venv/bin/activate`, then run `python -m pip install -r requirements.txt`.
+
+For the hosted/API-powered app, set a private Groq API key, then start `app.py`:
+
+```bash
+export GROQ_API_KEY="your-groq-api-key"
 python app.py
 ```
 
-The local interface is served at `http://127.0.0.1:7860`. Place the pre-built FAISS indexes in the application root before asking questions. This mode sends questions to Groq and therefore requires internet access and an API key.
+In Windows PowerShell, use:
 
-### Fully Offline Local Installation and Use
-
-Use the separate `app_offline.py` application in the [offline-nctb repository](https://github.com/adnanmiacse-coder/offline-nctb) for local model inference. It retrieves passages from the bundled FAISS indexes and sends questions to Ollama running on your own computer; it does not need a Groq API key.
-
-#### Requirements
-
-- Windows, macOS, or Linux
-- Python 3.10 or newer (Python 3.11 is recommended)
-- [Git](https://git-scm.com/) and [Git LFS](https://git-lfs.com/) to download the textbook indexes
-- [Ollama](https://ollama.com/download) installed and running locally
-- Enough free disk space for Python packages, the embedding model, and at least one Ollama model. Ollama model sizes vary; check the model download size before choosing one.
-
-#### Install
-
-The first setup requires internet access to install packages and download the embedding and Ollama models. Once these are installed, textbook Q&A and model inference run locally.
-
-1. Install Git LFS, then clone the chatbot repository and download its index files:
-
-   ```bash
-   git lfs install
-   git clone https://github.com/adnanmiacse-coder/offline-nctb.git
-   cd offline-nctb
-   git lfs pull
-   ```
-
-   The checkout should contain `app_offline.py` and all three index directories: `nctb_english_index_v2`, `nctb_bangla_index_v2`, and `nctb_ict_index_better`. The FAISS indexes contain serialized data; only use index files obtained from a source you trust.
-
-2. Create and activate a virtual environment in the cloned project directory:
-
-   ```bash
-   python -m venv .venv
-   ```
-
-   On Windows PowerShell:
-
-   ```powershell
-   .\.venv\Scripts\Activate.ps1
-   ```
-
-   On macOS or Linux:
-
-   ```bash
-   source .venv/bin/activate
-   ```
-
-3. Install the project requirements and the additional dependencies used by the offline app:
-
-   ```bash
-   python -m pip install --upgrade pip
-   python -m pip install -r requirements.txt
-   python -m pip install langchain-huggingface fpdf ollama
-   ```
-
-4. Install and start Ollama. Pull the default model shown in the app before disconnecting from the internet:
-
-   ```bash
-   ollama pull gemma3:4b
-   ollama list
-   ```
-
-   The model dropdown also offers `gemma3:1b`, `phi3.5`, and `deepseek-r1:1.5b`; pull any additional models you intend to use with `ollama pull <model-name>`. If Ollama is installed but not running, start its local service in a separate terminal with `ollama serve`.
-
-5. Start the offline chatbot from the project directory with the virtual environment activated:
-
-   ```bash
-   python app_offline.py
-   ```
-
-   On first launch, the multilingual sentence-transformer embedding model is downloaded and the three FAISS indexes are loaded. Wait for those steps to finish; then open **http://127.0.0.1:7860** in a browser on the same computer.
-
-#### Use and run without internet
-
-1. Select English, Bangla, or ICT, choose a model already downloaded in Ollama, enter a question, and select **Ask**.
-2. The app searches the selected local textbook index and asks the selected local Ollama model to answer from retrieved textbook passages.
-3. Chat history is saved in `chat_history.json` in the project directory. Keep this file if you want to retain the history between runs.
-4. To use the app without an internet connection, first complete installation and launch it once while online so the Python packages, embedding model, and selected Ollama model are available locally. Confirm the Ollama model appears in `ollama list`, then disconnect and run `python app_offline.py` as usual.
-5. Stop the app with **Ctrl+C** in the terminal running it.
-
-The core text-question and answer flow is local after setup. Browser speech recognition, externally hosted fonts, and the PDF export's Bengali-font download may require internet access; they are optional and do not provide the core model inference. If the interface reports an Ollama connection error, start Ollama and verify that the chosen model is listed. If a textbook index fails to load, check that its directory contains both `index.faiss` and `index.pkl` and that Git LFS downloaded the real files rather than pointer files.
-
-The online app's active model can be changed through the model mapping, for example:
-
-```python
-GROQ_MODELS = {
-   "GPT-OSS 120B": "openai/gpt-oss-120b",
-}
+```powershell
+$env:GROQ_API_KEY = "your-groq-api-key"
+python app.py
 ```
 
-### Typical interaction flow
+For the local app, install its extra packages and prepare Ollama instead:
 
-1. The student selects a textbook and types or speaks a question.
-2. The assistant optionally corrects Bengali spelling.
-3. Hybrid retrieval searches the selected FAISS index.
-4. Retrieved passages are assembled into a grounded system prompt.
-5. Groq generates the answer using the chosen model.
-6. The question and answer are saved to history for later review or PDF export.
+```bash
+python -m pip install langchain-huggingface fpdf ollama
+ollama pull gemma3:4b
+python app_offline.py
+```
 
-For questions outside the selected textbook, students can rephrase the question or choose a more relevant subject. If an index cannot be loaded, check that its directory is in the application root and that the process has read permission. If responses are slow, the first request may be loading the embedding model and FAISS index into memory.
+Both apps serve Gradio at **http://127.0.0.1:7860** by default. See the [chatbot README](book-chatbot-better/README.md) for runtime details and platform-specific setup instructions.
 
 ## 📄 License
 

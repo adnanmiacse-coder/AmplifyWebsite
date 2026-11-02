@@ -1,0 +1,140 @@
+[
+  {
+    "timestamp": "2026-05-26 00:02:35",
+    "book": "English (Class 11-12)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "Ollama error: model requires more system memory (752.5 MiB) than is available (657.7 MiB) (status code: 500)\n\nMake sure Ollama is running (`ollama pull qwen2.5:1.5b`)."
+  },
+  {
+    "timestamp": "2026-05-26 00:07:34",
+    "book": "ICT (আইসিটি বই)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "এই তথ্য পাঠ্যপুস্তকে পাওয়া যায়নি."
+  },
+  {
+    "timestamp": "2026-06-07 13:34:27",
+    "book": "English (Class 11-12)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "Ollama error: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download\n\nMake sure Ollama is running (`ollama pull gemma3:1b`)."
+  },
+  {
+    "timestamp": "2026-06-07 13:35:49",
+    "book": "English (Class 11-12)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "Ollama error: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download\n\nMake sure Ollama is running (`ollama pull gemma3:4b`)."
+  },
+  {
+    "timestamp": "2026-06-07 13:36:12",
+    "book": "ICT (আইসিটি বই)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "Ollama error: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download\n\nMake sure Ollama is running (`ollama pull gemma3:4b`)."
+  },
+  {
+    "timestamp": "2026-06-07 13:58:40",
+    "book": "English (Class 11-12)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "I couldn’t find this information in the NCTB textbook.\n\nThe excerpts describe a scene where a young man witnesses the death of a woman by a river. He sees her being carried away by a boat and the man dancing with the chariot carrier. The man is distressed by the event, expressing his sorrow for the woman’s death."
+  },
+  {
+    "timestamp": "2026-06-07 13:58:59",
+    "book": "ICT (আইসিটি বই)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "রিলেশনাল ডেটাবেজ হলো ডেটাবেজগুলোর একটি গুরুত্বপূর্ণ অংশ। এটি ডেটার সমাহার তৈরি করে, যেখানে প্রচুর পরিমাণ তথ্য একটি ডেটাবেজে সংরক্ষণ করা হয়। সফটওয়্যার জগতে, রিলেশনাল ডেটাবেজ একটি ডেটাবেজ সিস্টেম, যা ডেটাবেজের বিষয়বস্তু সুসংগঠিতভাবে পরিচালনা করতে সাহায্য করে।\n\nরিলেশনাল ডেটাবেজকে দুটি ভাগে ভাগ করা হয়:\n\n১. রিলেশনাল ডেটাবেজ: এটি পুরনো হলেও এখনো গুরুত্বপূর্ণ।\n২. নোএসকিউএল ডেটাবেজ: এটি নতুন এবং বর্তমানে ওয়েবভিত্তিক বিভিন্ন অ্যাপ্লিকেশনে বেশি ব্যবহৃত হচ্ছে।"
+  },
+  {
+    "timestamp": "2026-06-07 13:59:42",
+    "book": "ICT (আইসিটি বই)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "Ollama error: llama runner process has terminated: CUDA error: a PTX JIT compilation failed\nCUDA error (status code: 500)\n\nMake sure Ollama is running (`ollama pull llama3.2`)."
+  },
+  {
+    "timestamp": "2026-06-07 14:00:10",
+    "book": "ICT (আইসিটি বই)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "রিলেশনাল ডেটাবেজ হলো এমন একটি ডেটাবেজ যেখানে ডেটাগুলোকে টেবিলের আকারে সাজানো থাকে। এই টেবিলগুলোতে সারি (row) এবং কলাম (column) থাকে। রিলেশনাল ডেটাবেজগুলো ডেটাবেজের ডেটা একসঙশ্গে সংরক্ষণ এবং পরিচালনা করার জন্য কিছু প্রোগ্রাম বা সফঢওয়্যার তৈরি করে। এটি ডেটাবেজকে সুতুভাবে পরিচালনা করার জন্য কিছু প্রোগ্রাম বা সফঢওয়্যার মিলেই গঠিত হয়। রিলেশনাল ডেটাবেজকে রিলেশনাল ডেটাবেজ এবং স্টোরড ডেটাবেজ নামে দুটি ভাগে ভাগ করা যায়।"
+  },
+  {
+    "timestamp": "2026-06-07 14:00:50",
+    "book": "ICT (আইসিটি বই)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "Relational Database"
+  },
+  {
+    "timestamp": "2026-06-07 14:02:40",
+    "book": "ICT (আইসিটি বই)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "Ollama error: model failed to load, this may be due to resource limitations or an internal error, check ollama server logs for details (status code: 500)\n\nMake sure Ollama is running (`ollama pull mistral`)."
+  },
+  {
+    "timestamp": "2026-06-07 14:03:49",
+    "book": "ICT (আইসিটি বই)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "রিলেশনাল ডেটাবেজ হলো ডেটার সমাহার। এটি একটি সফটওয়্যার যেখানে প্রচুর পরিমাণ তথ্য সংরক্ষণ করা যায়। এর মধ্যে ডেটাবেজকে সুনিয়ন্ত্রিতভাবে পরিচালনা করার জন্য কিছু প্রোগ্রাম বা সফটওয়্যার তৈরি করা হয়। রিলেশনাল ডেটাবেজকে দুটিভাগে ভাগ করা যায়: রিলেশনাল ডেটাবেজ এবং নোএসকিউএল ডেটাবেজ। রিলেশনাল ডেটাবেজ পুরনো হলেও এটি এখনো গুরুত্বপূর্ণ।"
+  },
+  {
+    "timestamp": "2026-06-07 14:48:30",
+    "book": "English (Class 11-12)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "Ollama error: llama runner process has terminated: CUDA error: a PTX JIT compilation failed\nCUDA error (status code: 500)\n\nMake sure Ollama is running (`ollama pull deepseek-r1:1.5b`)."
+  },
+  {
+    "timestamp": "2026-06-07 14:49:05",
+    "book": "ICT (আইসিটি বই)",
+    "question": "রিলেশনাল ডেটাবেজ",
+    "answer": "Ollama error: memory layout cannot be allocated (status code: 500)\n\nMake sure Ollama is running (`ollama pull qwen3:1.7b`)."
+  },
+  {
+    "timestamp": "2026-09-09 00:52:52",
+    "book": "ICT (আইসিটি বই)",
+    "question": "তথ্য ও যোগাযোগ প্রযুক্তি কী?",
+    "answer": "তথ্য ও যোগাযোগ প্রযুক্তি (Information and Communication Technology) হলো এমন একটি প্রক্রিয়া, যা তথ্য এবং যোগাযোগকে সহজলভ্য করে তোলে। এটি মানুষের মধ্যে যোগাযোগের একটি নতুন দিগন্ত উন্মোচন করে।\n\nএই প্রযুক্তির মাধ্যমে মানুষ একে অপরের সাথে সহজে যোগাযোগ করতে পারে, তথ্য আদান-প্রদান করতে পারে এবং বিভিন্ন ধরনের কাজ সম্পন্ন করতে পারে।\n\nবিশ্বগ্রামের ধারণা ব্যাখ্যা করতে পারবে, বিশ্বগ্রামের উপাদানগুলো জানতে পারবে, ভার্চুয়াল রিয়েলিটি সম্পর্কে জানতে পারবে, প্রাতাহিক দবনে ভা্চুয়াল রিয়েলিটির প্রভাব জানতে পারবে, তথ্য ও যোগাযোগ প্রযুক্তির সাম্প্রতিক প্রবণতা সম্পর্কে জানতে পারবে এবং নৈতিকতা বজায় রাখার বিষয়েও আলোকপাত করতে পারবে।"
+  },
+  {
+    "timestamp": "2026-09-09 00:54:15",
+    "book": "ICT (আইসিটি বই)",
+    "question": "ভার্চুয়াল রিয়েলিটি কী?",
+    "answer": "ভার্চুয়াল রিয়েলিটি (VR) হলো একটি প্রযুক্তি যা ব্যবহারকারীকে একটি কম্পিউটার-ভিত্তিক সিমুলেশন বা বাস্তবতার অভিজ্ঞতা দেয়। এটি বাস্তব জগতের সাথে ভার্চুয়াল জগতের মিশ্রণ ঘটায়। এই প্রযুক্তি ব্যবহার করে মানুষ ভার্চুয়ালি ভ্রমণ করতে পারে, কোনো ঐতিহাসিক স্থান ঘুরে দেখতে পারে অথবা অন্য কোনো কাজ করতে পারে। এছাড়াও, VR ব্যবহারকারীদের সিমুলেটরে বিমান বা গাড়ি চালানোর মতো কাজ করতে সাহায্য করে।"
+  },
+  {
+    "timestamp": "2026-09-09 00:54:35",
+    "book": "ICT (আইসিটি বই)",
+    "question": "ভার্চুয়াল রিয়েলিটি কী?",
+    "answer": "ভার্চুয়াল রিয়েলিটি (VR) হলো একটি প্রযুক্তি যা ব্যবহারকারীকে একটি কম্পিউটার-ভিত্তিক সিমুলেশন পরিবেশে নিমগ্ন করে তোলে। এটি বাস্তব জগতের অভিজ্ঞতা অনুকরণ করে। ভার্চুয়াল রিয়েলিটি সাধারণত কম্পিউটার গেম, সিমুলেশন বা ভার্চুয়াল রিয়েলিটি সিমুলেটর হিসেবে ব্যবহৃত হয়। এটি ব্যবহারকারীদের বাস্তব জগতের কোনো স্থান বা ঘটনার অভিজ্ঞতা তৈরি করতে সাহায্য করে।\n\nএই প্রযুক্তি ব্যবহার করে বৈমানিকরা সিমুলেটরে বিমান চালানোর অভিজ্ঞতা অর্জন করেন। এছাড়াও, ভার্চুয়াল রিয়েলিটি মোটরগাড়ি চালনা বা অন্য কোনো গাড়ি চালানোর অভিজ্ঞতা দিতেও ব্যবহার করা হয়।"
+  },
+  {
+    "timestamp": "2026-09-09 00:55:16",
+    "book": "ICT (আইসিটি বই)",
+    "question": "ভার্চুয়াল রিয়েলিটি কী?",
+    "answer": "ভার্চুয়াল রিয়েলিটি (VR) হলো একটি প্রযুক্তি যা ব্যবহারকারীকে একটি কম্পিউটার-ভিত্তিক সিমুলেশন পরিবেশে নিমগ্ন করে তোলে। এটি বাস্তব জগতের অভিজ্ঞতা অনুকরণ করে। ভার্চুয়াল রিয়েলিটি সাধারণত কম্পিউটার গেম, সিমুলেশন বা ভার্চুয়াল রিয়েলিটি সিমুলেটর হিসেবে ব্যবহৃত হয়। এটি ব্যবহারকারীদের বাস্তব জগতের কোনো স্থান বা ঘটনার অভিজ্ঞতা তৈরি করতে সাহায্য করে।\n\nএই প্রযুক্তি ব্যবহার করে বৈমানিকরা সিমুলেটরে বিমান চালানোর অভিজ্ঞতা অর্জন করেন। এছাড়াও, ভার্চুয়াল রিয়েলিটি মোটরগাড়ি চালনা বা অন্য কোনো গাড়ি চালানোর অভিজ্ঞতা দিতেও ব্যবহার করা হয়।"
+  },
+  {
+    "timestamp": "2026-11-01 03:10:48",
+    "book": "ICT (আইসিটি বই)",
+    "question": "ভার্চুয়াল রিয়েলিটি কী?",
+    "answer": "Ollama error: llama-server process has terminated: exit status 1: ggml_backend_cpu_buffer_type_alloc_buffer: failed to allocate buffer of size 630586624\nggml_backend_buft_alloc_buffer_n_default: failed to allocate CUDA_Host buffer of size 630586624\nerror loading model: unable to allocate CUDA_Host buffer (status code: 500)\n\nMake sure Ollama is running (`ollama pull gemma3:4b`)."
+  },
+  {
+    "timestamp": "2026-11-01 03:11:48",
+    "book": "ICT (আইসিটি বই)",
+    "question": "তথ্য ও যোগাযোগ প্রযুক্তি কী?",
+    "answer": "Ollama error: llama-server process has terminated: exit status 1: ggml_backend_cpu_buffer_type_alloc_buffer: failed to allocate buffer of size 630586624\nggml_backend_buft_alloc_buffer_n_default: failed to allocate CUDA_Host buffer of size 630586624\nerror loading model: unable to allocate CUDA_Host buffer (status code: 500)\n\nMake sure Ollama is running (`ollama pull gemma3:1b`)."
+  },
+  {
+    "timestamp": "2026-11-01 03:26:01",
+    "book": "ICT (আইসিটি বই)",
+    "question": "তথ্য ও যোগাযোগ প্রযুক্তি কী?",
+    "answer": "তথ্য ও যোগাযোগ প্রযুক্তি (Information and Communication Technology) বা ICT হলো তথ্য ও যোগাযোগ প্রযুক্তির একটি সমষ্টি। এর মধ্যে কম্পিউটার, ইন্টারনেট, মোবাইল ফোন, স্মার্টফোন, এবং অন্যান্য ডিজিটাল ডিভাইস অন্তর্ভুক্ত। এটি মানুষের মধ্যে তথ্য আদান-প্রদান এবং যোগাযোগে সহায়তা করে।\n\nএই প্রযুক্তি ব্যবহার করে মানুষ বিভিন্ন ধরনের কাজ করতে পারে, যেমন - শিক্ষা, ব্যবসা, বিনোদন, এবং সামাজিক যোগাযোগ।\n\nএই প্রযুক্তি আমাদের জীবনযাত্রাকে সহজ করে দিয়েছে এবং নতুন নতুন সুযোগ তৈরি করেছে।"
+  },
+  {
+    "timestamp": "2026-11-01 03:29:29",
+    "book": "ICT (আইসিটি বই)",
+    "question": "ভার্চুয়াল রিয়েলিটি কাকে বলে",
+    "answer": "ভার্চুয়াল রিয়েলিটি (VR) হলো একটি প্রযুক্তি যা বাস্তবতার সাথে ডিজিটাল জগৎকে সংযুক্ত করে। এটি কম্পিউটার গ্রাফিক্স এবং অন্যান্য প্রযুক্তির মাধ্যমে তৈরি করা হয়। VR ব্যবহারকারীদের একটি ভার্চুয়াল পরিবেশের মধ্যে নিমজ্জিত করে, যেখানে তারা বাস্তবতার মতো অভিজ্ঞতা লাভ করতে পারে।\n\nএই প্রযুক্তি ব্যবহার করে মানুষ সিমুলেশন করতে পারে, যেমন বিমান চালানো বা গাড়ি চালানো। এছাড়াও, এটি ঐতিহাসিক স্থান বা অন্য কোনো দৃশ্যের অভিজ্ঞতা দিতে পারে।"
+  },
+  {
+    "timestamp": "2026-11-01 03:32:46",
+    "book": "ICT (আইসিটি বই)",
+    "question": "তথ্য ও যোগাযোগ প্রযুক্তি কী?",
+    "answer": "তথ্য ও যোগাযোগ প্রযুক্তি (Information and Communication Technology) বা ICT হলো তথ্য ও যোগাযোগ প্রযুক্তির একটি সমষ্টি। এর মধ্যে কম্পিউটার, ইন্টারনেট, মোবাইল ফোন, স্মার্টফোন, এবং অন্যান্য ডিজিটাল ডিভাইস অন্তর্ভুক্ত। এটি মানুষের মধ্যে তথ্য আদান-প্রদান এবং যোগাযোগে সহায়তা করে।\n\nএই প্রযুক্তি ব্যবহার করে মানুষ বিভিন্ন ধরনের কাজ করতে পারে, যেমন - শিক্ষা, ব্যবসা, বিনোদন, এবং সামাজিক যোগাযোগ।\n\nএই প্রযুক্তি আমাদের জীবনযাত্রাকে সহজ করে দিয়েছে এবং নতুন নতুন সুযোগ তৈরি করেছে।"
+  }
+]
