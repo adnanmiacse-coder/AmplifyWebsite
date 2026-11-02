@@ -181,7 +181,8 @@ Three AI experts (Dr. Arif, Dr. Nafisa, Dr. Rakib) debate topics from different 
 AI-powered career guidance matching students to scholarships, internships, and job opportunities.
 
 **Features:**
-- Live integration with scholarship and internship platforms
+- The Opportunities section fetches public job listings from Himalayas and Arbeitnow, with an eight-hour in-process cache and official scholarship programme links as a fallback
+- Deadlines are displayed only when confirmed by a source; otherwise they are marked as not listed
 - Profile-based matching (GPA, skills, preferences)
 - Hybrid recommendation engine (collaborative + content-based)
 

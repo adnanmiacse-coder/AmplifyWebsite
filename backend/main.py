@@ -3,7 +3,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import subprocess, json, os, uuid, re, ast, sys
+import asyncio, ast, html, json, logging, os, re, subprocess, sys, time, uuid
+from datetime import datetime, timezone
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 from openai import OpenAI
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -650,13 +653,14 @@ async def generate(data: Prompt):
 
 OPPORTUNITIES_DATA = [
     {
-        "title": "Chevening Scholarships 2025/2026",
+        "title": "Chevening Scholarships",
         "desc": "UK government global scholarship programme offering full financial support for one-year master's degrees at any UK university.",
         "link": "https://www.chevening.org/scholarships/",
         "source": "UK Foreign & Commonwealth Office",
         "type": "Scholarship",
         "region": "🇬🇧 UK",
-        "date": "Applications Open"
+        "date": "",
+        "deadlineStatus": "unknown"
     },
     {
         "title": "Fulbright Foreign Student Program",
@@ -665,7 +669,8 @@ OPPORTUNITIES_DATA = [
         "source": "US Department of State",
         "type": "Scholarship",
         "region": "🇺🇸 USA",
-        "date": "Annual Cycle"
+        "date": "",
+        "deadlineStatus": "unknown"
     },
     {
         "title": "DAAD Research Grants - Doctoral Programmes",
@@ -674,7 +679,8 @@ OPPORTUNITIES_DATA = [
         "source": "German Academic Exchange (DAAD)",
         "type": "Research",
         "region": "🇪🇺 EU",
-        "date": "Rolling Deadlines"
+        "date": "",
+        "deadlineStatus": "unknown"
     },
     {
         "title": "Gates Cambridge Scholarship",
@@ -683,7 +689,8 @@ OPPORTUNITIES_DATA = [
         "source": "University of Cambridge",
         "type": "Fellowship",
         "region": "🇬🇧 UK",
-        "date": "Prestigious"
+        "date": "",
+        "deadlineStatus": "unknown"
     },
     {
         "title": "Erasmus Mundus Joint Master Degrees (EMJM)",
@@ -692,7 +699,8 @@ OPPORTUNITIES_DATA = [
         "source": "European Commission",
         "type": "Scholarship",
         "region": "🇪🇺 EU",
-        "date": "Multiple Fields"
+        "date": "",
+        "deadlineStatus": "unknown"
     },
     {
         "title": "JSPS Postdoctoral Fellowships for Research in Japan",
@@ -701,7 +709,8 @@ OPPORTUNITIES_DATA = [
         "source": "Japan Society for the Promotion of Science",
         "type": "Research",
         "region": "🇯🇵 Japan",
-        "date": "Global Applicants"
+        "date": "",
+        "deadlineStatus": "unknown"
     },
     {
         "title": "Swiss Government Excellence Scholarships",
@@ -710,7 +719,8 @@ OPPORTUNITIES_DATA = [
         "source": "Federal Commission for Scholarships (FCS)",
         "type": "Fellowship",
         "region": "🇪🇺 EU",
-        "date": "Research/PhD"
+        "date": "",
+        "deadlineStatus": "unknown"
     },
     {
         "title": "Australia Awards Scholarships",
@@ -719,7 +729,8 @@ OPPORTUNITIES_DATA = [
         "source": "Australian Government DFAT",
         "type": "Scholarship",
         "region": "🇦🇺 Australia",
-        "date": "Full Funding"
+        "date": "",
+        "deadlineStatus": "unknown"
     },
     {
         "title": "MEXT Japanese Government Scholarships",
@@ -728,7 +739,8 @@ OPPORTUNITIES_DATA = [
         "source": "Ministry of Education Japan (MEXT)",
         "type": "Scholarship",
         "region": "🇯🇵 Japan",
-        "date": "Embassy Track"
+        "date": "",
+        "deadlineStatus": "unknown"
     },
     {
         "title": "Rhodes Scholarship at Oxford",
@@ -737,7 +749,8 @@ OPPORTUNITIES_DATA = [
         "source": "Rhodes Trust",
         "type": "Fellowship",
         "region": "🇬🇧 UK",
-        "date": "Postgraduate"
+        "date": "",
+        "deadlineStatus": "unknown"
     },
     {
         "title": "Commonwealth Scholarships",
@@ -746,7 +759,8 @@ OPPORTUNITIES_DATA = [
         "source": "Commonwealth Scholarship Commission",
         "type": "Scholarship",
         "region": "🇬🇧 UK",
-        "date": "Annual Cycle"
+        "date": "",
+        "deadlineStatus": "unknown"
     },
     {
         "title": "Swedish Institute Scholarships for Global Professionals",
@@ -755,18 +769,237 @@ OPPORTUNITIES_DATA = [
         "source": "Swedish Institute (SI)",
         "type": "Scholarship",
         "region": "🇪🇺 EU",
-        "date": "Global Professionals"
+        "date": "",
+        "deadlineStatus": "unknown"
     }
 ]
 
 
+logger = logging.getLogger(__name__)
+OPPORTUNITIES_CACHE_SECONDS = 8 * 60 * 60
+OPPORTUNITIES_REQUEST_TIMEOUT = 12
+OPPORTUNITIES_MAX_RESPONSE_BYTES = 12_000_000
+_opportunities_cache = None
+_opportunities_cache_time = 0.0
+_opportunities_cache_lock = asyncio.Lock()
+
+
+def _read_opportunity_feed(url: str):
+    request = Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "Amplify opportunity feed (public job listings)",
+        },
+    )
+    with urlopen(request, timeout=OPPORTUNITIES_REQUEST_TIMEOUT) as response:
+        body = response.read(OPPORTUNITIES_MAX_RESPONSE_BYTES + 1)
+    if len(body) > OPPORTUNITIES_MAX_RESPONSE_BYTES:
+        raise ValueError("provider response exceeded size limit")
+    return json.loads(body)
+
+
+def _clean_opportunity_text(value, max_length: int = 500) -> str:
+    if not isinstance(value, str):
+        return ""
+    value = re.sub(r"(?is)<(script|style)\b[^>]*>.*?</\1>", " ", value)
+    value = html.unescape(re.sub(r"<[^>]*>", " ", value))
+    value = re.sub(r"\s+", " ", value).strip()
+    return value[:max_length].rstrip()
+
+
+def _safe_opportunity_url(value):
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if any(character.isspace() or ord(character) < 32 for character in value):
+        return None
+    parsed = urlparse(value)
+    if (
+        parsed.scheme.lower() not in {"http", "https"}
+        or not parsed.netloc
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+    ):
+        return None
+    return value
+
+
+def _is_expired_opportunity(value) -> bool:
+    if isinstance(value, (int, float)):
+        timestamp = value / 1000 if value > 1_000_000_000_000 else value
+        deadline = datetime.fromtimestamp(timestamp, timezone.utc)
+    elif isinstance(value, str) and value.strip():
+        try:
+            timestamp = float(value)
+            timestamp = timestamp / 1000 if timestamp > 1_000_000_000_000 else timestamp
+            deadline = datetime.fromtimestamp(timestamp, timezone.utc)
+        except ValueError:
+            deadline = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if deadline.tzinfo is None:
+                deadline = deadline.replace(tzinfo=timezone.utc)
+    else:
+        return False
+    return deadline <= datetime.now(timezone.utc)
+
+
+def _make_job(title, description, link, region, company, expiry=None):
+    title = _clean_opportunity_text(title, 180)
+    description = _clean_opportunity_text(description)
+    source_url = _safe_opportunity_url(link)
+    region = _clean_opportunity_text(region, 120) or "Not listed"
+    company = _clean_opportunity_text(company, 120)
+    if not title or not description or not source_url:
+        return None
+    if expiry is not None:
+        try:
+            if _is_expired_opportunity(expiry):
+                return None
+        except (OverflowError, OSError, TypeError, ValueError):
+            logger.warning("Ignoring invalid opportunity expiry value")
+    if company:
+        description = _clean_opportunity_text(f"{company} — {description}")
+    return {
+        "title": title,
+        "desc": description,
+        "link": source_url,
+        "source": "",
+        "type": "Job",
+        "region": region,
+        "date": "",
+        "deadlineStatus": "unknown",
+    }
+
+
+def _himalayas_jobs(payload):
+    records = payload.get("jobs") if isinstance(payload, dict) else None
+    if not isinstance(records, list):
+        raise ValueError("Himalayas response is missing its jobs list")
+    items = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        restrictions = record.get("locationRestrictions")
+        region = ", ".join(
+            _clean_opportunity_text(item, 80)
+            for item in restrictions[:3]
+            if isinstance(item, str) and item.strip()
+        ) if isinstance(restrictions, list) else ""
+        item = _make_job(
+            record.get("title"),
+            record.get("excerpt") or record.get("description"),
+            record.get("applicationLink"),
+            region,
+            record.get("companyName"),
+            record.get("expiryDate"),
+        )
+        if item:
+            item["source"] = "Himalayas"
+            items.append(item)
+    return items
+
+
+def _arbeitnow_jobs(payload):
+    records = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(records, list):
+        raise ValueError("Arbeitnow response is missing its data list")
+    items = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        location = record.get("location") if isinstance(record.get("location"), str) else ""
+        region = f"Remote — {location}" if record.get("remote") and location else location
+        item = _make_job(
+            record.get("title"),
+            record.get("description"),
+            record.get("url"),
+            region,
+            record.get("company_name"),
+        )
+        if item:
+            item["source"] = "Arbeitnow"
+            items.append(item)
+    return items
+
+
+async def _load_opportunity_source(source: str, url: str, parser):
+    try:
+        payload = await asyncio.to_thread(_read_opportunity_feed, url)
+        items = parser(payload)
+        return items[:30]
+    except Exception as error:
+        logger.warning("Opportunity provider %s failed: %s", source, error)
+        return []
+
+
+def _deduplicate_opportunities(items):
+    seen = set()
+    unique = []
+    for item in items:
+        parsed = urlparse(item["link"])
+        url_key = (parsed.netloc.lower(), parsed.path.rstrip("/").lower())
+        text_key = (
+            item["title"].casefold(),
+            item["desc"][:160].casefold(),
+        )
+        if url_key in seen or text_key in seen:
+            continue
+        seen.add(url_key)
+        seen.add(text_key)
+        unique.append(item)
+    return unique
+
+
 @app.get("/api/opportunities")
 async def get_opportunities():
-    return {
-        "status": "ok",
-        "count": len(OPPORTUNITIES_DATA),
-        "items": OPPORTUNITIES_DATA
-    }
+    global _opportunities_cache, _opportunities_cache_time
+    if (
+        _opportunities_cache is not None
+        and time.monotonic() - _opportunities_cache_time < OPPORTUNITIES_CACHE_SECONDS
+    ):
+        return _opportunities_cache
+
+    async with _opportunities_cache_lock:
+        if (
+            _opportunities_cache is not None
+            and time.monotonic() - _opportunities_cache_time < OPPORTUNITIES_CACHE_SECONDS
+        ):
+            return _opportunities_cache
+
+        feeds = [
+            (
+                "Himalayas",
+                "https://himalayas.app/jobs/api?limit=40",
+                _himalayas_jobs,
+            ),
+            (
+                "Arbeitnow",
+                "https://www.arbeitnow.com/api/job-board-api?page=1",
+                _arbeitnow_jobs,
+            ),
+        ]
+        results = await asyncio.gather(
+            *(
+                _load_opportunity_source(source, url, parser)
+                for source, url, parser in feeds
+            )
+        )
+        items = _deduplicate_opportunities(
+            [item for source_items in results for item in source_items]
+        )
+        is_fallback = not items
+        if is_fallback:
+            logger.warning("All live opportunity providers failed; using local fallback data")
+            items = OPPORTUNITIES_DATA
+
+        _opportunities_cache = {
+            "status": "fallback" if is_fallback else "live",
+            "count": len(items),
+            "items": items,
+        }
+        _opportunities_cache_time = time.monotonic()
+        return _opportunities_cache
 
 
 def clean_html_tags(raw: str | None) -> str:
@@ -1029,7 +1262,7 @@ async def api_register(data: AuthRegisterRequest):
         "id": 1,
         "name": data.name,
         "email": data.email,
-        "role": data.role if data.role in ("student", "teacher") else "student",
+        "role": "student",
     }
     return {
         "message": "Registration successful.",

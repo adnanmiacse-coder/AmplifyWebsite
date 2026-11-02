@@ -1,14 +1,16 @@
-const OPPORTUNITIES_API = '/api/opportunities';
+const OPPORTUNITIES_APIS = ['/api/opportunities', '/ai/api/opportunities'];
+const OPPORTUNITY_TYPES = new Set(['job', 'scholarship', 'fellowship', 'research', 'grant']);
 
 const DEFAULT_OPPORTUNITIES = [
   {
-    title: 'Chevening Scholarships 2025/2026',
+    title: 'Chevening Scholarships',
     desc: 'UK government global scholarship programme offering full financial support for one-year master’s degrees at any UK university.',
     link: 'https://www.chevening.org/scholarships/',
     source: 'UK Foreign & Commonwealth Office',
     type: 'Scholarship',
     region: '🇬🇧 UK',
-    date: 'Applications Open'
+    date: '',
+    deadlineStatus: 'unknown'
   },
   {
     title: 'Fulbright Foreign Student Program',
@@ -17,7 +19,8 @@ const DEFAULT_OPPORTUNITIES = [
     source: 'US Department of State',
     type: 'Scholarship',
     region: '🇺🇸 USA',
-    date: 'Annual Cycle'
+    date: '',
+    deadlineStatus: 'unknown'
   },
   {
     title: 'DAAD Research Grants - Doctoral Programmes',
@@ -26,7 +29,8 @@ const DEFAULT_OPPORTUNITIES = [
     source: 'German Academic Exchange (DAAD)',
     type: 'Research',
     region: '🇪🇺 EU',
-    date: 'Rolling Deadlines'
+    date: '',
+    deadlineStatus: 'unknown'
   },
   {
     title: 'Gates Cambridge Scholarship',
@@ -35,7 +39,8 @@ const DEFAULT_OPPORTUNITIES = [
     source: 'University of Cambridge',
     type: 'Fellowship',
     region: '🇬🇧 UK',
-    date: 'Prestigious'
+    date: '',
+    deadlineStatus: 'unknown'
   },
   {
     title: 'Erasmus Mundus Joint Master Degrees (EMJM)',
@@ -44,7 +49,8 @@ const DEFAULT_OPPORTUNITIES = [
     source: 'European Commission',
     type: 'Scholarship',
     region: '🇪🇺 EU',
-    date: 'Multiple Fields'
+    date: '',
+    deadlineStatus: 'unknown'
   },
   {
     title: 'JSPS Postdoctoral Fellowships for Research in Japan',
@@ -53,7 +59,8 @@ const DEFAULT_OPPORTUNITIES = [
     source: 'Japan Society for the Promotion of Science',
     type: 'Research',
     region: '🇯🇵 Japan',
-    date: 'Global Applicants'
+    date: '',
+    deadlineStatus: 'unknown'
   },
   {
     title: 'Swiss Government Excellence Scholarships',
@@ -62,7 +69,8 @@ const DEFAULT_OPPORTUNITIES = [
     source: 'Federal Commission for Scholarships (FCS)',
     type: 'Fellowship',
     region: '🇪🇺 EU',
-    date: 'Research/PhD'
+    date: '',
+    deadlineStatus: 'unknown'
   },
   {
     title: 'Australia Awards Scholarships',
@@ -71,7 +79,8 @@ const DEFAULT_OPPORTUNITIES = [
     source: 'Australian Government DFAT',
     type: 'Scholarship',
     region: '🇦🇺 Australia',
-    date: 'Full Funding'
+    date: '',
+    deadlineStatus: 'unknown'
   },
   {
     title: 'MEXT Japanese Government Scholarships',
@@ -80,7 +89,8 @@ const DEFAULT_OPPORTUNITIES = [
     source: 'Ministry of Education Japan (MEXT)',
     type: 'Scholarship',
     region: '🇯🇵 Japan',
-    date: 'Embassy Track'
+    date: '',
+    deadlineStatus: 'unknown'
   },
   {
     title: 'Rhodes Scholarship at Oxford',
@@ -89,7 +99,8 @@ const DEFAULT_OPPORTUNITIES = [
     source: 'Rhodes Trust',
     type: 'Fellowship',
     region: '🇬🇧 UK',
-    date: 'Postgraduate'
+    date: '',
+    deadlineStatus: 'unknown'
   },
   {
     title: 'Commonwealth Scholarships',
@@ -98,7 +109,8 @@ const DEFAULT_OPPORTUNITIES = [
     source: 'Commonwealth Scholarship Commission',
     type: 'Scholarship',
     region: '🇬🇧 UK',
-    date: 'Annual Cycle'
+    date: '',
+    deadlineStatus: 'unknown'
   },
   {
     title: 'Swedish Institute Scholarships for Global Professionals',
@@ -107,33 +119,111 @@ const DEFAULT_OPPORTUNITIES = [
     source: 'Swedish Institute (SI)',
     type: 'Scholarship',
     region: '🇪🇺 EU',
-    date: 'Global Professionals'
+    date: '',
+    deadlineStatus: 'unknown'
   }
 ];
 
-let allOpportunities = [...DEFAULT_OPPORTUNITIES];
+function normalizeOpportunities(items) {
+  if (!Array.isArray(items)) return [];
+
+  const seen = new Set();
+  return items.reduce((validItems, item) => {
+    if (!item || typeof item !== 'object') return validItems;
+
+    const title = typeof item.title === 'string' ? item.title.trim() : '';
+    const desc = typeof item.desc === 'string' ? item.desc.trim() : '';
+    const source = typeof item.source === 'string' ? item.source.trim() : '';
+    const type = typeof item.type === 'string' ? item.type.trim() : '';
+    const region = typeof item.region === 'string' && item.region.trim()
+      ? item.region.trim()
+      : 'Not listed';
+    const link = typeof item.link === 'string' ? item.link.trim() : '';
+
+    let url;
+    try {
+      url = new URL(link);
+    } catch {
+      return validItems;
+    }
+    if (
+      !title ||
+      !desc ||
+      !source ||
+      !OPPORTUNITY_TYPES.has(type.toLowerCase()) ||
+      !['http:', 'https:'].includes(url.protocol) ||
+      url.username ||
+      url.password
+    ) {
+      return validItems;
+    }
+
+    const date = typeof item.date === 'string' ? item.date.trim() : '';
+    const requestedDeadlineStatus = typeof item.deadlineStatus === 'string'
+      ? item.deadlineStatus.toLowerCase()
+      : 'unknown';
+    let deadlineStatus = ['rolling', 'confirmed'].includes(requestedDeadlineStatus)
+      ? requestedDeadlineStatus
+      : 'unknown';
+
+    const deadlineTimestamp = Date.parse(`${date}T00:00:00Z`);
+    if (
+      deadlineStatus === 'confirmed' &&
+      (
+        !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+        Number.isNaN(deadlineTimestamp) ||
+        new Date(deadlineTimestamp).toISOString().slice(0, 10) !== date
+      )
+    ) {
+      deadlineStatus = 'unknown';
+    }
+    if (
+      deadlineStatus === 'confirmed' &&
+      Date.parse(`${date}T23:59:59Z`) < Date.now()
+    ) {
+      return validItems;
+    }
+
+    const key = `${url.origin}${url.pathname.replace(/\/+$/, '')}`.toLowerCase();
+    if (seen.has(key)) return validItems;
+    seen.add(key);
+    validItems.push({
+      title,
+      desc,
+      source,
+      type,
+      region,
+      link: url.href,
+      date: deadlineStatus === 'confirmed' ? date : '',
+      deadlineStatus
+    });
+    return validItems;
+  }, []);
+}
+
+let allOpportunities = normalizeOpportunities(DEFAULT_OPPORTUNITIES);
 let activeFilter = 'ALL';
+let opportunityFeedStatus = 'loading';
 
 function isCurrentLangBn() {
   const htmlLang = document.documentElement.lang;
   return htmlLang === 'bn' || localStorage.getItem('amplify_language') === 'bn';
 }
 
-function updateStatusText(count, isLive = true) {
+function updateStatusText(count, status = opportunityFeedStatus) {
   const statusEl = document.getElementById('oppStatus');
-  const countEl  = document.getElementById('oppCount');
+  const countEl = document.getElementById('oppCount');
   const isBn = isCurrentLangBn();
 
   if (statusEl) {
-    if (isLive) {
-      statusEl.textContent = isBn ? 'সরাসরি সুযোগ প্রদর্শিত হচ্ছে' : 'Showing opportunities from live feed';
-    } else {
-      statusEl.textContent = isBn ? 'আন্তর্জাতিক সুযোগসমূহ প্রদর্শিত হচ্ছে' : 'Showing verified opportunities';
-    }
+    statusEl.textContent = status === 'loading'
+      ? (isBn ? 'সুযোগ খোঁজা হচ্ছে...' : 'Loading public opportunities...')
+      : status === 'live'
+        ? (isBn ? 'লাইভ ফিড থেকে সুযোগ দেখানো হচ্ছে' : 'Showing opportunities from live feeds')
+        : (isBn ? 'লাইভ ফিড অনুপলব্ধ — সংরক্ষিত সুযোগ দেখানো হচ্ছে; আবেদনের সময়সীমা যাচাই করুন' : 'Live feeds unavailable — showing saved programs; verify current deadlines');
   }
-
   if (countEl) {
-    countEl.textContent = isBn ? `${count}টি পাওয়া গেছে` : `${count} verified opportunities`;
+    countEl.textContent = isBn ? `${count}টি পাওয়া গেছে` : `${count} opportunities`;
   }
 }
 
@@ -141,86 +231,149 @@ async function loadOpportunities() {
   const grid = document.getElementById('oppGrid');
   if (!grid) return;
 
-  // Render immediately so user sees verified results with 0 delay
   renderOpportunities();
-  updateStatusText(allOpportunities.length, false);
+  opportunityFeedStatus = 'loading';
+  updateStatusText(allOpportunities.length);
 
-  // Try fetching API silently
   try {
-    const res = await fetch(OPPORTUNITIES_API, { 
-      cache: 'no-store',
-      headers: { 'Accept': 'application/json' }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.items) && data.items.length > 0) {
-        allOpportunities = data.items;
-        renderOpportunities();
-        updateStatusText(allOpportunities.length, true);
+    let data;
+    let opportunities;
+    let lastError;
+    for (const endpoint of OPPORTUNITIES_APIS) {
+      try {
+        const response = await fetch(endpoint, {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' }
+        });
+        if (!response.ok) throw new Error(`Opportunity feed returned ${response.status}`);
+        if (!response.headers.get('content-type')?.includes('application/json')) {
+          throw new Error('Opportunity endpoint did not return JSON');
+        }
+
+        data = await response.json();
+        opportunities = normalizeOpportunities(data.items);
+        if (opportunities.length === 0) {
+          throw new Error('Opportunity feed contained no valid listings');
+        }
+        break;
+      } catch (error) {
+        lastError = error;
       }
     }
-  } catch (err) {
-    // Graceful fallback to verified built-in dataset
+    if (!opportunities) throw lastError || new Error('No opportunity endpoint responded');
+
+    allOpportunities = opportunities;
+    opportunityFeedStatus = data.status === 'fallback' ? 'fallback' : 'live';
+    renderOpportunities();
+    updateStatusText(allOpportunities.length);
+  } catch (error) {
+    console.warn('Unable to load live opportunities; keeping saved fallback data.', error);
+    opportunityFeedStatus = 'fallback';
+    updateStatusText(allOpportunities.length);
   }
 }
 
 function setOppFilter(type, btn) {
   activeFilter = type;
-  document.querySelectorAll('.opp-filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.opp-filter-btn').forEach(button => button.classList.remove('active'));
   if (btn) btn.classList.add('active');
   renderOpportunities();
 }
 
+function createTextElement(tagName, className, text) {
+  const element = document.createElement(tagName);
+  element.className = className;
+  element.textContent = text;
+  return element;
+}
+
+function getDeadlineLabel(opportunity, isBn) {
+  if (opportunity.deadlineStatus === 'rolling') {
+    return isBn ? 'আবেদন চলমান' : 'Rolling deadline';
+  }
+  if (opportunity.deadlineStatus === 'confirmed' && opportunity.date) {
+    return isBn ? `শেষ তারিখ: ${opportunity.date}` : `Deadline: ${opportunity.date}`;
+  }
+  return isBn ? 'আবেদনের শেষ তারিখ উল্লেখ নেই' : 'Deadline not listed';
+}
+
 function renderOpportunities() {
-  const searchInput = document.getElementById('oppSearch');
-  const query = (searchInput?.value || '').trim().toLowerCase();
-
-  const filtered = allOpportunities.filter(o => {
-    const typeOk = activeFilter === 'ALL' || o.type.toLowerCase() === activeFilter.toLowerCase();
-    const searchOk = !query || 
-      o.title.toLowerCase().includes(query) || 
-      (o.source && o.source.toLowerCase().includes(query)) || 
-      (o.region && o.region.toLowerCase().includes(query)) ||
-      (o.desc && o.desc.toLowerCase().includes(query));
-    return typeOk && searchOk;
-  });
-
   const grid = document.getElementById('oppGrid');
   if (!grid) return;
 
+  const query = (document.getElementById('oppSearch')?.value || '').trim().toLowerCase();
+  const filtered = allOpportunities.filter(opportunity => {
+    const typeMatches = activeFilter === 'ALL' ||
+      opportunity.type.toLowerCase() === activeFilter.toLowerCase();
+    const searchMatches = !query || [
+      opportunity.title,
+      opportunity.source,
+      opportunity.region,
+      opportunity.desc
+    ].some(value => value.toLowerCase().includes(query));
+    return typeMatches && searchMatches;
+  });
+
   if (filtered.length === 0) {
     const isBn = isCurrentLangBn();
-    grid.innerHTML = `<div class="opp-no-results">${isBn ? 'কোনো সুযোগ পাওয়া যায়নি। অন্য ফিল্টার ব্যবহার করে দেখুন।' : 'No opportunities found. Try a different filter or search term.'}</div>`;
+    grid.replaceChildren(createTextElement(
+      'div',
+      'opp-no-results',
+      isBn ? 'কোনো সুযোগ পাওয়া যায়নি। অন্য ফিল্টার ব্যবহার করে দেখুন।' : 'No opportunities found. Try a different filter or search term.'
+    ));
     return;
   }
 
-  const typeClass = { 
-    scholarship: 'opp-type-scholarship', 
-    research: 'opp-type-research', 
-    fellowship: 'opp-type-fellowship' 
+  const typeClass = {
+    job: 'opp-type-job',
+    scholarship: 'opp-type-scholarship',
+    research: 'opp-type-research',
+    fellowship: 'opp-type-fellowship',
+    grant: 'opp-type-scholarship'
   };
-
+  const typeLabelBn = {
+    job: 'চাকরি',
+    scholarship: 'বৃত্তি',
+    research: 'গবেষণা',
+    fellowship: 'ফেলোশিপ',
+    grant: 'অনুদান'
+  };
   const isBn = isCurrentLangBn();
   const viewText = isBn ? 'বিস্তারিত দেখুন →' : 'View Details →';
+  const cards = filtered.map(opportunity => {
+    const card = document.createElement('article');
+    card.className = 'card opp-card';
 
-  grid.innerHTML = filtered.map(o => {
-    const tLower = (o.type || 'Scholarship').toLowerCase();
-    const badgeClass = typeClass[tLower] || 'opp-type-scholarship';
-    const typeLabel = isBn ? (tLower === 'research' ? 'গবেষণা' : tLower === 'fellowship' ? 'ফেলোশিপ' : 'বৃত্তি') : o.type;
+    card.append(
+      createTextElement(
+        'span',
+        `opp-card-type ${typeClass[opportunity.type.toLowerCase()]}`,
+        isBn ? typeLabelBn[opportunity.type.toLowerCase()] : opportunity.type
+      ),
+      createTextElement('div', 'opp-card-title', opportunity.title),
+      createTextElement(
+        'div',
+        'opp-card-source',
+        `${isBn ? 'উৎস' : 'Source'}: ${opportunity.source} · ${getDeadlineLabel(opportunity, isBn)}`
+      ),
+      createTextElement('div', 'opp-card-desc', opportunity.desc)
+    );
 
-    return `
-      <div class="card opp-card">
-        <span class="opp-card-type ${badgeClass}">${typeLabel}</span>
-        <div class="opp-card-title">${o.title}</div>
-        <div class="opp-card-source">${o.source} ${o.date ? '· ' + o.date : ''}</div>
-        <div class="opp-card-desc">${o.desc}</div>
-        <div class="opp-card-footer">
-          <span class="opp-card-region">${o.region || '🌍 International'}</span>
-          <a href="${o.link}" target="_blank" rel="noopener noreferrer" class="opp-card-link">${viewText}</a>
-        </div>
-      </div>
-    `;
-  }).join('');
+    const footer = document.createElement('div');
+    footer.className = 'opp-card-footer';
+    footer.appendChild(createTextElement('span', 'opp-card-region', opportunity.region));
+
+    const link = document.createElement('a');
+    link.href = opportunity.link;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.className = 'opp-card-link';
+    link.textContent = viewText;
+    footer.appendChild(link);
+    card.appendChild(footer);
+    return card;
+  });
+  grid.replaceChildren(...cards);
 }
 
 window.setOppFilter        = setOppFilter;
@@ -235,5 +388,5 @@ if (document.readyState === 'loading') {
 
 window.addEventListener('amplify-lang-change', () => {
   renderOpportunities();
-  updateStatusText(allOpportunities.length, true);
+  updateStatusText(allOpportunities.length);
 });

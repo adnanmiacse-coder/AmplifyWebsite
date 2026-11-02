@@ -25,14 +25,24 @@
       return localStorage.getItem('amplify_token');
     },
     user() {
-      try { return JSON.parse(localStorage.getItem('amplify_user')); }
+      try {
+        const user = JSON.parse(localStorage.getItem('amplify_user'));
+        if (user) return user;
+      }
       catch { return null; }
+      return this.isGuest()
+        ? { id: 'guest', name: 'Guest', email: '', role: 'student', guest: true }
+        : null;
+    },
+    isGuest() {
+      return sessionStorage.getItem('amplify_guest') === 'true';
     },
     clear() {
       localStorage.removeItem('amplify_token');
       localStorage.removeItem('amplify_user');
+      sessionStorage.removeItem('amplify_guest');
     },
-    isLoggedIn() { return !!this.token(); },
+    isLoggedIn() { return !!this.token() || this.isGuest(); },
   };
 
   // ── Determine current portal ───────────────────────────────────────────
@@ -138,24 +148,6 @@
       }
       .am-field select option { background: #1a1a2a; color: #fff; }
 
-      .am-role-row {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
-      }
-      .am-role-btn {
-        border: 1.5px solid rgba(255,255,255,0.1);
-        border-radius: 14px; background: rgba(255,255,255,0.04);
-        padding: 14px 10px; cursor: pointer; transition: all 0.2s ease;
-        text-align: center; font-family: inherit; color: #888;
-      }
-      .am-role-btn .role-icon { font-size: 24px; margin-bottom: 6px; display: block; }
-      .am-role-btn .role-label { font-size: 13px; font-weight: 600; display: block; }
-      .am-role-btn .role-desc  { font-size: 11px; color: #555; margin-top: 2px; display: block; }
-      .am-role-btn.selected {
-        border-color: rgba(0,255,136,0.6);
-        background: rgba(0,255,136,0.08);
-        color: #fff;
-      }
-
       .am-submit {
         width: 100%; padding: 14px;
         border-radius: 999px; border: none; cursor: pointer;
@@ -166,6 +158,16 @@
       }
       .am-submit:hover { opacity: 0.9; transform: translateY(-2px); }
       .am-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+      .am-guest {
+        width: 100%; padding: 12px;
+        border-radius: 999px; border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.04); color: #aaa;
+        cursor: pointer; font-size: 13px; font-weight: 600;
+        font-family: inherit; margin-top: 12px;
+        transition: border-color 0.2s, color 0.2s, background 0.2s;
+      }
+      .am-guest:hover { border-color: rgba(0,255,136,0.45); color: #fff; background: rgba(0,255,136,0.06); }
 
       .am-error {
         background: rgba(255,80,80,0.12); border: 1px solid rgba(255,80,80,0.3);
@@ -189,7 +191,7 @@
     overlay.innerHTML = `
       <div id="amplify-auth-box">
         <div class="am-logo">Amplify</div>
-        <div class="am-subtitle">Your Student & Educator Platform</div>
+        <div class="am-subtitle">Your Student Learning Platform</div>
 
         <div class="am-tabs">
           <button class="am-tab active" id="amTabLogin"  onclick="amplifyAuthSwitchTab('login')">Sign In</button>
@@ -211,6 +213,9 @@
           <button class="am-submit" id="amLoginBtn" onclick="amplifyAuthLogin()">
             Sign In →
           </button>
+          <button class="am-guest" type="button" onclick="amplifyAuthGuest()">
+            Guest Mode (for Hackathon)
+          </button>
         </div>
 
         <!-- REGISTER FORM -->
@@ -230,23 +235,6 @@
           <div class="am-field">
             <label>Confirm Password</label>
             <input type="password" id="amRegPasswordConfirm" placeholder="••••••••" />
-          </div>
-
-          <label style="display:block;font-size:12px;font-weight:600;color:#888;
-                        text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">
-            I am a...
-          </label>
-          <div class="am-role-row" id="amRoleRow">
-            <div class="am-role-btn" id="amRoleStudent" onclick="amplifyAuthSelectRole('student')">
-              <span class="role-icon">🎓</span>
-              <span class="role-label">Student</span>
-              <span class="role-desc">Access study tools</span>
-            </div>
-            <div class="am-role-btn" id="amRoleTeacher" onclick="amplifyAuthSelectRole('teacher')">
-              <span class="role-icon">👩‍🏫</span>
-              <span class="role-label">Educator</span>
-              <span class="role-desc">Manage your class</span>
-            </div>
           </div>
 
           <button class="am-submit" id="amRegBtn" onclick="amplifyAuthRegister()">
@@ -277,14 +265,6 @@
     }
   };
 
-  // ── Role selection ─────────────────────────────────────────────────────
-  let selectedRole = null;
-  window.amplifyAuthSelectRole = function (role) {
-    selectedRole = role;
-    document.getElementById('amRoleStudent').classList.toggle('selected', role === 'student');
-    document.getElementById('amRoleTeacher').classList.toggle('selected', role === 'teacher');
-  };
-
   // ── Show error ─────────────────────────────────────────────────────────
   function showError(msg) {
     const el = document.getElementById('amErrorBox');
@@ -309,6 +289,13 @@
       setTimeout(() => overlay.remove(), 300);
     }
   }
+
+  window.amplifyAuthGuest = function () {
+    Auth.clear();
+    sessionStorage.setItem('amplify_guest', 'true');
+    dismissModal();
+    redirectByRole('student');
+  };
 
   // ── Login ──────────────────────────────────────────────────────────────
   window.amplifyAuthLogin = async function () {
@@ -343,7 +330,6 @@
     const btn               = document.getElementById('amRegBtn');
 
     if (!name || !email || !password || !passwordConfirm) return showError('Please fill in all fields.');
-    if (!selectedRole) return showError('Please select whether you are a Student or Educator.');
     if (password !== passwordConfirm) return showError('Passwords do not match.');
     if (password.length < 8) return showError('Password must be at least 8 characters.');
 
@@ -356,7 +342,7 @@
         email,
         password,
         password_confirmation: passwordConfirm,
-        role: selectedRole,
+        role: 'student',
       });
       Auth.save(data.token, data.user);
       dismissModal();
@@ -381,13 +367,15 @@
     // Expose logout globally so you can call amplifyLogout() from anywhere
     window.amplifyLogout = async function () {
       try {
-        await fetch(API_BASE + '/logout', {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer ' + Auth.token(),
-            Accept: 'application/json',
-          },
-        });
+        if (Auth.token()) {
+          await fetch(API_BASE + '/logout', {
+            method: 'POST',
+            headers: {
+              Authorization: 'Bearer ' + Auth.token(),
+              Accept: 'application/json',
+            },
+          });
+        }
       } catch (_) {}
       Auth.clear();
       window.location.replace('/');
