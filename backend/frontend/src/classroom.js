@@ -27,10 +27,21 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 const OPENROUTER_MODELS = ['openrouter/free'];
-// ── Groq (primary chat + Whisper STT + Vision OCR) ──
+// ── Groq & OpenRouter Models ──
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
-const VISION_MODEL       = 'qwen/qwen3.6-27b';
+const VISION_MODEL       = 'llama-3.2-11b-vision-preview';
+const GROQ_VISION_MODELS = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
+const OPENROUTER_VISION_MODELS = [
+  'openrouter/free',
+  'meta-llama/llama-3.2-11b-vision-instruct:free',
+  'qwen/qwen-2.5-vl-72b-instruct:free',
+  'google/gemini-2.0-flash-lite-001',
+  'qwen/qwen-2.5-72b-instruct'
+];
 const GROQ_MODELS = [
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'mixtral-8x7b-32768',
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
   'qwen/qwen3.8-27b',
@@ -628,50 +639,111 @@ async function drainOCRQueue() {
 }
 
 async function groqVisionOCR(base64Img, pageNum) {
-  console.log('[OCR] using model:', VISION_MODEL);
+  console.log(`[OCR] Starting vision extraction for page ${pageNum}…`);
   const ocrKeys = [...groqKeys()];
 
-  if (!ocrKeys.length) {
-    console.error('[OCR] No Groq API keys configured. Set GROQ_KEYS.');
-    return '';
-  }
-
-  for (let ki = 0; ki < ocrKeys.length; ki++) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const res = await fetch(`${groqBase()}/chat/completions`, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ocrKeys[ki]}` },
-          body: JSON.stringify({
-            model: VISION_MODEL, max_completion_tokens: 2048,
-            messages: [{ role: 'user', content: [
-              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
-              { type: 'text', text: 'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.' }
-            ]}],
-          }),
-        });
-        if (res.status === 429) {
-          const wait = (ki + 1) * (attempt + 1) * 3000;
-          console.warn(`[OCR] 429 key:${ki+1} attempt:${attempt+1}, waiting ${wait}ms`);
-          await sleep(wait);
-          continue;
+  // 1. Try Groq Vision models first if Groq keys exist
+  if (ocrKeys.length > 0) {
+    for (const model of GROQ_VISION_MODELS) {
+      for (let ki = 0; ki < ocrKeys.length; ki++) {
+        try {
+          const res = await fetch(`${groqBase()}/chat/completions`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ocrKeys[ki]}` },
+            body: JSON.stringify({
+              model,
+              max_tokens: 2048,
+              messages: [{ role: 'user', content: [
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
+                { type: 'text', text: 'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.' }
+              ]}],
+            }),
+          });
+          if (res.status === 429) {
+            await sleep(1500);
+            continue;
+          }
+          if (res.status === 404) {
+            // Groq vision model not available on this endpoint/key, move to OpenRouter
+            break;
+          }
+          if (!res.ok) continue;
+          const d = await res.json();
+          const text = d.choices?.[0]?.message?.content || '';
+          if (text.trim()) {
+            console.log(`[OCR] Groq vision (${model}) succeeded for page ${pageNum}`);
+            return text.trim();
+          }
+        } catch (e) {
+          console.warn(`[OCR] Groq vision key ${ki + 1} (${model}):`, e.message);
         }
-        if (!res.ok) {
-          const errBody = await res.text().catch(() => '');
-          console.warn(`[OCR] Groq key ${ki + 1} error ${res.status}: ${errBody.slice(0, 240)}`);
-          break;
-        }
-        const d = await res.json();
-        const text = d.choices?.[0]?.message?.content || '';
-        if (text.trim()) return text;
-      } catch (e) {
-        console.warn(`[OCR] key ${ki+1} attempt ${attempt+1}: ${e.message}`);
-        await sleep(2000);
       }
     }
   }
 
-  console.error(`[OCR] Groq failed for page ${pageNum}, falling back to native text extraction`);
+  // 2. OpenRouter Vision fallback (rotates over active OpenRouter keys)
+  const orKeys = openRouterKeys();
+  if (orKeys.length > 0) {
+    console.log(`[OCR] Trying OpenRouter vision for page ${pageNum} (${orKeys.length} keys)`);
+    for (const model of OPENROUTER_VISION_MODELS) {
+      for (let i = 0; i < orKeys.length; i++) {
+        try {
+          const res = await fetch(`${openRouterBase()}/chat/completions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${orKeys[i]}`,
+              'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'http://localhost',
+              'X-Title': 'Amplify Classroom OCR',
+            },
+            body: JSON.stringify({
+              model,
+              max_tokens: 2048,
+              messages: [{
+                role: 'user',
+                content: [
+                  { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
+                  { type: 'text', text: 'Transcribe ALL text visible on this page exactly as it appears. Output only the raw text, preserving structure. No commentary or explanations.' }
+                ]
+              }]
+            })
+          });
+          if (res.status === 429) {
+            await sleep(1000);
+            continue;
+          }
+          if (res.status === 404) break;
+          if (!res.ok) continue;
+          const d = await res.json();
+          const text = d.choices?.[0]?.message?.content || '';
+          if (text.trim()) {
+            console.log(`[OCR] OpenRouter vision (${model}) succeeded for page ${pageNum}`);
+            return text.trim();
+          }
+        } catch (e) {
+          console.warn(`[OCR] OpenRouter vision (${model}) key ${i + 1}:`, e.message);
+        }
+      }
+    }
+  }
+
+  // 3. Client-side Tesseract.js fallback if available
+  if (typeof globalThis.Tesseract !== 'undefined' && globalThis.Tesseract.recognize) {
+    try {
+      console.log(`[OCR] Falling back to client-side Tesseract for page ${pageNum}`);
+      const dataUri = `data:image/jpeg;base64,${base64Img}`;
+      const res = await globalThis.Tesseract.recognize(dataUri, 'eng+ben');
+      const text = res?.data?.text || '';
+      if (text.trim()) {
+        console.log(`[OCR] Tesseract succeeded for page ${pageNum}`);
+        return text.trim();
+      }
+    } catch (tErr) {
+      console.warn(`[OCR] Tesseract fallback failed for page ${pageNum}:`, tErr.message);
+    }
+  }
+
+  console.error(`[OCR] All OCR providers failed for page ${pageNum}, falling back to native text extraction`);
   return '';
 }
 

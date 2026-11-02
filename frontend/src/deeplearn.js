@@ -31,8 +31,10 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 const OPENROUTER_MODELS = ['openrouter/free'];
-const GROQ_MODELS        = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b'];
-const VISION_MODEL       = 'qwen/qwen3.6-27b';
+const GROQ_MODELS        = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b'];
+const VISION_MODEL       = 'llama-3.2-11b-vision-preview';
+const GROQ_VISION_MODELS = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
+const OPENROUTER_VISION_MODELS = ['openrouter/free', 'meta-llama/llama-3.2-11b-vision-instruct:free', 'qwen/qwen-2.5-vl-72b-instruct:free', 'google/gemini-2.0-flash-lite-001', 'qwen/qwen-2.5-72b-instruct'];
 
 // ── Expert Config ──────────────────────────────
 const MODEL_FALLBACK = 'openai/gpt-oss-120b';
@@ -167,25 +169,67 @@ async function detectPDFMode(doc) {
 }
 
 async function groqVisionOCR(base64Img, pageNum) {
-  for (let ki = 0; ki < groqKeys().length; ki++) {
-    try {
-      const res = await fetch(`${groqBase()}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKeys()[ki]}` },
-        body: JSON.stringify({
-          model: VISION_MODEL, max_tokens: 2048,
-          messages: [{ role: 'user', content: [
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
-            { type: 'text', text: 'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.' }
-          ]}],
-        }),
-      });
-      if (res.status === 429) { await sleep(4000); continue; }
-      if (!res.ok) continue;
-      const d = await res.json();
-      return d.choices?.[0]?.message?.content || '';
-    } catch (e) { console.warn(`[OCR] key ${ki+1}: ${e.message}`); }
+  // 1. Try Groq Vision first
+  const gKeys = groqKeys();
+  if (gKeys.length > 0) {
+    for (const model of GROQ_VISION_MODELS) {
+      for (let ki = 0; ki < gKeys.length; ki++) {
+        try {
+          const res = await fetch(`${groqBase()}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${gKeys[ki]}` },
+            body: JSON.stringify({
+              model, max_tokens: 2048,
+              messages: [{ role: 'user', content: [
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
+                { type: 'text', text: 'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.' }
+              ]}],
+            }),
+          });
+          if (res.status === 429) { await sleep(1500); continue; }
+          if (res.status === 404) break;
+          if (!res.ok) continue;
+          const d = await res.json();
+          const text = d.choices?.[0]?.message?.content || '';
+          if (text.trim()) return text.trim();
+        } catch (e) { console.warn(`[OCR Groq] key ${ki+1} (${model}):`, e.message); }
+      }
+    }
   }
+
+  // 2. OpenRouter Vision fallback
+  const orKeys = openRouterKeys();
+  if (orKeys.length > 0) {
+    for (const model of OPENROUTER_VISION_MODELS) {
+      for (let i = 0; i < orKeys.length; i++) {
+        try {
+          const res = await fetch(`${openRouterBase()}/chat/completions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${orKeys[i]}`,
+              'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'http://localhost',
+              'X-Title': 'Amplify DeepLearn OCR',
+            },
+            body: JSON.stringify({
+              model, max_tokens: 2048,
+              messages: [{ role: 'user', content: [
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
+                { type: 'text', text: 'Transcribe ALL text visible on this page exactly as it appears. Output only the raw text, preserving structure. No commentary or explanations.' }
+              ]}],
+            }),
+          });
+          if (res.status === 429) { await sleep(1000); continue; }
+          if (res.status === 404) break;
+          if (!res.ok) continue;
+          const d = await res.json();
+          const text = d.choices?.[0]?.message?.content || '';
+          if (text.trim()) return text.trim();
+        } catch (e) { console.warn(`[OCR OpenRouter] key ${i+1} (${model}):`, e.message); }
+      }
+    }
+  }
+
   return '';
 }
 

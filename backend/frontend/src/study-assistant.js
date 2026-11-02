@@ -1,13 +1,13 @@
-import { loadEnvConfig, getGroqKeys, getGroqBase, getViteEnv } from './env-config.js';
+import { loadEnvConfig, getGroqKeys, getOpenRouterKeys, getGroqBase, getOpenRouterBase, getViteEnv } from './env-config.js';
 
 let _config = {};
 const _env = getViteEnv();
 loadEnvConfig().then(cfg => { _config = cfg; });
 
 function groqKeys() { return getGroqKeys(_config, _env); }
+function openRouterKeys() { return getOpenRouterKeys(_config, _env); }
 function groqBase() { return getGroqBase(_config, _env); }
-
-const NUMERIC_FORMAT_INSTRUCTION =
+function openRouterBase() { return getOpenRouterBase(_config, _env); }const NUMERIC_FORMAT_INSTRUCTION =
   'CRITICAL NUMERIC FORMATTING RULE: Do not ever mention or use any fractional digits or fraction notation (such as 1/2, 3/4, or fractions). If a fractional digit appears, ensure it is converted to and written as a decimal number (for example, write 1/2 as 0.5, 3/4 as 0.75, 1/4 as 0.25). Never output fractions or fractional digits; express all fractional values strictly as decimal numbers throughout your response.';
 
 /**
@@ -17,7 +17,15 @@ async function felcloudChatCompletion(messages, { tier = 'compact', maxTokens = 
   await loadEnvConfig().then(cfg => { _config = cfg; });
 
   const isFast = tier === 'compact';
-  const gModels = isFast ? ['openai/gpt-oss-20b', 'qwen/qwen3.6-27b'] : ['openai/gpt-oss-120b', 'qwen/qwen3.6-27b', 'llama-3.3-70b-versatile'];
+  // Standard Groq models that are reliably available
+  const gModels = isFast
+    ? ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile']
+    : ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+
+  // OpenRouter fallback models (using rotated keys)
+  const orModels = isFast
+    ? ['openrouter/free', 'google/gemini-2.0-flash-lite-001']
+    : ['openrouter/free', 'google/gemini-2.0-flash-001', 'qwen/qwen-2.5-72b-instruct'];
 
   const systemMessage = {
     role: 'system',
@@ -26,7 +34,7 @@ async function felcloudChatCompletion(messages, { tier = 'compact', maxTokens = 
 
   const finalMessages = [systemMessage, ...messages];
 
-  // Try Groq first
+  // 1. Try Groq first
   const gKeys = groqKeys();
   if (gKeys.length > 0) {
     for (const model of gModels) {
@@ -51,6 +59,9 @@ async function felcloudChatCompletion(messages, { tier = 'compact', maxTokens = 
             const reply = data.choices?.[0]?.message?.content?.trim();
             if (reply) return reply;
           }
+          if (res.status === 429) {
+            await new Promise(r => setTimeout(r, 400));
+          }
         } catch (err) {
           if (err.name === 'AbortError') throw err;
         }
@@ -58,7 +69,44 @@ async function felcloudChatCompletion(messages, { tier = 'compact', maxTokens = 
     }
   }
 
-  throw new Error('Groq AI is currently unavailable. Please try again shortly.');
+  // 2. Fallback to OpenRouter
+  const orKeys = openRouterKeys();
+  if (orKeys.length > 0) {
+    for (const model of orModels) {
+      for (let key of orKeys) {
+        try {
+          const res = await fetch(`${openRouterBase()}/chat/completions`, {
+            method: 'POST',
+            signal,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${key}`,
+              'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'http://localhost',
+              'X-Title': 'Amplify PDF Tutor',
+            },
+            body: JSON.stringify({
+              model,
+              messages: finalMessages,
+              max_tokens: maxTokens,
+              temperature,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const reply = data.choices?.[0]?.message?.content?.trim();
+            if (reply) return reply;
+          }
+          if (res.status === 429) {
+            await new Promise(r => setTimeout(r, 400));
+          }
+        } catch (err) {
+          if (err.name === 'AbortError') throw err;
+        }
+      }
+    }
+  }
+
+  throw new Error('All AI providers are currently busy or unavailable. Please try again shortly.');
 }
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
