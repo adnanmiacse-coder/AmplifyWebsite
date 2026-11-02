@@ -732,13 +732,9 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 
 ## 🙏 Acknowledgments
 
-- Built with ❤️ for education in Bangladesh
-- Featured in: Aspire Institute, Dhaka Tribune, Prothom Alo, The Business Standard
-- Special thanks to all educators and students using Amplify
-
+- Thanks to YUNnet presents AIgnite powered by Ostad
 ---
 
-**Last Updated:** September 2, 2025  
 **Version:** 1.0.0  
 **Maintainer:** Amplify Development Team
 
