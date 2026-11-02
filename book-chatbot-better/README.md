@@ -14,7 +14,7 @@ license: mit
 
 A retrieval-augmented generation (RAG) assistant for questions grounded in NCTB Class 11–12 English, Bangla, and ICT textbooks. It retrieves passages from the selected book before asking a language model to answer, instead of relying on the model's general knowledge alone.
 
-This project was built for the Amplify hackathon project. It includes a hosted/API-powered Gradio app and a separate local app that can run inference through Ollama.
+The project includes a hosted/API-powered Gradio app and a separate local app that can run inference through Ollama.
 
 ## What the project does
 
@@ -177,14 +177,6 @@ book-chatbot-better/
 ```
 
 `app_offline.py` additionally needs `langchain-huggingface`, `fpdf`, and `ollama`, installed by the commands above. Conversation history is generated locally when the application runs; do not publish personal conversations or API keys.
-
-## Hackathon demo checklist
-
-1. Select English, Bangla, or ICT.
-2. Ask a question that can be answered from the selected textbook.
-3. Show the retrieved-context-first RAG flow and the answer's textbook-only instruction.
-4. For the local demo, show that the same FAISS index can be queried with an Ollama model.
-5. Demonstrate voice input, saved history, text export, or revision PDF as available.
 
 ## License and acknowledgments
 

@@ -733,7 +733,6 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 ## 🙏 Acknowledgments
 
 - Built with ❤️ for education in Bangladesh
-- Supported by: Banglalink, Applink Store, hSenid Mobile, AceIT
 - Featured in: Aspire Institute, Dhaka Tribune, Prothom Alo, The Business Standard
 - Special thanks to all educators and students using Amplify
 
@@ -819,13 +818,13 @@ flowchart TB
    AWS --> FS[JSON and text file storage]
    F --> T[Third-party services]
    T --> LL[Llama API]
-   T --> AP[Applink SMS and subscription APIs]
+   T --> AP[SMS and subscription APIs]
    T --> CAAS[CaaS billing and messaging API]
 ```
 
 The app follows a modular client-server architecture. Flutter provides the cross-platform UI, while Dart feature modules communicate with a custom PHP backend through RESTful HTTP requests. Provider coordinates shared application state, loading states, and feature-level updates. Content that is needed repeatedly is cached locally, allowing core learning experiences to remain available when connectivity is intermittent or unavailable.
 
-The backend is hosted on an AWS EC2 Ubuntu environment and uses local JSON/text storage for the app's server-side records. External services provide AI generation through the Llama API, OTP and SMS delivery through Applink, subscription operations through the Applink subscription service, and carrier billing or messaging through the CaaS API.
+The backend is hosted on an AWS EC2 Ubuntu environment and uses local JSON/text storage for the app's server-side records. External services provide AI generation through the Llama API, OTP and SMS delivery, subscription operations, and carrier billing or messaging through the CaaS API.
 
 ### Flutter technology stack
 
