@@ -30,14 +30,6 @@ const OPENROUTER_MODELS = ['openrouter/free'];
 // ── Groq & OpenRouter Models ──
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
 const VISION_MODEL       = 'llama-3.2-11b-vision-preview';
-const GROQ_VISION_MODELS = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
-const OPENROUTER_VISION_MODELS = [
-  'openrouter/free',
-  'meta-llama/llama-3.2-11b-vision-instruct:free',
-  'qwen/qwen-2.5-vl-72b-instruct:free',
-  'google/gemini-2.0-flash-lite-001',
-  'qwen/qwen-2.5-72b-instruct'
-];
 const GROQ_MODELS = [
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
@@ -609,135 +601,21 @@ async function groqJsonChat(messages, system, maxTokens = 600, temp = 0.3, agent
   return JSON.parse(match[0]);
 }
 
-// ── OCR via Groq Vision ───────────────────────
-const _ocrQueue = [];
-let _ocrRunning = false;
+// ── Local-only OCR fallback ───────────────────
+async function localOCR(page, pageNum) {
+  if (typeof globalThis.Tesseract?.recognize !== 'function') return '';
 
-async function queuedOCR(base64Img, pageNum) {
-  return new Promise((resolve, reject) => {
-    _ocrQueue.push({ base64Img, pageNum, resolve, reject });
-    if (!_ocrRunning) drainOCRQueue();
-  });
-}
-
-async function drainOCRQueue() {
-  _ocrRunning = true;
-  while (_ocrQueue.length > 0) {
-    const { base64Img, pageNum, resolve, reject } = _ocrQueue.shift();
-    try { resolve(await groqVisionOCR(base64Img, pageNum)); }
-    catch (e) { reject(e); }
-    if (_ocrQueue.length > 0) await sleep(4000);
+  try {
+    console.log(`[OCR] Using client-side Tesseract for page ${pageNum}`);
+    const dataUri = `data:image/jpeg;base64,${await pageToBase64(page)}`;
+    const result = await globalThis.Tesseract.recognize(dataUri, 'eng+ben');
+    const text = result?.data?.text || '';
+    if (text.trim()) console.log(`[OCR] Tesseract succeeded for page ${pageNum}`);
+    return text.trim();
+  } catch (error) {
+    console.warn(`[OCR] Tesseract failed for page ${pageNum}:`, error.message);
+    return '';
   }
-  _ocrRunning = false;
-}
-
-async function groqVisionOCR(base64Img, pageNum) {
-  console.log(`[OCR] Starting vision extraction for page ${pageNum}…`);
-  const ocrKeys = [...groqKeys()];
-
-  // 1. Try Groq Vision models first if Groq keys exist
-  if (ocrKeys.length > 0) {
-    for (const model of GROQ_VISION_MODELS) {
-      for (let ki = 0; ki < ocrKeys.length; ki++) {
-        try {
-          const res = await fetch(`${groqBase()}/chat/completions`, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ocrKeys[ki]}` },
-            body: JSON.stringify({
-              model,
-              max_tokens: 2048,
-              messages: [{ role: 'user', content: [
-                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
-                { type: 'text', text: 'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.' }
-              ]}],
-            }),
-          });
-          if (res.status === 429) {
-            await sleep(1500);
-            continue;
-          }
-          if (res.status === 404) {
-            // Groq vision model not available on this endpoint/key, move to OpenRouter
-            break;
-          }
-          if (!res.ok) continue;
-          const d = await res.json();
-          const text = d.choices?.[0]?.message?.content || '';
-          if (text.trim()) {
-            console.log(`[OCR] Groq vision (${model}) succeeded for page ${pageNum}`);
-            return text.trim();
-          }
-        } catch (e) {
-          console.warn(`[OCR] Groq vision key ${ki + 1} (${model}):`, e.message);
-        }
-      }
-    }
-  }
-
-  // 2. OpenRouter Vision fallback (rotates over active OpenRouter keys)
-  const orKeys = openRouterKeys();
-  if (orKeys.length > 0) {
-    console.log(`[OCR] Trying OpenRouter vision for page ${pageNum} (${orKeys.length} keys)`);
-    for (const model of OPENROUTER_VISION_MODELS) {
-      for (let i = 0; i < orKeys.length; i++) {
-        try {
-          const res = await fetch(`${openRouterBase()}/chat/completions`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${orKeys[i]}`,
-              'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'http://localhost',
-              'X-Title': 'Amplify Classroom OCR',
-            },
-            body: JSON.stringify({
-              model,
-              max_tokens: 2048,
-              messages: [{
-                role: 'user',
-                content: [
-                  { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
-                  { type: 'text', text: 'Transcribe ALL text visible on this page exactly as it appears. Output only the raw text, preserving structure. No commentary or explanations.' }
-                ]
-              }]
-            })
-          });
-          if (res.status === 429) {
-            await sleep(1000);
-            continue;
-          }
-          if (res.status === 404) break;
-          if (!res.ok) continue;
-          const d = await res.json();
-          const text = d.choices?.[0]?.message?.content || '';
-          if (text.trim()) {
-            console.log(`[OCR] OpenRouter vision (${model}) succeeded for page ${pageNum}`);
-            return text.trim();
-          }
-        } catch (e) {
-          console.warn(`[OCR] OpenRouter vision (${model}) key ${i + 1}:`, e.message);
-        }
-      }
-    }
-  }
-
-  // 3. Client-side Tesseract.js fallback if available
-  if (typeof globalThis.Tesseract !== 'undefined' && globalThis.Tesseract.recognize) {
-    try {
-      console.log(`[OCR] Falling back to client-side Tesseract for page ${pageNum}`);
-      const dataUri = `data:image/jpeg;base64,${base64Img}`;
-      const res = await globalThis.Tesseract.recognize(dataUri, 'eng+ben');
-      const text = res?.data?.text || '';
-      if (text.trim()) {
-        console.log(`[OCR] Tesseract succeeded for page ${pageNum}`);
-        return text.trim();
-      }
-    } catch (tErr) {
-      console.warn(`[OCR] Tesseract fallback failed for page ${pageNum}:`, tErr.message);
-    }
-  }
-
-  console.error(`[OCR] All OCR providers failed for page ${pageNum}, falling back to native text extraction`);
-  return '';
 }
 
 // ══════════════════════════════════════════════
@@ -852,18 +730,11 @@ async function loadAndIndexPDF(file, onProgress) {
     pageText = await extractPageText(pg);
     console.log(`[PDF] page ${i} native text length: ${pageText.length}`);
 
-    // Only use OCR if native text is truly empty
+    // Avoid remote OCR calls; use local OCR only when it is already available.
     if (pageText.trim().length < 30 && mode === 'image') {
-      console.log(`[PDF] page ${i} falling back to OCR`);
-      try {
-        const b64 = await pageToBase64(pg);
-        const ocrText = await queuedOCR(b64, i);
-        if (ocrText && ocrText.trim().length > pageText.length) {
-          pageText = ocrText;
-        }
-      } catch (e) {
-        console.warn(`[PDF page ${i}] OCR failed: ${e.message}`);
-      }
+      const ocrText = await localOCR(pg, i);
+      if (ocrText.length > pageText.length) pageText = ocrText;
+      else if (!ocrText) console.info(`[PDF] page ${i} continuing with native text only`);
     }
 
     if (pageText.trim().length > 10) {
