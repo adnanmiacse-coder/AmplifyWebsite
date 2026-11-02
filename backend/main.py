@@ -880,6 +880,51 @@ async def get_research_gifs(q: str = ""):
     }
 
 
+@app.get("/research/papers")
+async def get_research_papers(q: str = ""):
+    """Fetch topic-based research papers from the arXiv Atom API."""
+    import httpx
+    import xml.etree.ElementTree as ET
+
+    query = re.sub(r"\s+", " ", q or "").strip()[:200]
+    if len(query) < 3:
+        return {"query": query, "results": []}
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            response = await client.get(
+                "https://export.arxiv.org/api/query",
+                params={
+                    "search_query": f"all:{query}",
+                    "max_results": 5,
+                    "sortBy": "relevance",
+                },
+                headers={"User-Agent": "Amplify/1.0 (educational research references)"},
+            )
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="The arXiv research service is unavailable.") from exc
+
+    try:
+        root = ET.fromstring(response.content)
+    except ET.ParseError as exc:
+        raise HTTPException(status_code=502, detail="The arXiv research service returned invalid data.") from exc
+
+    atom = "{http://www.w3.org/2005/Atom}"
+    results = []
+    for entry in root.findall(f"{atom}entry"):
+        title = re.sub(r"\s+", " ", entry.findtext(f"{atom}title", default="")).strip()
+        if not title:
+            continue
+        results.append({
+            "title": title,
+            "abstract": re.sub(r"\s+", " ", entry.findtext(f"{atom}summary", default="")).strip(),
+            "link": entry.findtext(f"{atom}id", default="").strip(),
+        })
+
+    return {"query": query, "results": results}
+
+
 @app.get("/api/health")
 async def health():
     return {

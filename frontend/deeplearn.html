@@ -2185,6 +2185,9 @@ async function loadAndIndexPDF(file,onProgress){
     let isRunning          = false;
     let isPaused           = false;
     let ttsEnabled         = true;
+    let ttsWasSpeakingBeforePause = false;
+    let activeAzureAudio   = null;
+    let stopActiveAzureAudio = null;
     let sessionSeconds     = 0;
     let timerInterval      = null;
     let currentTurnIndex   = 0;
@@ -2698,12 +2701,24 @@ async function speakAzureSentence(sentence, expertId) {
       return false;
     }
     const blob  = await res.blob();
+    if (!(await waitWhilePaused())) return true;
     const url   = URL.createObjectURL(blob);
     const audio = new Audio(url);
+    activeAzureAudio = audio;
     await new Promise(resolve => {
-      audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-      audio.onerror = (e) => { console.error('[DeepLearn HTML Azure] playback error:', e); URL.revokeObjectURL(url); resolve(); };
-      audio.play().catch(e => { console.error('[DeepLearn HTML Azure] play() rejected:', e.message); resolve(); });
+      let completed = false;
+      const finish = () => {
+        if (completed) return;
+        completed = true;
+        if (activeAzureAudio === audio) activeAzureAudio = null;
+        if (stopActiveAzureAudio === finish) stopActiveAzureAudio = null;
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      stopActiveAzureAudio = finish;
+      audio.onended = finish;
+      audio.onerror = (e) => { console.error('[DeepLearn HTML Azure] playback error:', e); finish(); };
+      audio.play().catch(e => { console.error('[DeepLearn HTML Azure] play() rejected:', e.message); finish(); });
     });
     return true;
   } catch (e) {
@@ -2736,22 +2751,26 @@ async function speak(text, expertId) {
     ? `${EXPERTS[expertId].name} is speaking...`
     : `${EXPERTS[expertId].name} বলছেন...`;
   for (const sentence of sentences) {
-    if (!ttsEnabled) break;
+    if (!ttsEnabled || !(await waitWhilePaused())) break;
     const azureOk = await speakAzureSentence(sentence, expertId);
     if (!azureOk) {
       console.warn('[DeepLearn HTML TTS] Azure failed/unavailable, using browser voice for this sentence.');
       await speakBrowserSentence(sentence, expertId);
     }
+    if (!(await waitWhilePaused())) break;
     await sleep(120);
   }
   ttsWave.classList.remove('speaking');
-  ttsLabel.textContent = isDeepLearnEnglish() ? 'Silent' : 'নীরব';
+  ttsLabel.textContent = isPaused
+    ? (isDeepLearnEnglish() ? 'Paused' : 'বিরতি')
+    : (isDeepLearnEnglish() ? 'Silent' : 'নীরব');
 }
     ttsToggle.addEventListener('click', () => {
       ttsEnabled = !ttsEnabled;
       ttsToggle.classList.toggle('muted', !ttsEnabled);
       if (!ttsEnabled) {
         speechSynthesis.cancel();
+        stopActiveAzureAudio?.();
         ttsWave.classList.remove('speaking');
         ttsLabel.textContent = isDeepLearnEnglish() ? 'TTS off' : 'TTS বন্ধ';
       } else {
@@ -2907,41 +2926,19 @@ async function speak(text, expertId) {
 
     // ── References: arXiv + Khan Academy ─────────
     async function fetchArxivPapers(topic) {
-      try {
-        // Clean topic: remove file extensions, underscores, short noise
-        const cleaned = topic
-          .replace(/\.[a-z]{2,4}$/i, '')   // remove .pdf .txt etc
-          .replace(/_/g, ' ')               // underscores to spaces
-          .replace(/[^\w\s]/g, '')          // remove special chars
-          .trim();
-        if (!cleaned || cleaned.length < 3) return [];
-        const q = encodeURIComponent(cleaned);
-        // Use corsproxy.io to bypass CORS — no key needed
-        const arxivUrl = `https://export.arxiv.org/api/query?search_query=all:${q}&max_results=5&sortBy=relevance`;
-        let res = null;
-        try {
-          res = await fetch(arxivUrl);
-        } catch (e) {
-          res = null;
-        }
-        if (!res || !res.ok) {
-          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(arxivUrl)}`;
-          res = await fetch(proxyUrl);
-        }
-        if (!res.ok) return [];
-        const text = await res.text();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(text, 'application/xml');
-        const entries = Array.from(xml.querySelectorAll('entry'));
-        return entries.map(e => ({
-          title:    e.querySelector('title')?.textContent?.trim() || '',
-          abstract: e.querySelector('summary')?.textContent?.trim() || '',
-          link:     e.querySelector('id')?.textContent?.trim() || '',
-        })).filter(p => p.title);
-      } catch(err) {
-        console.warn('[arXiv]', err.message);
-        return [];
-      }
+      const cleaned = topic
+        .replace(/\.[a-z]{2,4}$/i, '')
+        .replace(/_/g, ' ')
+        .replace(/[^\w\s]/g, '')
+        .trim();
+      if (!cleaned || cleaned.length < 3) return [];
+
+      const params = new URLSearchParams({ q: cleaned });
+      const res = await fetch(`/research/papers?${params}`);
+      if (!res.ok) throw new Error(`Research papers request failed (${res.status})`);
+      const data = await res.json();
+      if (!Array.isArray(data.results)) throw new Error('Research papers response was invalid');
+      return data.results.filter(p => p && p.title);
     }
 
     async function fetchKhanAcademyVideos(topic) {
@@ -2983,13 +2980,15 @@ async function speak(text, expertId) {
       }
     }
 
-    function renderRefsPanel(refs) {
+    function renderRefsPanel(refs, { papersError = false } = {}) {
       refsLoading.style.display = 'none';
 
       // Papers section
       const papersSection = document.createElement('div');
       papersSection.innerHTML = `<div class="refs-section-title">${isDeepLearnEnglish() ? '📄 Research papers (arXiv)' : '📄 গবেষণাপত্র (arXiv)'}</div>`;
-      if (refs.papers.length === 0) {
+      if (papersError) {
+        papersSection.innerHTML += `<div class="refs-empty">${isDeepLearnEnglish() ? 'Research papers could not be loaded. Please try again later.' : 'গবেষণাপত্র লোড করা যায়নি। পরে আবার চেষ্টা করুন।'}</div>`;
+      } else if (refs.papers.length === 0) {
         papersSection.innerHTML += `<div class="refs-empty">${isDeepLearnEnglish() ? 'No papers found' : 'কোনো পেপার পাওয়া যায়নি'}</div>`;
       } else {
         refs.papers.forEach(p => {
@@ -3231,15 +3230,18 @@ Provide 2-3 important insights based on recent research and information about th
       initialContent   = await buildInitialContent();
 
       // Fetch refs in background (don't block discussion start)
-      Promise.all([
+      Promise.allSettled([
         fetchArxivPapers(sessionTopic),
         fetchKhanAcademyVideos(sessionTopic),
-      ]).then(([papers, videos]) => {
-        sessionRefs = { papers, videos };
-        renderRefsPanel(sessionRefs);
-      }).catch(err => {
-        console.warn('[Refs fetch]', err);
-        refsLoading.textContent = isDeepLearnEnglish() ? 'Sources could not be loaded.' : 'উৎস লোড হয়নি';
+      ]).then(([papersResult, videosResult]) => {
+        const papersError = papersResult.status === 'rejected';
+        if (papersError) console.warn('[arXiv]', papersResult.reason);
+        if (videosResult.status === 'rejected') console.warn('[Khan/YT]', videosResult.reason);
+        sessionRefs = {
+          papers: papersError ? [] : papersResult.value,
+          videos: videosResult.status === 'fulfilled' ? videosResult.value : [],
+        };
+        renderRefsPanel(sessionRefs, { papersError });
       });
 
       // Enable UI
@@ -3256,7 +3258,7 @@ Provide 2-3 important insights based on recent research and information about th
 
     async function runLoop() {
       while (isRunning) {
-        if (isPaused) { await sleep(400); continue; }
+        if (!(await waitWhilePaused())) break;
 
         if (userInterrupted && userPendingMsg) {
           await handleUserTurn();
@@ -3265,6 +3267,7 @@ Provide 2-3 important insights based on recent research and information about th
 
         const expertId = TURN_ORDER[currentTurnIndex % TURN_ORDER.length];
         await runExpertTurn(expertId);
+        if (!(await waitWhilePaused())) break;
         currentTurnIndex++;
         advancePhase();
         updatePhaseUI();
@@ -3274,6 +3277,7 @@ Provide 2-3 important insights based on recent research and information about th
     }
 
     async function runExpertTurn(expertId) {
+      if (!(await waitWhilePaused())) return;
       const expert = EXPERTS[expertId];
       const phase  = getCurrentPhase();
 
@@ -3286,20 +3290,36 @@ Provide 2-3 important insights based on recent research and information about th
         const shouldInsert = (currentTurnIndex % 9 === 4) && (phase.id === 'analysis' || phase.id === 'debate');
         if (shouldInsert && expertId === 'expert2') {
           const knowledge = await fetchKnowledgeInsert(sessionTopic, phase.id);
+          if (!(await waitWhilePaused())) {
+            hideTyping();
+            clearExpertSpeaking();
+            return;
+          }
           if (knowledge?.insight) {
             showKnowledgeInsert(knowledge.insight, knowledge.sources);
             await sleep(2000);
           }
         }
 
+        if (!(await waitWhilePaused())) {
+          hideTyping();
+          clearExpertSpeaking();
+          return;
+        }
         reply = await callGroq(expertId);
       } catch (err) {
         console.error(err);
         hideTyping(); clearExpertSpeaking();
+        if (!(await waitWhilePaused())) return;
         await sleep(1200);
         return;
       }
 
+      if (!(await waitWhilePaused())) {
+        hideTyping();
+        clearExpertSpeaking();
+        return;
+      }
       hideTyping();
       dialogueLog.push({ name: expert.name, text: reply });
       if (dialogueLog.length > 24) dialogueLog = dialogueLog.slice(-24);
@@ -3316,14 +3336,17 @@ Provide 2-3 important insights based on recent research and information about th
     }
 
     async function handleUserTurn() {
+      if (!(await waitWhilePaused())) return;
       const msg = userPendingMsg;
       userPendingMsg   = null;
       userInterrupted  = false;
       dialogueLog.push({ name: isDeepLearnEnglish() ? 'You' : 'পর্যবেক্ষক', text: msg });
       // All three experts respond to user question
       for (const id of TURN_ORDER) {
+        if (!(await waitWhilePaused())) break;
         if (!isRunning) break;
         await runExpertTurn(id);
+        if (!(await waitWhilePaused())) break;
         advancePhase();
         if (isRunning) await sleep(600);
       }
@@ -3341,9 +3364,10 @@ Provide 2-3 important insights based on recent research and information about th
       addUserBubble(msg);
       userPendingMsg  = msg;
       userInterrupted = true;
-      isPaused        = false;
-      pauseBtn.textContent = isDeepLearnEnglish() ? 'Pause' : 'বিরতি';
-      pauseInputBtn.classList.remove('active');
+      pauseBtn.textContent = isPaused
+        ? (isDeepLearnEnglish() ? 'Resume' : 'চালিয়ে যান')
+        : (isDeepLearnEnglish() ? 'Pause' : 'বিরতি');
+      pauseInputBtn.classList.toggle('active', isPaused);
     }
 
     // ── Pause ─────────────────────────────────────
@@ -3357,11 +3381,19 @@ Provide 2-3 important insights based on recent research and information about th
         : (isDeepLearnEnglish() ? 'Pause' : 'বিরতি');
       pauseInputBtn.classList.toggle('active', isPaused);
       if (isPaused) {
-        speechSynthesis.cancel();
+        ttsWasSpeakingBeforePause = ttsWave.classList.contains('speaking');
+        speechSynthesis.pause();
+        activeAzureAudio?.pause();
         ttsWave.classList.remove('speaking');
         ttsLabel.textContent = isDeepLearnEnglish() ? 'Paused' : 'বিরতি';
       } else {
-        ttsLabel.textContent = isDeepLearnEnglish() ? 'Silent' : 'নীরব';
+        speechSynthesis.resume();
+        activeAzureAudio?.play().catch(err => console.warn('[DeepLearn Azure TTS] resume failed:', err));
+        ttsWave.classList.toggle('speaking', ttsWasSpeakingBeforePause);
+        ttsLabel.textContent = ttsWasSpeakingBeforePause
+          ? (isDeepLearnEnglish() ? 'Speaking...' : 'বলছেন...')
+          : (isDeepLearnEnglish() ? 'Silent' : 'নীরব');
+        ttsWasSpeakingBeforePause = false;
       }
     }
 
@@ -3384,6 +3416,7 @@ Provide 2-3 important insights based on recent research and information about th
       isRunning = false;
       isPaused  = false;
       speechSynthesis.cancel();
+      stopActiveAzureAudio?.();
       clearInterval(timerInterval);
       deeplearnScreen.classList.remove('active');
       uploadScreen.classList.add('active');
@@ -3484,6 +3517,10 @@ Provide 2-3 important insights based on recent research and information about th
 
     // ── Helpers ───────────────────────────────────
     function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    async function waitWhilePaused() {
+      while (isPaused && isRunning) await sleep(100);
+      return isRunning;
+    }
 
   </script>
 </body>
