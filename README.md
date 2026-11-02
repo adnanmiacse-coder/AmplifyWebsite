@@ -49,7 +49,7 @@
 14. [NCTB Textbook Q&A Assistant](#nctb-textbook-qa-assistant)
     - [Fully Offline Local Installation and Use](#fully-offline-local-installation-and-use)
 15. [License](#license)
-16. [Flutter Mobile App](#flutter-mobile-app)
+
 
 ---
 
@@ -220,7 +220,6 @@ The platform uses a three-tier architecture:
 
 **Backend (PHP/Laravel):**
 - Laravel 11+ framework
-- OTP-based authentication
 - MySQL 8.0 database
 - WebSocket for real-time updates
 
@@ -411,7 +410,7 @@ ONLY State JSON Sent to Server
 **Encryption:**
 - TLS 1.3 mandatory for all endpoints
 - AES-256 database encryption
-- Certificate pinning for mobile apps
+
 
 **API Security:**
 - Rate limiting per endpoint
@@ -724,7 +723,7 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 
 ## 📧 Contact & Support
 
-- **Email**: support@amplifywebsite.com
+- **Email**: amplify.tutor.app@gmail.com
 - **Documentation**: docs.amplifywebsite.com
 - **GitHub Issues**: github.com/amplify/website/issues
 - **Community Forum**: forum.amplifywebsite.com
@@ -745,14 +744,9 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 
 ---
 
-## Flutter Mobile App
 
-Amplify is also available as a dedicated Flutter and Dart mobile application. The app is designed as an offline-first virtual learning lab that helps students **visualize, not memorize**. It extends the web platform with mobile-friendly interactive simulations, programming tools, AI learning assistance, exam preparation resources, educational content, and services for students with limited internet access.
 
-**Mobile app source repository:** [github.com/Adnann07/Amplifyapp](https://github.com/Adnann07/Amplifyapp)
-**Download/access the app:** [amplifywebsite-production.up.railway.app](https://amplifywebsite-production.up.railway.app)
 
-### Mobile app capabilities
 
 #### Virtual learning labs
 
