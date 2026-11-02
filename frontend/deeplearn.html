@@ -1845,7 +1845,8 @@ body::after {
     let _azureRegion = 'southeastasia';
     
     // Prevent any scroll leakage on setup screen
-    if (uploadScreen && uploadScreen.classList.contains('active')) {
+    const initialUploadScreen = document.getElementById('upload-screen');
+    if (initialUploadScreen && initialUploadScreen.classList.contains('active')) {
       document.documentElement.classList.add('setup-active');
       document.body.classList.add('setup-active');
     }
