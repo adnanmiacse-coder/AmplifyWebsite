@@ -30,11 +30,10 @@ const OPENROUTER_MODELS = ['openrouter/free'];
 // ── Groq (primary chat + Whisper STT + Vision OCR) ──
 const GROQ_WHISPER_MODEL = 'whisper-large-v3';
 const VISION_MODEL       = 'qwen/qwen3.6-27b';
-const OPENROUTER_VISION_MODEL = 'openrouter/free';
 const GROQ_MODELS = [
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
-  'qwen/qwen3.6-27b',
+  'qwen/qwen3.8-27b',
 ];
 
 // ── PDF Pipeline Config ───────────────────────
@@ -244,7 +243,7 @@ const ALL_NAME_PREFIXES = [
 
 const AGENT_TTS = {
   teacher: { rate: 0.87, pitch: 1.00 },
-  curious: { rate: 1.05, pitch: 1.20 },
+  curious: { rate: 1.05, pitch: 0.95 },
   skeptic: { rate: 0.88, pitch: 0.82 },
   achiever:{ rate: 1.02, pitch: 1.25 },
 };
@@ -625,8 +624,8 @@ async function groqVisionOCR(base64Img, pageNum) {
   console.log('[OCR] using model:', VISION_MODEL);
   const ocrKeys = [...groqKeys()];
 
-  if (!ocrKeys.length && !openRouterKeys().length) {
-    console.error('[OCR] No API keys configured. Set GROQ_KEYS or OPENROUTER_API_KEYS.');
+  if (!ocrKeys.length) {
+    console.error('[OCR] No Groq API keys configured. Set GROQ_KEYS.');
     return '';
   }
 
@@ -637,7 +636,7 @@ async function groqVisionOCR(base64Img, pageNum) {
           method:  'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ocrKeys[ki]}` },
           body: JSON.stringify({
-            model: VISION_MODEL, max_tokens: 2048,
+            model: VISION_MODEL, max_completion_tokens: 2048,
             messages: [{ role: 'user', content: [
               { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
               { type: 'text', text: 'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.' }
@@ -665,47 +664,7 @@ async function groqVisionOCR(base64Img, pageNum) {
     }
   }
 
-  console.warn(`[OCR] Groq failed for page ${pageNum}, trying OpenRouter`);
-  for (let i = 0; i < openRouterKeys().length; i++) {
-    try {
-      const res = await fetch(`${openRouterBase()}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${openRouterKeys()[i]}`,
-          'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'http://localhost',
-          'X-Title': 'AI Classroom',
-        },
-        body: JSON.stringify({
-          model: OPENROUTER_VISION_MODEL,
-          max_tokens: 2048,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Img}` } },
-              { type: 'text', text: 'Transcribe ALL text visible on this page exactly. Output only raw text, no commentary.' }
-            ],
-          }],
-        }),
-      });
-      if (res.status === 429) { await sleep(4000); continue; }
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '');
-        console.warn(`[OCR] OpenRouter key ${i + 1} error ${res.status}: ${errBody.slice(0, 240)}`);
-        continue;
-      }
-      const d = await res.json();
-      const text = d.choices?.[0]?.message?.content || '';
-      if (text.trim()) {
-        console.log(`[OCR] OpenRouter key ${i + 1} succeeded for page ${pageNum}`);
-        return text;
-      }
-    } catch (e) {
-      console.warn(`[OCR] OpenRouter key ${i + 1}: ${e.message}`);
-    }
-  }
-
-  console.error(`[OCR] all keys failed for page ${pageNum}, falling back to text extraction`);
+  console.error(`[OCR] Groq failed for page ${pageNum}, falling back to native text extraction`);
   return '';
 }
 
@@ -862,6 +821,10 @@ async function loadAndIndexPDF(file, onProgress) {
 //  TTS — per-agent voices with laser sync
 // ══════════════════════════════════════════════
 
+function findMaleVoice(voices) {
+  return voices.find(voice => /\b(?:male|alex|daniel|david|george|guy|james|john|mark|oliver|ryan|brian|fred|ravi|pradeep|abhay|aditya|raj)\b/i.test(voice.name)) || null;
+}
+
 function loadAgentVoices() {
   const assign = () => {
     const all = speechSynthesis.getVoices();
@@ -873,8 +836,8 @@ function loadAgentVoices() {
         ? window.AmplifyVoice.getBestVoices('en') 
         : all.filter(v => (v.lang || '').toLowerCase().startsWith('en'));
 
-      const vTeacher  = enVoices.find(v => /google uk english female|natural|jenny|victoria|david/i.test(v.name)) || enVoices[0] || all[0];
-      const vCurious  = enVoices.find(v => /google us english|mark|guy|alex/i.test(v.name) && v !== vTeacher) || enVoices[1] || enVoices[0] || all[0];
+      const vTeacher  = enVoices.find(v => /google uk english female|natural|jenny|victoria/i.test(v.name)) || enVoices[0] || all[0];
+      const vCurious  = findMaleVoice(enVoices.filter(v => v !== vTeacher)) || enVoices.find(v => v !== vTeacher) || vTeacher || all[0];
       const vSkeptic  = enVoices.find(v => /zira|samantha|aria/i.test(v.name) && v !== vTeacher && v !== vCurious) || enVoices[2] || enVoices[0] || all[0];
       const vAchiever = enVoices.find(v => /karen|tessa|fiona|moira/i.test(v.name) && v !== vTeacher && v !== vCurious && v !== vSkeptic) || enVoices[3] || enVoices[1] || all[0];
 
@@ -888,8 +851,10 @@ function loadAgentVoices() {
         : all.filter(v => (v.lang || '').startsWith('bn'));
 
       const nabonita = bnVoices.find(v => /nabonita|নবনীতা/i.test(v.name));
-      agentVoiceMap.teacher  = bnVoices[0] || all[0];
-      agentVoiceMap.curious  = bnVoices[1] || bnVoices[0] || all[0];
+      const vTeacher = bnVoices[0] || all[0];
+      const maleBnVoice = findMaleVoice(bnVoices.filter(v => v !== vTeacher)) || findMaleVoice(all.filter(v => v !== vTeacher));
+      agentVoiceMap.teacher  = vTeacher;
+      agentVoiceMap.curious  = maleBnVoice || bnVoices[1] || bnVoices[0] || all[0];
       agentVoiceMap.skeptic  = nabonita || bnVoices[2] || bnVoices[0] || all[0];
       agentVoiceMap.achiever = nabonita || bnVoices[3] || bnVoices[1] || all[0];
     }
