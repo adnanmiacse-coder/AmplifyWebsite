@@ -59,7 +59,8 @@ const AGENT_PROFILES = {
 Strict rules:
 ✗ "The teacher said", "He/She said" — third person is completely forbidden.
 ✗ Never ask yourself questions (e.g. "Do I know", "Am I explaining correctly").
-✗ No flattery, fake praise, or filler greetings ("Hello everyone", "That's a great question").
+✗ No fake praise or filler greetings ("Hello everyone").
+✓ When answering a student's question, acknowledge it briefly and naturally before answering. Vary phrases such as "Good question", "Great question", "I was expecting that question", or "Thanks for asking"; don't force an acknowledgment when continuing the lesson.
 ✗ Never write another character's dialogue.
 ✓ Explain complex concepts through intuitive, vivid real-world analogies.
 ✓ Maximum TWO clear, punchy sentences so students can respond immediately.
@@ -123,7 +124,8 @@ Strict rules:
 কঠোর নিয়ম:
 ✗ "শিক্ষক বলেছেন", "তিনি বললেন" — তৃতীয় পুরুষ নিষিদ্ধ
 ✗ "আমি কি জানি", "আমি কি বুঝতে পারছি", "আমি কি সঠিকভাবে" — নিজেকে প্রশ্ন করা সম্পূর্ণ নিষিদ্ধ
-✗ সালাম, ধন্যবাদ, "খুব ভালো প্রশ্ন" — চাটুকারিতা নয়
+✗ অপ্রাসঙ্গিক প্রশংসা বা অপ্রয়োজনীয় অভিবাদন নয়
+✓ শিক্ষার্থীর প্রশ্নের উত্তর দেওয়ার সময় আগে সংক্ষেপে স্বাভাবিকভাবে স্বীকার করো—যেমন "ভালো প্রশ্ন", "চমৎকার প্রশ্ন", "এই প্রশ্নটাই আশা করছিলাম", বা "জিজ্ঞেস করার জন্য ধন্যবাদ"। একই বাক্য বারবার ব্যবহার করবে না; শুধু পাঠ চালিয়ে গেলে এ ধরনের কথা বলবে না।
 ✗ অন্য চরিত্রের কথা লেখা নিষিদ্ধ
 ✓ কঠিন ধারণা সহজ উদাহরণ দিয়ে বোঝাও
 ✓ CRITICAL NUMERIC RULE: কোনো অবস্থাতেই কোনো ভগ্নাংশ বা ভগ্নাংশীয় সংখ্যা লিখবে না। কোনো ভগ্নাংশ এলে তা দশমিকে রূপান্তর করে লিখবে (যেমন ১/২ এর বদলে ০.৫, ৩/৪ এর বদলে ০.৭৫)। কখনো ভগ্নাংশ উল্লেখ করবে না।
@@ -941,6 +943,12 @@ function _releaseTtsLock() {
 async function speak(text, agentId, useLaser = false) {
   await _acquireTtsLock();
 
+  while (isPaused && isRunning && !pendingUserMessage) await sleep(100);
+  if (!isRunning || pendingUserMessage) {
+    _releaseTtsLock();
+    return;
+  }
+
   if (!ttsEnabled || !text?.trim()) {
     const wc = text ? text.trim().split(/\s+/).length : 0;
     const silentMs = Math.max(800, wc * 220);
@@ -985,13 +993,18 @@ async function speak(text, agentId, useLaser = false) {
       laserActive = true;
       moveLaserToWord(0);
       utt.onboundary = (event) => {
-        if (!laserActive || isPaused || event.name !== 'word') return;
-        let acc = 0;
-        for (let i = 0; i < laserWordSpans.length; i++) {
-          if (event.charIndex <= acc + laserWordSpans[i].textContent.length) { moveLaserToWord(i); break; }
-          acc += laserWordSpans[i].textContent.length + 1;
+        if (!laserActive || isPaused || !Number.isFinite(event.charIndex)) return;
+        const index = laserWordSpans.findIndex(span =>
+          event.charIndex >= Number(span.dataset.start) &&
+          event.charIndex < Number(span.dataset.end)
+        );
+        if (index >= 0) {
+          clearInterval(laserFallbackInterval);
+          laserFallbackInterval = null;
+          moveLaserToWord(index);
         }
       };
+      startLaserFallback(utt.rate);
     }
 
     let finished = false;
@@ -1000,6 +1013,8 @@ async function speak(text, agentId, useLaser = false) {
       finished = true;
       clearInterval(pollInterval);
       clearTimeout(watchdog);
+      clearInterval(laserFallbackInterval);
+      laserFallbackInterval = null;
       if (ttsWave)  ttsWave.classList.remove('speaking');
       if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব';
       if (useLaser) hideLaser();
@@ -1011,15 +1026,23 @@ async function speak(text, agentId, useLaser = false) {
     const wc      = text.trim().split(/\s+/).length;
     const watchMs = Math.max(6000, Math.ceil((wc / tts.rate) * 700) + 3000);
 
-    const watchdog = setTimeout(() => {
-      console.warn(`[TTS] watchdog fired for ${agentId} after ${watchMs}ms`);
-      finish();
-    }, watchMs);
+    let watchdog;
+    const armWatchdog = () => {
+      watchdog = setTimeout(() => {
+        if (isPaused && speechSynthesis.paused) {
+          armWatchdog();
+          return;
+        }
+        console.warn(`[TTS] watchdog fired for ${agentId} after ${watchMs}ms`);
+        finish();
+      }, watchMs);
+    };
+    armWatchdog();
 
     // Poll every 200ms as backup — Chrome onend is unreliable
     const pollInterval = setInterval(() => {
       if (finished) { clearInterval(pollInterval); return; }
-      if (!speechSynthesis.speaking && !speechSynthesis.pending) {
+      if (!isPaused && !speechSynthesis.speaking && !speechSynthesis.pending) {
         console.log(`[TTS] poll detected end for ${agentId}`);
         finish();
       }
@@ -1057,7 +1080,7 @@ async function speak(text, agentId, useLaser = false) {
 //  RED LASER POINTER
 // ══════════════════════════════════════════════
 
-let laserEl = null, laserWordSpans = [], laserActive = false;
+let laserEl = null, laserWordSpans = [], laserActive = false, laserFallbackInterval = null;
 
 function injectLaserStyles() {
   if (document.getElementById('laser-style')) return;
@@ -1083,10 +1106,36 @@ function ensureLaser() {
 
 function wrapWordsInSpans(text) {
   stageText.innerHTML = ''; laserWordSpans = [];
+  let charOffset = 0;
   text.split(/(\s+)/).forEach(token => {
-    if (/^\s+$/.test(token)) { stageText.appendChild(document.createTextNode(token)); }
-    else { const sp = document.createElement('span'); sp.className = 'laser-word'; sp.textContent = token; stageText.appendChild(sp); laserWordSpans.push(sp); }
+    if (/^\s+$/.test(token)) {
+      stageText.appendChild(document.createTextNode(token));
+      charOffset += token.length;
+    } else {
+      const sp = document.createElement('span');
+      sp.className = 'laser-word';
+      sp.textContent = token;
+      sp.dataset.start = String(charOffset);
+      sp.dataset.end = String(charOffset + token.length);
+      stageText.appendChild(sp);
+      laserWordSpans.push(sp);
+      charOffset += token.length;
+    }
   });
+}
+
+function startLaserFallback(rate) {
+  clearInterval(laserFallbackInterval);
+  const startedAt = Date.now();
+  const msPerWord = 400 / Math.max(rate, 0.1);
+  laserFallbackInterval = setInterval(() => {
+    if (!laserActive || isPaused) return;
+    const index = Math.min(
+      laserWordSpans.length - 1,
+      Math.floor((Date.now() - startedAt) / msPerWord)
+    );
+    moveLaserToWord(index);
+  }, 150);
 }
 
 function moveLaserToWord(idx) {
@@ -1100,6 +1149,8 @@ function moveLaserToWord(idx) {
 }
 
 function hideLaser() {
+  clearInterval(laserFallbackInterval);
+  laserFallbackInterval = null;
   if (laserEl) laserEl.classList.add('hidden');
   laserWordSpans.forEach(s => s.classList.remove('lit'));
   laserActive = false;
@@ -1385,7 +1436,10 @@ startBtn?.addEventListener('click', async () => {
   loadAgentVoices();
   await initDuckDB();
   ensureLaser();
+  notesGenerated = false;
+  notesAutoGenerationStarted = false;
   try { buildNotesPanel(); } catch(e){ console.warn(e); }
+  resetNotesPanel();
   await startLesson();
 });
 
@@ -1474,7 +1528,7 @@ Instruction: Speak in natural English. If the latest speaker is a student, answe
 সর্বশেষ কথোপকথন:
 ${transcript}
 
-নির্দেশ: শুধুমাত্র উপরের প্রসঙ্গের তথ্য ব্যবহার করো, এর বাইরে কিছু বলা নিষিদ্ধ। কিন্তু "ডকুমেন্টে" শব্দটি বা এই ধরনের কোনো উল্লেখ কখনো করবে না — এটা যেন তোমার নিজের পাঠদান, প্রাকৃতিক ক্লাসরুম কথোপকথনের মতো শোনায়। সর্বশেষ বক্তা শিক্ষার্থী হলে আগে তার প্রশ্নের উত্তর দাও, তারপর বিষয়ের পরবর্তী ছোট অংশটি শেখাও। সর্বশেষ বক্তা শিক্ষক হলে পরের ছোট অংশটি শেখাও। শিক্ষার্থীদের হয়ে কথা বলবে না বা একসঙ্গে একাধিক শিক্ষার্থীকে প্রশ্ন করবে না।`) +
+নির্দেশ: শুধুমাত্র উপরের প্রসঙ্গের তথ্য ব্যবহার করো, এর বাইরে কিছু বলা নিষিদ্ধ। কিন্তু "ডকুমেন্টে" শব্দটি বা এই ধরনের কোনো উল্লেখ কখনো করবে না — এটা যেন তোমার নিজের পাঠদান, প্রাকৃতিক ক্লাসরুম কথোপকথনের মতো শোনায়। সর্বশেষ বক্তা শিক্ষার্থী হলে আগে তার প্রশ্নটি সংক্ষেপে স্বীকার করো, যেমন "ভালো প্রশ্ন" বা "জিজ্ঞেস করার জন্য ধন্যবাদ"; একই কথা বারবার বলবে না। এরপর তার প্রশ্নের উত্তর দিয়ে বিষয়ের পরবর্তী ছোট অংশটি শেখাও। সর্বশেষ বক্তা শিক্ষক হলে পরের ছোট অংশটি সরাসরি শেখাও, কোনো প্রশ্ন-স্বীকারোক্তি যোগ করবে না। শিক্ষার্থীদের হয়ে কথা বলবে না বা একসঙ্গে একাধিক শিক্ষার্থীকে প্রশ্ন করবে না.`) +
       depthNote,
   }];
 }
@@ -1501,11 +1555,11 @@ async function callAgent(agentId) {
 
   const system = agent.system + pdfRule +
   (isEn
-    ? `\n\nCRITICAL: Output ONLY your final English response. Speak in natural, engaging conversational English. No markdown, no meta-commentary, no repeating instructions. Start teaching immediately.\n\nYou HAVE been given the document content above in the user message. Teach directly from it.` +
+    ? `\n\nCRITICAL: Output ONLY your final English response. Speak in natural, engaging conversational English. No markdown, no meta-commentary, no repeating instructions. If the latest speaker is a student, begin with a brief, natural acknowledgment of their question, then answer it and continue teaching. Otherwise, start teaching immediately.\n\nYou HAVE been given the document content above in the user message. Teach directly from it.` +
       (isTeacher
         ? `\n\nHARD LIMIT: Maximum TWO short sentences only. Stop after the second period or question mark. This is a fast-paced group discussion.`
         : `\n\nHARD LIMIT: Exactly ONE question in one sentence, directed to the teacher about the latest explanation. Do not answer it or address other students. Stop after the first question mark.`)
-    : `\n\nCRITICAL: Output ONLY your final Bangla response. No reasoning, no English, no meta-commentary, no repeating instructions. Start teaching immediately.\n\nYou HAVE been given the document content above in the user message. It is there. Read it and teach from it. Never say you cannot access it.` +
+    : `\n\nCRITICAL: Output ONLY your final Bangla response. No reasoning, no English, no meta-commentary, no repeating instructions. সর্বশেষ বক্তা শিক্ষার্থী হলে তার প্রশ্নটি সংক্ষেপে স্বীকার করে উত্তর দাও, তারপর পাঠ চালিয়ে যাও। অন্যথায় সরাসরি পড়ানো শুরু করো।\n\nYou HAVE been given the document content above in the user message. It is there. Read it and teach from it. Never say you cannot access it.` +
       (isTeacher
         ? `\n\nHARD LIMIT: Maximum TWO short sentences only. Stop after the second । or ?. This is a fast-paced group discussion — keep it brief so students can jump in.`
         : `\n\nHARD LIMIT: শিক্ষকের সর্বশেষ ব্যাখ্যা নিয়ে ঠিক একটি প্রশ্ন করবে। অন্য শিক্ষার্থীর হয়ে উত্তর দেবে না বা তাদের উদ্দেশে কথা বলবে না। প্রথম প্রশ্নচিহ্নের পর থামবে।`)
@@ -1559,6 +1613,8 @@ async function startLesson() {
   }
   isRunning = false; turnLoopRunning = false;
   _turnInProgress = false;   // ← ADD THIS
+  userInterrupted = false;
+  pendingUserMessage = null;
   await sleep(200);
 
   isRunning = true; currentTurnIndex = 0;
@@ -1609,7 +1665,7 @@ async function runTurnLoop() {
   turnLoopRunning = true;
 
   while (isRunning) {
-    while (isPaused && isRunning) { await sleep(200); }
+    while (isPaused && isRunning && !(userInterrupted && pendingUserMessage)) { await sleep(200); }
     if (!isRunning) break;
 
     if (_turnInProgress) { await sleep(300); continue; }
@@ -1657,7 +1713,8 @@ async function runTeacherTurn() {
   }
 
   hideTyping();
-  if (!isRunning) { clearAgentSpeaking(); return; }
+  while (isPaused && isRunning && !pendingUserMessage) await sleep(100);
+  if (!isRunning || pendingUserMessage) { clearAgentSpeaking(); return; }
 
   const lastTeacher = [...dialogueLog].reverse().find(e => e.name === AGENTS.teacher.name);
   if (lastTeacher && lastTeacher.text.trim() === explainText.trim()) {
@@ -1671,7 +1728,14 @@ async function runTeacherTurn() {
   addChatBubble('teacher', explainText);
 
   await speak(explainText, 'teacher', true);
-  if (!isRunning) { clearAgentSpeaking(); return; }
+  if (pendingUserMessage) { clearAgentSpeaking(); return; }
+  while (isPaused && isRunning) await sleep(100);
+  if (!isRunning || pendingUserMessage) { clearAgentSpeaking(); return; }
+
+  if (!notesAutoGenerationStarted && notesPanelEl) {
+    notesAutoGenerationStarted = true;
+    void generateNotes();
+  }
 
   // Comprehension check-in
   turnsSinceCheckin++;
@@ -1715,7 +1779,8 @@ async function runAgentTurn(agentId) {
   }
 
   hideTyping();
-  if (!isRunning) { clearAgentSpeaking(); return; }
+  while (isPaused && isRunning && !pendingUserMessage) await sleep(100);
+  if (!isRunning || pendingUserMessage) { clearAgentSpeaking(); return; }
 
   // Deduplicate — skip if this exact text was already said by this agent
   const lastSame = [...dialogueLog].reverse().find(e => e.name === agent.name);
@@ -1735,6 +1800,9 @@ async function runAgentTurn(agentId) {
   addChatBubble(agentId, reply);
 
   await speak(reply, agentId, false);
+  if (pendingUserMessage) { clearAgentSpeaking(); return; }
+  while (isPaused && isRunning) await sleep(100);
+  if (!isRunning || pendingUserMessage) { clearAgentSpeaking(); return; }
 
   clearAgentSpeaking();
   await sleep(400);
@@ -1874,19 +1942,21 @@ function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 // ══════════════════════════════════════════════
 
 raiseHandBtn.addEventListener('click', () => {
+  if (!isRunning) return;
   const active = raiseHandBtn.classList.toggle('active');
   if (active) {
     isPaused = true;
+    pauseBtn.textContent = isEnglish() ? 'Resume' : 'চালিয়ে যান';
     speechSynthesis.cancel();
-    // Release TTS lock so speak() doesn't deadlock when user sends a message
-    _ttsLocked = false; _ttsLockResolve = null;
-    currentUtterance = null; laserActive = false; hideLaser();
+    laserActive = false; hideLaser();
     if (ttsWave)  ttsWave.classList.remove('speaking');
     if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Paused — your turn' : 'বিরতি — আপনার পালা';
     userInput.disabled = false; sendBtn.disabled = false;
     if (micBtn) micBtn.disabled = false; userInput.focus();
   } else {
-    isPaused = false; if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব';
+    isPaused = false;
+    pauseBtn.textContent = isEnglish() ? 'Pause' : 'বিরতি';
+    if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব';
     userInput.disabled = true; sendBtn.disabled = true;
     if (micBtn) micBtn.disabled = true; stopMic();
   }
@@ -1896,6 +1966,7 @@ sendBtn.addEventListener('click', submitUserMessage);
 userInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitUserMessage(); });
 
 function submitUserMessage() {
+  if (!isRunning || !raiseHandBtn.classList.contains('active')) return;
   const msg = userInput.value.trim(); if (!msg) return;
   addChatBubble('user', msg, true); userInput.value = '';
   pendingUserMessage = msg; userInterrupted = true;
@@ -1904,8 +1975,8 @@ function submitUserMessage() {
   if (micBtn) micBtn.disabled = true;
   raiseHandBtn.classList.remove('active'); stopMic();
   isPaused = false; if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব';
+  pauseBtn.textContent = isEnglish() ? 'Pause' : 'বিরতি';
   speechSynthesis.cancel();
-  _ttsLocked = false; _ttsLockResolve = null;
   hideLaser();
 }
 
@@ -2030,14 +2101,12 @@ pauseBtn.addEventListener('click', () => {
     ? (isEnglish() ? 'Resume' : 'চালিয়ে যান')
     : (isEnglish() ? 'Pause' : 'বিরতি');
   if (isPaused) {
-    speechSynthesis.cancel();
-    // Release the TTS lock so the loop can resume cleanly when unpaused
-    _ttsLocked = false; _ttsLockResolve = null;
-    currentUtterance = null;
+    speechSynthesis.pause();
     if (ttsWave)  ttsWave.classList.remove('speaking');
     if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Paused' : 'বিরতি';
-    hideLaser(); laserActive = false; stopMic();
+    stopMic();
   } else {
+    speechSynthesis.resume();
     if (ttsLabel) ttsLabel.textContent = isEnglish() ? 'Silent' : 'নীরব';
   }
 });
@@ -2057,6 +2126,7 @@ exportBtn.addEventListener('click', () => {
 resetBtn.addEventListener('click', () => {
   if (!confirm(isEnglish() ? 'End the class?' : 'ক্লাস শেষ করতে চান?')) return;
   isRunning = false; lessonStarting = false; isPaused = false;
+  userInterrupted = false; pendingUserMessage = null;
   _lessonStarted = false; 
   stopMic(); speechSynthesis.cancel();
   _ttsLocked = false; _ttsLockResolve = null;
@@ -2099,8 +2169,10 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 let notesPanelEl      = null;
 let notesGenerated    = false;
 let notesGenerating   = false;
+let notesAutoGenerationStarted = false;
 
 function buildNotesPanel() {
+  if (notesPanelEl) return;
   const isEn = isEnglish();
   // Insert notes panel as first child of classroom-screen
   notesPanelEl = document.createElement('div');
@@ -2145,6 +2217,21 @@ function buildNotesPanel() {
     if (notesGenerating) return;
     generateNotes();
   });
+}
+
+function resetNotesPanel() {
+  document.getElementById('notesSkeleton')?.classList.remove('hidden');
+  const content = document.getElementById('notesContent');
+  if (content) {
+    content.innerHTML = '';
+    content.classList.add('hidden');
+  }
+  document.getElementById('notesDivider')?.classList.add('hidden');
+  const pqSection = document.getElementById('notesPqSection');
+  if (pqSection) {
+    pqSection.innerHTML = '';
+    pqSection.classList.add('hidden');
+  }
 }
 
 async function generateNotes() {
