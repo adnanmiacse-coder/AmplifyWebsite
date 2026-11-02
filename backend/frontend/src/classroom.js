@@ -39,12 +39,12 @@ const OPENROUTER_VISION_MODELS = [
   'qwen/qwen-2.5-72b-instruct'
 ];
 const GROQ_MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
-  'mixtral-8x7b-32768',
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
   'qwen/qwen3.8-27b',
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'mixtral-8x7b-32768',
 ];
 
 // ── PDF Pipeline Config ───────────────────────
@@ -888,7 +888,7 @@ async function loadAndIndexPDF(file, onProgress) {
 
   if (store.chunks.length === 0) {
     console.error('[PDF] No chunks indexed! PDF may be image-only and OCR failed.');
-    onProgress?.(100, '⚠️ কোনো পাঠ্য পাওয়া যায়নি।');
+    onProgress?.(100, isEnglish() ? 'Preparing lesson…' : 'পাঠ প্রস্তুত হচ্ছে…');
     return;
   }
 
@@ -1124,11 +1124,9 @@ function injectLaserStyles() {
   const s = document.createElement('style');
   s.id = 'laser-style';
   s.textContent = `
-    @keyframes laserPulse{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.92;}50%{transform:translate(-50%,-50%) scale(1.25);opacity:1;}}
-    #laserPointer{position:absolute;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ff6b6b,#dc2626 60%,#7f1d1d);box-shadow:0 0 0 3px rgba(220,38,38,0.25),0 0 12px 4px rgba(220,38,38,0.5);pointer-events:none;z-index:100;animation:laserPulse 0.8s ease-in-out infinite;transition:left 0.12s ease,top 0.12s ease;}
-    #laserPointer.hidden{display:none;}
-    .laser-word{display:inline;border-radius:3px;transition:background 0.1s;}
-    .laser-word.lit{background:rgba(220,38,38,0.12);}`;
+    #laserPointer { display: none !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+    .laser-word { display: inline !important; }
+    .laser-word.lit { background: transparent !important; }`;
   document.head.appendChild(s);
 }
 
@@ -1176,13 +1174,9 @@ function startLaserFallback(rate) {
 }
 
 function moveLaserToWord(idx) {
-  if (!laserEl || idx < 0 || idx >= laserWordSpans.length) return;
-  const sr = laserWordSpans[idx].getBoundingClientRect();
-  const pr = stageMessage.getBoundingClientRect();
-  laserEl.style.left = (sr.left - pr.left + sr.width / 2) + 'px';
-  laserEl.style.top  = (sr.top  - pr.top  + sr.height + 8) + 'px';
-  laserEl.classList.remove('hidden');
-  laserWordSpans.forEach((s, i) => s.classList.toggle('lit', i === idx));
+  // Laser disabled: no red dot following teacher sentences
+  if (laserEl) laserEl.classList.add('hidden');
+  return;
 }
 
 function hideLaser() {
@@ -1674,9 +1668,9 @@ async function startLesson() {
   console.log(`[PDF] store.ready:${store.ready} chunks:${store.chunks.length} pages:${pdfPages.length}`);
   if (store.chunks.length === 0) {
     if (idleP) idleP.textContent = isEnglish()
-      ? '⚠️ Could not read the PDF. The lesson will continue using the topic.'
-      : '⚠️ PDF পড়া যায়নি। বিষয়ভিত্তিক পাঠ চলবে।';
-    await sleep(2000);
+      ? 'Preparing lesson…'
+      : 'পাঠ প্রস্তুত হচ্ছে…';
+    await sleep(600);
   }
 
   // THEN wait for store to be ready (handles async OCR queue finishing)
@@ -1761,10 +1755,10 @@ async function runTeacherTurn() {
 
   dialogueLog.push({ name: AGENTS.teacher.name, text: explainText });
   trimDialogueLog();
-  showOnStage('teacher', explainText, true);
+  showOnStage('teacher', explainText, false);
   addChatBubble('teacher', explainText);
 
-  await speak(explainText, 'teacher', true);
+  await speak(explainText, 'teacher', false);
   if (pendingUserMessage) { clearAgentSpeaking(); return; }
   while (isPaused && isRunning) await sleep(100);
   if (!isRunning || pendingUserMessage) { clearAgentSpeaking(); return; }

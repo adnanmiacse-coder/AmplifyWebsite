@@ -24,7 +24,13 @@ function groqBase() { return getGroqBase(_config, _env); }
 function openRouterBase() { return getOpenRouterBase(_config, _env); }
 
 const OPENROUTER_MODELS = ['openrouter/free'];
-const GROQ_MODELS        = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b'];
+const GROQ_MODELS = [
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+  'qwen/qwen3.8-27b',
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+];
 const VISION_MODEL       = 'llama-3.2-11b-vision-preview';
 const GROQ_VISION_MODELS = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
 const OPENROUTER_VISION_MODELS = ['openrouter/free', 'meta-llama/llama-3.2-11b-vision-instruct:free', 'qwen/qwen-2.5-vl-72b-instruct:free', 'google/gemini-2.0-flash-lite-001', 'qwen/qwen-2.5-72b-instruct'];
