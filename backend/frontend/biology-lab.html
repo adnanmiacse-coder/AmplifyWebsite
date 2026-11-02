@@ -1497,38 +1497,31 @@ window.addEventListener('keydown', e => { if ((e.key === 'g' || e.key === 'G') &
 ══════════════════════════════════════════ -->
 <!-- AI BANGLA VOICEOVER SYSTEM -->
 <script type="module">
-console.log('[ENV CHECK]', JSON.stringify(window.AMPLIFY_ENV));
+import { loadEnvConfig, getGroqKeys, getOpenRouterKeys, getGroqBase, getOpenRouterBase } from './src/env-config.js';
+
 // ══════════════════════════════════════════════════════════════════════
 //  AI VOICE-OVER MODULE — DYNAMIC AI RESPONSE ONLY (NO HARDCODED DATA)
 // ══════════════════════════════════════════════════════════════════════
 
-function getAllAPICandidates() {
-  const env = window.AMPLIFY_ENV || {};
+const GROQ_MODELS = [
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+  'qwen/qwen3.8-27b',
+];
+
+async function getAllAPICandidates() {
+  const config = await loadEnvConfig();
   const list = [];
+  const orKeys = getOpenRouterKeys(config);
+  const groqKeys = getGroqKeys(config);
 
-  // 1. Groq (Fastest & high rate limits)
-  const groqKeys = (Array.isArray(env.GROQ_KEYS) && env.GROQ_KEYS.length ? env.GROQ_KEYS : [])
-    .concat(env.GROQ_KEY ? [env.GROQ_KEY] : [])
-    .concat(window.GROQ_API_KEY ? [window.GROQ_API_KEY] : []);
-  const uniqueGroq = Array.from(new Set(groqKeys.filter(Boolean)));
-  for (const k of uniqueGroq) {
-    list.push({ provider: 'Groq', key: k, base: env.GROQ_BASE || 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b' });
-    list.push({ provider: 'Groq', key: k, base: env.GROQ_BASE || 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' });
+  for (const key of orKeys) {
+    list.push({ provider: 'OpenRouter', key, base: getOpenRouterBase(config), model: 'openrouter/free' });
   }
-
-  // 2. Cerebras
-  const cerebrasKey = env.CEREBRAS_KEY || env.CEREBRAS_API_KEY || window.CEREBRAS_API_KEY || '';
-  if (cerebrasKey) {
-    list.push({ provider: 'Cerebras', key: cerebrasKey, base: env.CEREBRAS_BASE || 'https://api.cerebras.ai/v1', model: 'llama-3.3-70b' });
-    list.push({ provider: 'Cerebras', key: cerebrasKey, base: env.CEREBRAS_BASE || 'https://api.cerebras.ai/v1', model: 'llama3.1-8b' });
-  }
-
-  // 3. OpenRouter
-  const orKeys = (Array.isArray(env.OPENROUTER_KEYS) && env.OPENROUTER_KEYS.length ? env.OPENROUTER_KEYS : [])
-    .concat(env.OPENROUTER_API_KEYS || []);
-  const uniqueOr = Array.from(new Set(orKeys.filter(Boolean)));
-  for (const k of uniqueOr) {
-    list.push({ provider: 'OpenRouter', key: k, base: env.OPENROUTER_BASE || 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' });
+  for (const model of GROQ_MODELS) {
+    for (const key of groqKeys) {
+      list.push({ provider: 'Groq', key, base: getGroqBase(config), model });
+    }
   }
 
   return list;
@@ -1557,14 +1550,6 @@ const ZOOM_STEPS = [
   { zoom:1.6, phi:0.8,       theta:1.1 },
 ];
 
-async function waitForEnv() {
-  for (let i = 0; i < 40; i++) {
-    const env = window.AMPLIFY_ENV || {};
-    if (env.CEREBRAS_KEY || env.CEREBRAS_API_KEY || env.GROQ_KEY || (env.GROQ_KEYS||[]).length || (env.OPENROUTER_KEYS||[]).length) return;
-    await new Promise(r => setTimeout(r, 100));
-  }
-}
-
 let _aiSegmentsCache = {};
 
 async function fetchAISegments(modelName) {
@@ -1575,8 +1560,7 @@ async function fetchAISegments(modelName) {
   const cacheKey = `${modelName}_${isEn ? 'en' : 'bn'}`;
   if (_aiSegmentsCache[cacheKey]) return _aiSegmentsCache[cacheKey];
 
-  await waitForEnv();
-  const apis = getAllAPICandidates();
+  const apis = await getAllAPICandidates();
   if (!apis.length) {
     console.warn('[VO] No AI API keys available in environment.');
     return null;
@@ -1814,6 +1798,9 @@ function getCurrentModelInfo() {
 
 async function startVO() {
   const { id, name } = getCurrentModelInfo();
+  const isEn = window.AmplifyVoice
+    ? window.AmplifyVoice.isEnglish()
+    : ((localStorage.getItem('amplify_voice_lang') || 'en') === 'en');
   _voActive = true; voSegIdx = 0;
   hud.classList.add('active');
   requestAnimationFrame(() => requestAnimationFrame(() => hud.classList.add('visible')));
@@ -1828,19 +1815,19 @@ async function startVO() {
   if (!_voActive) return;
   btn.classList.remove('loading');
 
-  if (aiSegs && aiSegs.length) {
-    voSegments = aiSegs;
-    badge.textContent = 'LIVE AI';
-    badge.classList.add('live');
-    console.log('[VO] ✓ Dynamic AI response active:', voSegments);
-  } else {
-    // Only if network/API completely offline
-    voSegments = [
-      { label: 'পরিচিতি', text: `${name} একটি অত্যন্ত গুরুত্বপূর্ণ জৈবিক অঙ্গাণু যা শারীরিক স্বাভাবিক কার্যক্রম পরিচালনা করে।`, zoom: 2.8, phi: Math.PI/2, theta: 0 },
-      { label: 'গঠন', text: `${name} এর সুনির্দিষ্ট আণবিক এবং কোষীয় গঠন এর কার্যক্রমকে সচল রাখে।`, zoom: 1.8, phi: 1.1, theta: 0.3 }
-    ];
-    badge.textContent = 'OFFLINE';
+  if (!aiSegs?.length) {
+    endVO();
+    badge.textContent = 'ERROR';
+    textEl.textContent = isEn
+      ? 'Could not generate the AI explanation. Check the configured AI keys and try again.'
+      : 'এআই ব্যাখ্যা তৈরি করা যায়নি। এআই কী যাচাই করে আবার চেষ্টা করুন।';
+    return;
   }
+
+  voSegments = aiSegs;
+  badge.textContent = 'LIVE AI';
+  badge.classList.add('live');
+  console.log('[VO] ✓ Dynamic AI response active:', voSegments);
 
   chipsEl.innerHTML = voSegments.map((s, i) =>
     `<span class="vo-chip" data-i="${i}">${s.label}</span>`).join('');
